@@ -48,11 +48,11 @@ pub struct Gameboy {
 }
 
 impl Gameboy {
-    pub fn new(rom_path: String) -> Self {
+    pub fn new(bootrom_path: String, rom_path: String) -> Self {
         Self {
             cpu: CPU::new(),
             ppu: PPU::new(),
-            memory: Memory::new(rom_path),
+            memory: Memory::new(bootrom_path, rom_path),
             running: true,
         }
     }
