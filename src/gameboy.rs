@@ -32,12 +32,12 @@ impl std::fmt::Display for MemoryError {
 }
 
 trait MemoryInterface {
-    fn read8(addr: u16) -> MemoryResult<u8>;
-    fn write8(addr: u16, value: u8) -> MemoryResult<()>;
+    fn read8(&self, addr: u16) -> MemoryResult<u8>;
+    fn write8(&mut self, addr: u16, value: u8) -> MemoryResult<()>;
 }
 
 trait GameboyModule {
-    fn tick() -> Result<u32, Error>;
+    fn tick(&self, memory: &Memory) -> Result<u32, Error>;
 }
 
 pub struct Gameboy {

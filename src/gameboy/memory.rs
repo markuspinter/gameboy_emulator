@@ -1,7 +1,20 @@
 use std::fs::File;
 use std::io::{BufReader, Read};
+
+use super::MemoryInterface;
 pub struct Memory {
     rom: Vec<u8>,
+}
+
+impl MemoryInterface for Memory {
+    fn read8(&self, addr: u16) -> super::MemoryResult<u8> {
+        Ok(self.rom[usize::from(addr)])
+    }
+
+    fn write8(&mut self, addr: u16, value: u8) -> super::MemoryResult<()> {
+        self.rom[usize::from(addr)] = value;
+        Ok(())
+    }
 }
 
 impl Memory {
@@ -20,8 +33,20 @@ impl Memory {
         reader.read_to_end(&mut buffer).unwrap();
 
         // Read.
-        for value in buffer.iter_mut() {
-            println!("BYTE: {:x}", value);
+        print!("      |  ");
+        for i in 0..0x10 {
+            print!("{:#04X}  |  ", i);
+        }
+        println!();
+        for _i in 0..0x11 {
+            print!("{:_<9}", "");
+        }
+        for (i, value) in buffer.iter_mut().enumerate() {
+            if (i % 0x10) == 0 {
+                println!();
+                print!("{:#04X}  |  ", i);
+            }
+            print!("{:#04X}  |  ", value);
         }
         buffer
     }
