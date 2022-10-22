@@ -34,6 +34,14 @@ impl std::fmt::Display for MemoryError {
 trait MemoryInterface {
     fn read8(&self, addr: u16) -> MemoryResult<u8>;
     fn write8(&mut self, addr: u16, value: u8) -> MemoryResult<()>;
+    fn read16(&self, addr: u16) -> MemoryResult<u16> {
+        Ok(self.read8(addr)? as u16 + (self.read8(addr + 1)? << 8) as u16)
+    }
+    fn write16(&mut self, addr: u16, value: u16) -> MemoryResult<()> {
+        self.write8(addr, value as u8)?;
+        self.write8(addr + 1, (value >> 8) as u8)?;
+        Ok(())
+    }
 }
 
 trait GameboyModule {

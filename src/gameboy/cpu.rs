@@ -4,8 +4,46 @@ use super::{memory::Memory, GameboyModule, MemoryInterface};
 
 mod instructions;
 
+pub enum Register8 {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    H,
+    L,
+}
+
+pub enum Register16 {
+    PC,
+    SP,
+    AF,
+    BC,
+    DE,
+    HL,
+}
+
+#[repr(u8)]
+pub enum Flag {
+    Z = 7, 
+    N = 6,
+    H = 5,
+    C = 4,
+}
+
 pub struct CPU {
-    pc: u16,
+    pub a: u16,
+    pub b: u16,
+    pub c: u16,
+    pub d: u16,
+    pub e: u16,
+    pub f: u16,
+    pub h: u16,
+    pub l: u16,
+
+    pub pc: u16,
+    pub sp: u16,
 }
 
 impl GameboyModule for CPU {
@@ -27,9 +65,88 @@ impl CPU {
             };
             opcode += 0x100;
         }
-        instructions::execute_opcode(opcode, self)
+        Ok(instructions::execute_opcode(opcode, self, memory))
     }
     pub fn new() -> Self {
-        Self { pc: 0x00 }
+        Self {
+            a: 0x00,
+            b: 0x00,
+            c: 0x00,
+            d: 0x00,
+            e: 0x00,
+            f: 0x00,
+            h: 0x00,
+            l: 0x00,
+            pc: 0x0000,
+            sp: 0x0000,
+        }
+    }
+
+    fn get_reg8(&self, reg: Register8) -> u8 {
+        match reg {
+            Register8::A => self.a,
+            Register8::B => self.b,
+            Register8::C => self.c,
+            Register8::D => self.d,
+            Register8::E => self.e,
+            Register8::F => self.f,
+            Register8::H => self.h,
+            Register8::L => self.l,
+        }
+    }
+
+    fn get_reg16(&self, reg: Register16) -> u16 {
+        match reg {
+            Register16::PC => self.pc,
+            Register16::SP => self.sp,
+            Register16::AF => (self.a as u16) << 8 | self.f as u16,
+            Register16::BC => (self.b as u16) << 8 | self.c as u16,
+            Register16::DE => (self.d as u16) << 8 | self.e as u16,
+            Register16::HL => (self.h as u16) << 8 | self.l as u16,
+        }
+    }
+
+    fn set_reg8(&self, reg: Register8, value: u8) {
+        match reg {
+            Register8::A => self.a = value,
+            Register8::B => self.b = value,
+            Register8::C => self.c = value,
+            Register8::D => self.d = value,
+            Register8::E => self.e = value,
+            Register8::F => self.f = value,
+            Register8::H => self.h = value,
+            Register8::L => self.l = value,
+        }
+    }
+
+    fn set_reg16(&self, reg: Register16, value: u16) {
+        match reg {
+            Register16::PC => self.pc = value,
+            Register16::SP => self.sp = value,
+            Register16::AF => {
+                self.a = (value >> 8) as u8;
+                self.f = value as u8;
+            }
+            Register16::BC => {
+                self.b = (value >> 8) as u8;
+                self.c = value as u8;
+            }
+            Register16::DE => {
+                self.d = (value >> 8) as u8;
+                self.e = value as u8;
+            }
+            Register16::HL => {
+                self.h = (value >> 8) as u8;
+                self.l = value as u8;
+            }
+        }
+    }
+
+    fn get_flag(&self, flag: Flag) -> u8 {
+        (self.f >> flag as u8) & 1
+    }
+
+    fn set_flag(&self, flag: Flag, value: bool) {
+        self.f = (self.f & !1 << (flag as u8)) | ((value as u8) << flag as u8)
     }
 }
