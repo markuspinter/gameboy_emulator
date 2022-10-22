@@ -45,7 +45,7 @@ trait MemoryInterface {
 }
 
 trait GameboyModule {
-    fn tick(&self, memory: &Memory) -> Result<u32, Error>;
+    fn tick(&mut self, memory: &mut Memory) -> Result<u32, Error>;
 }
 
 pub struct Gameboy {

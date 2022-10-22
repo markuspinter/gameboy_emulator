@@ -55,13 +55,13 @@ pub struct CPU {
 }
 
 impl GameboyModule for CPU {
-    fn tick(&self, memory: &Memory) -> Result<u32, std::fmt::Error> {
+    fn tick(&mut self, memory: &mut Memory) -> Result<u32, std::fmt::Error> {
         self.decode_execute(memory)
     }
 }
 
 impl CPU {
-    fn decode_execute(&self, memory: &Memory) -> Result<u32, std::fmt::Error> {
+    fn decode_execute(&mut self, memory: &mut Memory) -> Result<u32, std::fmt::Error> {
         let mut opcode: u16 = match memory.read8(self.pc) {
             Ok(num) => u16::from(num),
             Err(_) => return Err(Error),
@@ -117,7 +117,7 @@ impl CPU {
         }
     }
 
-    fn set_reg8(&self, reg: Register8, value: u16) {
+    fn set_reg8(&mut self, reg: Register8, value: u16) {
         match reg {
             Register8::A => self.a = value,
             Register8::B => self.b = value,
@@ -130,7 +130,7 @@ impl CPU {
         }
     }
 
-    fn set_reg16(&self, reg: Register16, value: u16) {
+    fn set_reg16(&mut self, reg: Register16, value: u16) {
         match reg {
             Register16::PC => self.pc = value,
             Register16::SP => self.sp = value,
@@ -157,7 +157,7 @@ impl CPU {
         (self.f >> (flag as u16)) & 1
     }
 
-    fn set_flag(&self, flag: Flag, value: bool) {
+    fn set_flag(&mut self, flag: Flag, value: bool) {
         self.f = (self.f & !1 << (flag as u16)) | ((value as u16) << (flag as u16))
     }
 
@@ -165,7 +165,7 @@ impl CPU {
         self.h << 8 | self.l
     }
 
-    fn set_hl(&self, value: u16) {
+    fn set_hl(&mut self, value: u16) {
         self.h = (value & 0xFF00) >> 8;
         self.l = value & 0x00FF;
     }
@@ -174,7 +174,7 @@ impl CPU {
         self.b << 8 | self.c
     }
 
-    fn set_bc(&self, value: u16) {
+    fn set_bc(&mut self, value: u16) {
         self.b = (value & 0xFF00) >> 8;
         self.c = value & 0x00FF;
     }
@@ -183,7 +183,7 @@ impl CPU {
         self.d << 8 | self.e
     }
 
-    fn set_de(&self, value: u16) {
+    fn set_de(&mut self, value: u16) {
         self.d = (value & 0xFF00) >> 8;
         self.e = value & 0x00FF;
     }
