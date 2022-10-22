@@ -13,6 +13,8 @@ use cpu::CPU;
 use memory::Memory;
 use ppu::PPU;
 
+use crate::screen::Screen;
+
 type MemoryResult<T> = Result<T, MemoryError>;
 
 #[derive(Debug, Clone)]
@@ -48,9 +50,28 @@ trait GameboyModule {
     fn tick(&mut self, memory: &mut Memory) -> Result<u32, Error>;
 }
 
+impl MemoryInterface for Gameboy {
+    fn read8(&self, addr: u16) -> MemoryResult<u8> {
+        if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            self.ppu.read8(addr)
+        } else {
+            self.memory.read8(addr)
+        }
+    }
+
+    fn write8(&mut self, addr: u16, value: u8) -> MemoryResult<()> {
+        if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            self.ppu.write8(addr, value)
+        } else {
+            self.memory.write8(addr, value)
+        }
+    }
+}
+
 pub struct Gameboy {
     cpu: CPU,
     ppu: PPU,
+    screen: Screen,
     memory: Memory,
     running: bool,
 }
@@ -60,6 +81,7 @@ impl Gameboy {
         Self {
             cpu: CPU::new(),
             ppu: PPU::new(),
+            screen: Screen::new(144, 160, 1, 1, minifb::Scale::X4),
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
         }
@@ -68,7 +90,7 @@ impl Gameboy {
     pub fn run(&mut self) -> Result<(), Error> {
         while self.running {
             self.cpu.tick(&mut self.memory)?;
-            thread::sleep(time::Duration::from_millis(10));
+            self.running = self.screen.update();
         }
         Ok(())
     }

@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io::{BufReader, Read};
 
+use crate::utils;
+
 use super::MemoryInterface;
 pub struct Memory {
     rom: Vec<u8>,
@@ -28,28 +30,6 @@ impl Memory {
         };
         mem.ram[0..0x8000].clone_from_slice(mem.rom[0..0x8000].into());
 
-        // Read.
-        print!("ram    |  ");
-        for i in 0..0x10 {
-            print!("{:#04X}  |  ", i);
-        }
-        println!();
-        for _i in 0..0x11 {
-            print!("{:_<9}", "");
-        }
-        for (i, value) in mem.ram.iter_mut().enumerate() {
-            if (i % 0x10) == 0 {
-                println!();
-                print!("{:#04X}  |  ", i);
-            }
-            print!("{:#04X}  |  ", value);
-            if i > 0x1000 {
-                break;
-            };
-        }
-        println!("\n\n");
-        println!("{:#04X}", mem.ram[0x7C48]);
-
         mem
     }
 
@@ -63,26 +43,7 @@ impl Memory {
 
         buffer.splice(..0x100, Self::load_boot_rom(bootrom_path));
 
-        // Read.
-        print!("      |  ");
-        for i in 0..0x10 {
-            print!("{:#04X}  |  ", i);
-        }
-        println!();
-        for _i in 0..0x11 {
-            print!("{:_<9}", "");
-        }
-        for (i, value) in buffer.iter_mut().enumerate() {
-            if (i % 0x10) == 0 {
-                println!();
-                print!("{:#04X}  |  ", i);
-            }
-            print!("{:#04X}  |  ", value);
-            if i > 0x1000 {
-                break;
-            };
-        }
-        println!("\n\n");
+        utils::print_memory_bytes(&buffer, "rom", 0x100);
         buffer
     }
 
@@ -94,22 +55,7 @@ impl Memory {
         // Read file into vector.
         reader.read_to_end(&mut buffer).unwrap();
 
-        // Read.
-        print!("bootrm|  ");
-        for i in 0..0x10 {
-            print!("{:#04X}  |  ", i);
-        }
-        println!();
-        for _i in 0..0x11 {
-            print!("{:_<9}", "");
-        }
-        for (i, value) in buffer.iter_mut().enumerate() {
-            if (i % 0x10) == 0 {
-                println!();
-                print!("{:#04X}  |  ", i);
-            }
-            print!("{:#04X}  |  ", value);
-        }
+        utils::print_memory(&buffer, "bootrom");
         println!("\n\n");
         buffer
     }
@@ -117,4 +63,73 @@ impl Memory {
     pub fn switch_speed(&self) {
         panic!("switch speed not implemented");
     }
+}
+
+pub struct MemoryRange {
+    pub begin: u16,
+    pub end: u16,
+    pub size: usize,
+}
+
+pub mod ppu {
+    use super::MemoryRange;
+
+    pub const VRAM: MemoryRange = MemoryRange {
+        begin: 0x8000,
+        end: 0x9FFF,
+        size: 0x2000,
+    };
+    pub const OAM: MemoryRange = MemoryRange {
+        begin: 0xFE00,
+        end: 0xFE9F,
+        size: 0x00A0,
+    };
+    pub const CONTROL: MemoryRange = MemoryRange {
+        begin: 0xFF40,
+        end: 0xFF4B,
+        size: 0x000B,
+    };
+    pub const TILE_DATA: MemoryRange = MemoryRange {
+        begin: 0x8000,
+        end: 0x97FF,
+        size: 0x1800,
+    };
+    pub const TILE_MAP: MemoryRange = MemoryRange {
+        begin: 0x9800,
+        end: 0x9FFF,
+        size: 0x0800,
+    };
+    pub const LCDC: u16 = 0xFF40;
+    pub const STAT: u16 = 0xFF41;
+    pub const SCY: u16 = 0xFF42;
+    pub const SCX: u16 = 0xFF43;
+    pub const LY: u16 = 0xFF44;
+    pub const LYC: u16 = 0xFF45;
+    pub const DMA: u16 = 0xFF46;
+    pub const BGP: u16 = 0xFF47;
+    pub const OBP0: u16 = 0xFF48;
+    pub const OBP1: u16 = 0xFF49;
+    pub const WY: u16 = 0xFF4A;
+    pub const WX: u16 = 0xFF4B;
+}
+
+pub mod joypad {
+    pub const JOYP: u16 = 0xFF00;
+}
+
+pub mod serial {
+    pub const SB: u16 = 0xFF01;
+    pub const SC: u16 = 0xFF02;
+}
+
+pub mod timer {
+    pub const DIV: u16 = 0xFF04;
+    pub const TIMA: u16 = 0xFF05;
+    pub const TMA: u16 = 0xFF06;
+    pub const TAC: u16 = 0xFF07;
+}
+
+pub mod interrupt {
+    pub const IF: u16 = 0xFF0F;
+    pub const IE: u16 = 0xFFFF;
 }

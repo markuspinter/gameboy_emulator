@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 log = "0.4.17"
 wrapping_arithmetic = "0.1.0"
+minifb = "0.23.0"
+rand = "0.8.5"

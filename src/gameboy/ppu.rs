@@ -1,23 +1,53 @@
-extern crate glium;
+mod types;
 
-pub struct PPU {}
+use crate::{gameboy::memory, utils};
+
+const ROWS: usize = 160;
+const COLUMNS: usize = 144;
+
+pub enum MonochromeColor {
+    Off = 0x00CADC9F,
+    White = 0x009BBC0F,
+    LightGray = 0x008BAC0F,
+    DarkGray = 0x00306230,
+    Black = 0x000F380F,
+}
+
+pub struct PPU {
+    frame_buffer: [u32; ROWS * COLUMNS],
+    vram: [u8; memory::ppu::VRAM.size],
+}
+
+impl super::MemoryInterface for PPU {
+    fn read8(&self, addr: u16) -> super::MemoryResult<u8> {
+        if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            return Ok(self.vram[usize::from(addr)]);
+        }
+        return Err(super::MemoryError::UnknownAddress);
+    }
+
+    fn write8(&mut self, addr: u16, value: u8) -> super::MemoryResult<()> {
+        self.vram[usize::from(addr)] = value;
+        Ok(())
+    }
+}
 
 impl PPU {
     pub fn new() -> Self {
-        Self {}
+        let vram: [u8; memory::ppu::VRAM.size] = [0; memory::ppu::VRAM.size];
+        let mut ppu = Self {
+            frame_buffer: [0; ROWS * COLUMNS],
+            vram: vram,
+        };
+
+        ppu
     }
 
-    pub fn run() {
-        // 1. The **winit::EventsLoop** for handling events.
-        let mut events_loop = glium::glutin::event_loop::EventLoop::new();
-        // 2. Parameters for building the Window.
-        let wb = glium::glutin::window::WindowBuilder::new()
-            .with_inner_size(glium::glutin::dpi::LogicalSize::new(1024.0, 768.0))
-            .with_title("Hello world");
-        // 3. Parameters for building the OpenGL context.
-        let cb = glium::glutin::ContextBuilder::new();
-        // 4. Build the Display with the given window and OpenGL context parameters and register the
-        //    window with the events_loop.
-        let display = glium::Display::new(wb, cb, &events_loop).unwrap();
+    pub fn get_frame_buffer(&mut self) -> &[u32] {
+        &self.frame_buffer
+    }
+
+    pub fn print_vram(self) {
+        utils::print_memory_bytes(&self.vram, "vram", 0x100);
     }
 }

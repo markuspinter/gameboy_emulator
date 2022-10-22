@@ -12,7 +12,7 @@ fn opcode_length(opcode: u16) -> u8 {
 }
 
 pub fn execute_opcode(opcode: u16, cpu: &mut CPU, memory: &mut Memory) -> u32 {
-    println!("executing opcode: {:#06X}", opcode);
+    // println!("executing opcode: {:#06X}", opcode);
     let oplen = opcode_length(opcode);
     let mut v: u16 = 0;
     let pc = cpu.pc;

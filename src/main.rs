@@ -1,6 +1,9 @@
 use std::env;
 
 pub mod gameboy;
+pub mod screen;
+pub mod utils;
+
 use std::process::Command;
 
 fn main() {
