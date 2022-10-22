@@ -1,9 +1,9 @@
-use super::{Register8, Register16, CPU};
+use super::{Register16, CPU};
+use super::{FLAGC, FLAGH, FLAGZ};
 use crate::gameboy::memory::Memory;
 use crate::gameboy::MemoryInterface;
-use super::{FLAGC, FLAGH, FLAGN, FLAGZ};
 
-fn no_opcode(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+fn no_opcode(_cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     return 0;
 }
 
@@ -18,11 +18,11 @@ pub fn execute_opcode(opcode: u16, cpu: &mut CPU, memory: &mut Memory) -> u32 {
     let pc = cpu.get_reg16(Register16::PC);
     if oplen == 2 {
         // 8-bit immediate
-        v = memory.read8(pc+1).unwrap() as u16;
+        v = memory.read8(pc + 1).unwrap() as u16;
     } else if oplen == 3 {
         // 16-bit immediate
         // Flips order of values due to big-endian
-        v = memory.read16(pc+1).unwrap();
+        v = memory.read16(pc + 1).unwrap();
     }
     if opcode == 0x00 {
         return NOP_00(cpu, memory);
@@ -1048,33 +1048,36 @@ pub fn execute_opcode(opcode: u16, cpu: &mut CPU, memory: &mut Memory) -> u32 {
         return SET_1FE(cpu, memory);
     } else if opcode == 0x1FF {
         return SET_1FF(cpu, memory);
-    } else
-    {
+    } else {
         return 0;
     }
 }
 
-fn NOP_00(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 00 NOP
+fn NOP_00(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 00 NOP
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_01(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 01 LD BC,d16
+fn LD_01(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 01 LD BC,d16
     cpu.set_bc(v);
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn LD_02(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 02 LD (BC),A
-    memory.write8(((cpu.b << 8) + cpu.c), (cpu.a) as u8);
+fn LD_02(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 02 LD (BC),A
+    memory.write8((cpu.b << 8) + cpu.c, (cpu.a) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn INC_03(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 03 INC BC
+fn INC_03(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 03 INC BC
     let mut t: u16 = ((cpu.b << 8) + cpu.c) + 1;
     // No flag operations;
     t &= 0xFFFF;
@@ -1084,7 +1087,8 @@ fn INC_03(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 03 INC BC
     return 8;
 }
 
-fn INC_04(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 04 INC B
+fn INC_04(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 04 INC B
     let mut t: u16 = cpu.b + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1098,7 +1102,8 @@ fn INC_04(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 04 INC B
     return 4;
 }
 
-fn DEC_05(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 05 DEC B
+fn DEC_05(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 05 DEC B
     let mut t: u16 = cpu.b - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1112,14 +1117,16 @@ fn DEC_05(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 05 DEC B
     return 4;
 }
 
-fn LD_06(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 06 LD B,d8
+fn LD_06(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 06 LD B,d8
     cpu.b = v;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RLCA_07(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 07 RLCA
+fn RLCA_07(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 07 RLCA
     let mut t: u16 = (cpu.a << 1) + (cpu.a >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -1132,15 +1139,17 @@ fn RLCA_07(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 07 RLCA
     return 4;
 }
 
-fn LD_08(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 08 LD (a16),SP
+fn LD_08(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // 08 LD (a16),SP
     memory.write8(v, (cpu.sp & 0xFF) as u8);
-    memory.write8(v+1, (cpu.sp >> 8) as u8);
+    memory.write8(v + 1, (cpu.sp >> 8) as u8);
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     return 20;
 }
 
-fn ADD_09(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 09 ADD HL,BC
+fn ADD_09(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 09 ADD HL,BC
     let mut t: u16 = cpu.get_hl() + ((cpu.b << 8) + cpu.c);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.get_hl() & 0xFFF) + (((cpu.b << 8) + cpu.c) & 0xFFF)) > 0xFFF) << FLAGH;
@@ -1148,20 +1157,22 @@ fn ADD_09(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 09 ADD HL,BC
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.set_hl( t);
+    cpu.set_hl(t);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_0A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0A LD A,(BC)
+fn LD_0A(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 0A LD A,(BC)
     cpu.a = memory.read8((cpu.b << 8) + cpu.c).unwrap() as u16;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn DEC_0B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0B DEC BC
+fn DEC_0B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 0B DEC BC
     let mut t: u16 = ((cpu.b << 8) + cpu.c) - 1;
     // No flag operations;
     t &= 0xFFFF;
@@ -1171,7 +1182,8 @@ fn DEC_0B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0B DEC BC
     return 8;
 }
 
-fn INC_0C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0C INC C
+fn INC_0C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 0C INC C
     let mut t: u16 = cpu.c + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1185,7 +1197,8 @@ fn INC_0C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0C INC C
     return 4;
 }
 
-fn DEC_0D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0D DEC C
+fn DEC_0D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 0D DEC C
     let mut t: u16 = cpu.c - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1199,14 +1212,16 @@ fn DEC_0D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0D DEC C
     return 4;
 }
 
-fn LD_0E(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 0E LD C,d8
+fn LD_0E(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 0E LD C,d8
     cpu.c = v;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RRCA_0F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0F RRCA
+fn RRCA_0F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 0F RRCA
     let mut t: u16 = (cpu.a >> 1) + ((cpu.a & 1) << 7) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -1219,7 +1234,8 @@ fn RRCA_0F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 0F RRCA
     return 4;
 }
 
-fn STOP_10(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 10 STOP 0
+fn STOP_10(cpu: &mut CPU, memory: &mut Memory, _v: u16) -> u32 {
+    // 10 STOP 0
     if memory.cgb_mode {
         memory.switch_speed();
         memory.write8(0xFF04, (0) as u8);
@@ -1229,21 +1245,24 @@ fn STOP_10(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 10 STOP 0
     return 4;
 }
 
-fn LD_11(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 11 LD DE,d16
+fn LD_11(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 11 LD DE,d16
     cpu.set_de(v);
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn LD_12(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12 LD (DE),A
-    memory.write8(((cpu.d << 8) + cpu.e), (cpu.a) as u8);
+fn LD_12(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 12 LD (DE),A
+    memory.write8((cpu.d << 8) + cpu.e, (cpu.a) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn INC_13(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13 INC DE
+fn INC_13(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 13 INC DE
     let mut t: u16 = ((cpu.d << 8) + cpu.e) + 1;
     // No flag operations;
     t &= 0xFFFF;
@@ -1253,7 +1272,8 @@ fn INC_13(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13 INC DE
     return 8;
 }
 
-fn INC_14(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14 INC D
+fn INC_14(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 14 INC D
     let mut t: u16 = cpu.d + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1267,7 +1287,8 @@ fn INC_14(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14 INC D
     return 4;
 }
 
-fn DEC_15(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15 DEC D
+fn DEC_15(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 15 DEC D
     let mut t: u16 = cpu.d - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1281,14 +1302,16 @@ fn DEC_15(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15 DEC D
     return 4;
 }
 
-fn LD_16(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 16 LD D,d8
+fn LD_16(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 16 LD D,d8
     cpu.d = v;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RLA_17(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17 RLA
+fn RLA_17(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 17 RLA
     let mut t: u16 = (cpu.a << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -1301,13 +1324,15 @@ fn RLA_17(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17 RLA
     return 4;
 }
 
-fn JR_18(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 18 JR r8
+fn JR_18(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 18 JR r8
     cpu.pc += 2 + ((v ^ 0x80) - 0x80);
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn ADD_19(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 19 ADD HL,DE
+fn ADD_19(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 19 ADD HL,DE
     let mut t: u16 = cpu.get_hl() + ((cpu.d << 8) + cpu.e);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.get_hl() & 0xFFF) + (((cpu.d << 8) + cpu.e) & 0xFFF)) > 0xFFF) << FLAGH;
@@ -1315,20 +1340,22 @@ fn ADD_19(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 19 ADD HL,DE
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.set_hl( t);
+    cpu.set_hl(t);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_1A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A LD A,(DE)
+fn LD_1A(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1A LD A,(DE)
     cpu.a = memory.read8((cpu.d << 8) + cpu.e).unwrap() as u16;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn DEC_1B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B DEC DE
+fn DEC_1B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B DEC DE
     let mut t: u16 = ((cpu.d << 8) + cpu.e) - 1;
     // No flag operations;
     t &= 0xFFFF;
@@ -1338,7 +1365,8 @@ fn DEC_1B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B DEC DE
     return 8;
 }
 
-fn INC_1C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C INC E
+fn INC_1C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C INC E
     let mut t: u16 = cpu.e + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1352,7 +1380,8 @@ fn INC_1C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C INC E
     return 4;
 }
 
-fn DEC_1D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D DEC E
+fn DEC_1D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D DEC E
     let mut t: u16 = cpu.e - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1366,14 +1395,16 @@ fn DEC_1D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D DEC E
     return 4;
 }
 
-fn LD_1E(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 1E LD E,d8
+fn LD_1E(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 1E LD E,d8
     cpu.e = v;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RRA_1F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F RRA
+fn RRA_1F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F RRA
     let mut t: u16 = (cpu.a >> 1) + ((cpu.f_c() as u16) << 7) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -1386,10 +1417,11 @@ fn RRA_1F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F RRA
     return 4;
 }
 
-fn JR_20(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 20 JR NZ,r8
+fn JR_20(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 20 JR NZ,r8
     cpu.pc += 2;
     if cpu.f_nz() {
-        cpu.pc += ((v ^ 0x80) - 0x80);
+        cpu.pc += (v ^ 0x80) - 0x80;
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1398,33 +1430,37 @@ fn JR_20(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 20 JR NZ,r8
     }
 }
 
-fn LD_21(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 21 LD HL,d16
-    cpu.set_hl( v);
+fn LD_21(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 21 LD HL,d16
+    cpu.set_hl(v);
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn LD_22(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 22 LD (HL+),A
+fn LD_22(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 22 LD (HL+),A
     memory.write8(cpu.get_hl(), (cpu.a) as u8);
-    cpu.set_hl( cpu.get_hl() +1);
-    cpu.set_hl( cpu.get_hl() & 0xFFFF);
+    cpu.set_hl(cpu.get_hl() + 1);
+    cpu.set_hl(cpu.get_hl() & 0xFFFF);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn INC_23(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 23 INC HL
+fn INC_23(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 23 INC HL
     let mut t: u16 = cpu.get_hl() + 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.set_hl( t);
+    cpu.set_hl(t);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn INC_24(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 24 INC H
+fn INC_24(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 24 INC H
     let mut t: u16 = (cpu.get_hl() >> 8) + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1438,7 +1474,8 @@ fn INC_24(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 24 INC H
     return 4;
 }
 
-fn DEC_25(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 25 DEC H
+fn DEC_25(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 25 DEC H
     let mut t: u16 = (cpu.get_hl() >> 8) - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1452,23 +1489,25 @@ fn DEC_25(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 25 DEC H
     return 4;
 }
 
-fn LD_26(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 26 LD H,d8
+fn LD_26(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 26 LD H,d8
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (v << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn DAA_27(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 27 DAA
+fn DAA_27(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 27 DAA
     let mut t: u16 = cpu.a;
     let mut corr: u16 = 0;
-    corr |= if cpu.f_h() {0x06} else { 0x00 };
-    corr |= if cpu.f_c() {0x60} else { 0x00 };
+    corr |= if cpu.f_h() { 0x06 } else { 0x00 };
+    corr |= if cpu.f_c() { 0x60 } else { 0x00 };
     if cpu.f_n() {
         t -= corr;
     } else {
-        corr |= if (t & 0x0F) > 0x09 {0x06} else { 0x00 };
-        corr |= if t > 0x99 {0x60} else { 0x00 };
+        corr |= if (t & 0x0F) > 0x09 { 0x06 } else { 0x00 };
+        corr |= if t > 0x99 { 0x60 } else { 0x00 };
         t += corr;
     }
     let mut flag: u16 = 0;
@@ -1483,10 +1522,11 @@ fn DAA_27(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 27 DAA
     return 4;
 }
 
-fn JR_28(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 28 JR Z,r8
+fn JR_28(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 28 JR Z,r8
     cpu.pc += 2;
     if cpu.f_z() {
-        cpu.pc += ((v ^ 0x80) - 0x80);
+        cpu.pc += (v ^ 0x80) - 0x80;
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1495,7 +1535,8 @@ fn JR_28(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 28 JR Z,r8
     }
 }
 
-fn ADD_29(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 29 ADD HL,HL
+fn ADD_29(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 29 ADD HL,HL
     let mut t: u16 = cpu.get_hl() + cpu.get_hl();
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.get_hl() & 0xFFF) + (cpu.get_hl() & 0xFFF)) > 0xFFF) << FLAGH;
@@ -1503,32 +1544,35 @@ fn ADD_29(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 29 ADD HL,HL
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.set_hl( t);
+    cpu.set_hl(t);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_2A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 2A LD A,(HL+)
+fn LD_2A(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 2A LD A,(HL+)
     cpu.a = memory.read8(cpu.get_hl()).unwrap() as u16;
-    cpu.set_hl( cpu.get_hl() +1);
-    cpu.set_hl( cpu.get_hl() & 0xFFFF);
+    cpu.set_hl(cpu.get_hl() + 1);
+    cpu.set_hl(cpu.get_hl() & 0xFFFF);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn DEC_2B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 2B DEC HL
+fn DEC_2B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 2B DEC HL
     let mut t: u16 = cpu.get_hl() - 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.set_hl( t);
+    cpu.set_hl(t);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn INC_2C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 2C INC L
+fn INC_2C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 2C INC L
     let mut t: u16 = (cpu.get_hl() & 0xFF) + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1542,7 +1586,8 @@ fn INC_2C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 2C INC L
     return 4;
 }
 
-fn DEC_2D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 2D DEC L
+fn DEC_2D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 2D DEC L
     let mut t: u16 = (cpu.get_hl() & 0xFF) - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1556,16 +1601,18 @@ fn DEC_2D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 2D DEC L
     return 4;
 }
 
-fn LD_2E(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 2E LD L,d8
+fn LD_2E(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 2E LD L,d8
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (v & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn CPL_2F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 2F CPL
+fn CPL_2F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 2F CPL
     cpu.a = (!cpu.a) & 0xFF;
-    let mut flag: u16 = 0b01100000;
+    let flag: u16 = 0b01100000;
     cpu.f &= 0b10010000;
     cpu.f |= flag;
     cpu.pc += 1;
@@ -1573,10 +1620,11 @@ fn CPL_2F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 2F CPL
     return 4;
 }
 
-fn JR_30(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 30 JR NC,r8
+fn JR_30(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 30 JR NC,r8
     cpu.pc += 2;
     if cpu.f_nc() {
-        cpu.pc += ((v ^ 0x80) - 0x80);
+        cpu.pc += (v ^ 0x80) - 0x80;
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1585,23 +1633,26 @@ fn JR_30(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 30 JR NC,r8
     }
 }
 
-fn LD_31(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 31 LD SP,d16
+fn LD_31(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 31 LD SP,d16
     cpu.sp = v;
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn LD_32(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 32 LD (HL-),A
+fn LD_32(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 32 LD (HL-),A
     memory.write8(cpu.get_hl(), (cpu.a) as u8);
-    cpu.set_hl( cpu.get_hl() - 1);
-    cpu.set_hl( cpu.get_hl() & 0xFFFF);
+    cpu.set_hl(cpu.get_hl() - 1);
+    cpu.set_hl(cpu.get_hl() & 0xFFFF);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn INC_33(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 33 INC SP
+fn INC_33(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 33 INC SP
     let mut t: u16 = cpu.sp + 1;
     // No flag operations;
     t &= 0xFFFF;
@@ -1611,11 +1662,13 @@ fn INC_33(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 33 INC SP
     return 8;
 }
 
-fn INC_34(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 34 INC (HL)
+fn INC_34(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 34 INC (HL)
     let mut t: u16 = memory.read8(cpu.get_hl()).unwrap() as u16 + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) + (1 & 0xF)) > 0xF)) << FLAGH;
+    flag += u16::from((((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) + (1 & 0xF)) > 0xF)
+        << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1625,11 +1678,13 @@ fn INC_34(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 34 INC (HL)
     return 12;
 }
 
-fn DEC_35(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 35 DEC (HL)
+fn DEC_35(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 35 DEC (HL)
     let mut t: u16 = memory.read8(cpu.get_hl()).unwrap() as u16 - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) - (1 & 0xF)) > 0)) << FLAGH;
+    flag +=
+        u16::from((((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) - (1 & 0xF)) > 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1639,15 +1694,17 @@ fn DEC_35(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 35 DEC (HL)
     return 12;
 }
 
-fn LD_36(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 36 LD (HL),d8
+fn LD_36(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // 36 LD (HL),d8
     memory.write8(cpu.get_hl(), (v) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn SCF_37(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 37 SCF
-    let mut flag: u16 = 0b00010000;
+fn SCF_37(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 37 SCF
+    let flag: u16 = 0b00010000;
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     cpu.pc += 1;
@@ -1655,10 +1712,11 @@ fn SCF_37(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 37 SCF
     return 4;
 }
 
-fn JR_38(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 38 JR C,r8
+fn JR_38(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 38 JR C,r8
     cpu.pc += 2;
     if cpu.f_c() {
-        cpu.pc += ((v ^ 0x80) - 0x80);
+        cpu.pc += (v ^ 0x80) - 0x80;
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1667,7 +1725,8 @@ fn JR_38(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 38 JR C,r8
     }
 }
 
-fn ADD_39(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 39 ADD HL,SP
+fn ADD_39(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 39 ADD HL,SP
     let mut t: u16 = cpu.get_hl() + cpu.sp;
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.get_hl() & 0xFFF) + (cpu.sp & 0xFFF)) > 0xFFF) << FLAGH;
@@ -1675,22 +1734,24 @@ fn ADD_39(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 39 ADD HL,SP
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.set_hl( t);
+    cpu.set_hl(t);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_3A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3A LD A,(HL-)
+fn LD_3A(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 3A LD A,(HL-)
     cpu.a = memory.read8(cpu.get_hl()).unwrap() as u16;
-    cpu.set_hl( cpu.get_hl() - 1);
-    cpu.set_hl( cpu.get_hl() &  0xFFFF);
+    cpu.set_hl(cpu.get_hl() - 1);
+    cpu.set_hl(cpu.get_hl() & 0xFFFF);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn DEC_3B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3B DEC SP
+fn DEC_3B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 3B DEC SP
     let mut t: u16 = cpu.sp - 1;
     // No flag operations;
     t &= 0xFFFF;
@@ -1700,7 +1761,8 @@ fn DEC_3B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3B DEC SP
     return 8;
 }
 
-fn INC_3C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3C INC A
+fn INC_3C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 3C INC A
     let mut t: u16 = cpu.a + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1714,7 +1776,8 @@ fn INC_3C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3C INC A
     return 4;
 }
 
-fn DEC_3D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3D DEC A
+fn DEC_3D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 3D DEC A
     let mut t: u16 = cpu.a - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -1728,15 +1791,17 @@ fn DEC_3D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3D DEC A
     return 4;
 }
 
-fn LD_3E(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // 3E LD A,d8
+fn LD_3E(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // 3E LD A,d8
     cpu.a = v;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn CCF_3F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3F CCF
-    let mut flag: u16 = (cpu.f & 0b00010000) ^ 0b00010000;
+fn CCF_3F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 3F CCF
+    let flag: u16 = (cpu.f & 0b00010000) ^ 0b00010000;
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     cpu.pc += 1;
@@ -1744,453 +1809,518 @@ fn CCF_3F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 3F CCF
     return 4;
 }
 
-fn LD_40(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 40 LD B,B
+fn LD_40(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 40 LD B,B
     cpu.b = cpu.b;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_41(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 41 LD B,C
+fn LD_41(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 41 LD B,C
     cpu.b = cpu.c;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_42(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 42 LD B,D
+fn LD_42(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 42 LD B,D
     cpu.b = cpu.d;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_43(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 43 LD B,E
+fn LD_43(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 43 LD B,E
     cpu.b = cpu.e;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_44(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 44 LD B,H
-    cpu.b = (cpu.get_hl() >> 8);
+fn LD_44(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 44 LD B,H
+    cpu.b = cpu.get_hl() >> 8;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_45(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 45 LD B,L
-    cpu.b = (cpu.get_hl() & 0xFF);
+fn LD_45(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 45 LD B,L
+    cpu.b = cpu.get_hl() & 0xFF;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_46(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 46 LD B,(HL)
+fn LD_46(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 46 LD B,(HL)
     cpu.b = memory.read8(cpu.get_hl()).unwrap() as u16;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_47(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 47 LD B,A
+fn LD_47(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 47 LD B,A
     cpu.b = cpu.a;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_48(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 48 LD C,B
+fn LD_48(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 48 LD C,B
     cpu.c = cpu.b;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_49(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 49 LD C,C
+fn LD_49(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 49 LD C,C
     cpu.c = cpu.c;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_4A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 4A LD C,D
+fn LD_4A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 4A LD C,D
     cpu.c = cpu.d;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_4B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 4B LD C,E
+fn LD_4B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 4B LD C,E
     cpu.c = cpu.e;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_4C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 4C LD C,H
-    cpu.c = (cpu.get_hl() >> 8);
+fn LD_4C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 4C LD C,H
+    cpu.c = cpu.get_hl() >> 8;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_4D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 4D LD C,L
-    cpu.c = (cpu.get_hl() & 0xFF);
+fn LD_4D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 4D LD C,L
+    cpu.c = cpu.get_hl() & 0xFF;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_4E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 4E LD C,(HL)
+fn LD_4E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 4E LD C,(HL)
     cpu.c = memory.read8(cpu.get_hl()).unwrap() as u16;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_4F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 4F LD C,A
+fn LD_4F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 4F LD C,A
     cpu.c = cpu.a;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_50(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 50 LD D,B
+fn LD_50(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 50 LD D,B
     cpu.d = cpu.b;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_51(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 51 LD D,C
+fn LD_51(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 51 LD D,C
     cpu.d = cpu.c;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_52(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 52 LD D,D
+fn LD_52(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 52 LD D,D
     cpu.d = cpu.d;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_53(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 53 LD D,E
+fn LD_53(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 53 LD D,E
     cpu.d = cpu.e;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_54(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 54 LD D,H
-    cpu.d = (cpu.get_hl() >> 8);
+fn LD_54(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 54 LD D,H
+    cpu.d = cpu.get_hl() >> 8;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_55(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 55 LD D,L
-    cpu.d = (cpu.get_hl() & 0xFF);
+fn LD_55(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 55 LD D,L
+    cpu.d = cpu.get_hl() & 0xFF;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_56(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 56 LD D,(HL)
+fn LD_56(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 56 LD D,(HL)
     cpu.d = memory.read8(cpu.get_hl()).unwrap() as u16;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_57(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 57 LD D,A
+fn LD_57(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 57 LD D,A
     cpu.d = cpu.a;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_58(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 58 LD E,B
+fn LD_58(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 58 LD E,B
     cpu.e = cpu.b;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_59(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 59 LD E,C
+fn LD_59(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 59 LD E,C
     cpu.e = cpu.c;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_5A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 5A LD E,D
+fn LD_5A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 5A LD E,D
     cpu.e = cpu.d;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_5B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 5B LD E,E
+fn LD_5B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 5B LD E,E
     cpu.e = cpu.e;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_5C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 5C LD E,H
-    cpu.e = (cpu.get_hl() >> 8);
+fn LD_5C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 5C LD E,H
+    cpu.e = cpu.get_hl() >> 8;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_5D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 5D LD E,L
-    cpu.e = (cpu.get_hl() & 0xFF);
+fn LD_5D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 5D LD E,L
+    cpu.e = cpu.get_hl() & 0xFF;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_5E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 5E LD E,(HL)
+fn LD_5E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 5E LD E,(HL)
     cpu.e = memory.read8(cpu.get_hl()).unwrap() as u16;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_5F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 5F LD E,A
+fn LD_5F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 5F LD E,A
     cpu.e = cpu.a;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_60(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 60 LD H,B
+fn LD_60(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 60 LD H,B
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.b << 8));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_61(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 61 LD H,C
+fn LD_61(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 61 LD H,C
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.c << 8));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_62(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 62 LD H,D
+fn LD_62(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 62 LD H,D
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.d << 8));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_63(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 63 LD H,E
+fn LD_63(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 63 LD H,E
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.e << 8));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_64(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 64 LD H,H
+fn LD_64(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 64 LD H,H
     cpu.set_hl((cpu.get_hl() & 0x00FF) | ((cpu.get_hl() >> 8) << 8));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_65(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 65 LD H,L
+fn LD_65(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 65 LD H,L
     cpu.set_hl((cpu.get_hl() & 0x00FF) | ((cpu.get_hl() & 0xFF) << 8));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_66(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 66 LD H,(HL)
+fn LD_66(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 66 LD H,(HL)
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (memory.read8(cpu.get_hl()).unwrap() as u16) << 8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_67(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 67 LD H,A
+fn LD_67(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 67 LD H,A
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.a << 8));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_68(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 68 LD L,B
+fn LD_68(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 68 LD L,B
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.b & 0xFF));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_69(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 69 LD L,C
+fn LD_69(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 69 LD L,C
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.c & 0xFF));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_6A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 6A LD L,D
+fn LD_6A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 6A LD L,D
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.d & 0xFF));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_6B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 6B LD L,E
+fn LD_6B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 6B LD L,E
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.e & 0xFF));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_6C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 6C LD L,H
+fn LD_6C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 6C LD L,H
     cpu.set_hl((cpu.get_hl() & 0xFF00) | ((cpu.get_hl() >> 8) & 0xFF));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_6D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 6D LD L,L
+fn LD_6D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 6D LD L,L
     cpu.set_hl((cpu.get_hl() & 0xFF00) | ((cpu.get_hl() & 0xFF) & 0xFF));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_6E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 6E LD L,(HL)
+fn LD_6E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 6E LD L,(HL)
     cpu.set_hl((cpu.get_hl() & 0xFF00) | ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xFF));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_6F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 6F LD L,A
+fn LD_6F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 6F LD L,A
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.a & 0xFF));
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_70(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 70 LD (HL),B
+fn LD_70(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 70 LD (HL),B
     memory.write8(cpu.get_hl(), (cpu.b) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_71(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 71 LD (HL),C
+fn LD_71(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 71 LD (HL),C
     memory.write8(cpu.get_hl(), (cpu.c) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_72(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 72 LD (HL),D
+fn LD_72(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 72 LD (HL),D
     memory.write8(cpu.get_hl(), (cpu.d) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_73(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 73 LD (HL),E
+fn LD_73(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 73 LD (HL),E
     memory.write8(cpu.get_hl(), (cpu.e) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_74(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 74 LD (HL),H
-    memory.write8(cpu.get_hl(), ((cpu.get_hl() >> 8)) as u8);
+fn LD_74(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 74 LD (HL),H
+    memory.write8(cpu.get_hl(), (cpu.get_hl() >> 8) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_75(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 75 LD (HL),L
-    memory.write8(cpu.get_hl(), ((cpu.get_hl() & 0xFF)) as u8);
+fn LD_75(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 75 LD (HL),L
+    memory.write8(cpu.get_hl(), (cpu.get_hl() & 0xFF) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn HALT_76(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 76 HALT
+fn HALT_76(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 76 HALT
     cpu.halted = true;
     return 4;
 }
 
-fn LD_77(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 77 LD (HL),A
+fn LD_77(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 77 LD (HL),A
     memory.write8(cpu.get_hl(), (cpu.a) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_78(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 78 LD A,B
+fn LD_78(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 78 LD A,B
     cpu.a = cpu.b;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_79(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 79 LD A,C
+fn LD_79(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 79 LD A,C
     cpu.a = cpu.c;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_7A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 7A LD A,D
+fn LD_7A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 7A LD A,D
     cpu.a = cpu.d;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_7B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 7B LD A,E
+fn LD_7B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 7B LD A,E
     cpu.a = cpu.e;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_7C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 7C LD A,H
-    cpu.a = (cpu.get_hl() >> 8);
+fn LD_7C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 7C LD A,H
+    cpu.a = cpu.get_hl() >> 8;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_7D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 7D LD A,L
-    cpu.a = (cpu.get_hl() & 0xFF);
+fn LD_7D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 7D LD A,L
+    cpu.a = cpu.get_hl() & 0xFF;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn LD_7E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 7E LD A,(HL)
+fn LD_7E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 7E LD A,(HL)
     cpu.a = memory.read8(cpu.get_hl()).unwrap() as u16;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_7F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 7F LD A,A
+fn LD_7F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 7F LD A,A
     cpu.a = cpu.a;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn ADD_80(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 80 ADD A,B
+fn ADD_80(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 80 ADD A,B
     let mut t: u16 = cpu.a + cpu.b;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2205,7 +2335,8 @@ fn ADD_80(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 80 ADD A,B
     return 4;
 }
 
-fn ADD_81(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 81 ADD A,C
+fn ADD_81(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 81 ADD A,C
     let mut t: u16 = cpu.a + cpu.c;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2220,7 +2351,8 @@ fn ADD_81(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 81 ADD A,C
     return 4;
 }
 
-fn ADD_82(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 82 ADD A,D
+fn ADD_82(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 82 ADD A,D
     let mut t: u16 = cpu.a + cpu.d;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2235,7 +2367,8 @@ fn ADD_82(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 82 ADD A,D
     return 4;
 }
 
-fn ADD_83(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 83 ADD A,E
+fn ADD_83(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 83 ADD A,E
     let mut t: u16 = cpu.a + cpu.e;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2250,7 +2383,8 @@ fn ADD_83(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 83 ADD A,E
     return 4;
 }
 
-fn ADD_84(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 84 ADD A,H
+fn ADD_84(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 84 ADD A,H
     let mut t: u16 = cpu.a + (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2265,7 +2399,8 @@ fn ADD_84(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 84 ADD A,H
     return 4;
 }
 
-fn ADD_85(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 85 ADD A,L
+fn ADD_85(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 85 ADD A,L
     let mut t: u16 = cpu.a + (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2280,11 +2415,13 @@ fn ADD_85(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 85 ADD A,L
     return 4;
 }
 
-fn ADD_86(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 86 ADD A,(HL)
+fn ADD_86(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 86 ADD A,(HL)
     let mut t: u16 = cpu.a + memory.read8(cpu.get_hl()).unwrap() as u16;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF)) > 0xF)) << FLAGH;
+    flag += u16::from((cpu.a & 0xF) + ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0xF)
+        << FLAGH;
     flag += u16::from(t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2295,7 +2432,8 @@ fn ADD_86(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 86 ADD A,(HL)
     return 8;
 }
 
-fn ADD_87(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 87 ADD A,A
+fn ADD_87(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 87 ADD A,A
     let mut t: u16 = cpu.a + cpu.a;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2310,7 +2448,8 @@ fn ADD_87(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 87 ADD A,A
     return 4;
 }
 
-fn ADC_88(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 88 ADC A,B
+fn ADC_88(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 88 ADC A,B
     let mut t: u16 = cpu.a + cpu.b + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2325,7 +2464,8 @@ fn ADC_88(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 88 ADC A,B
     return 4;
 }
 
-fn ADC_89(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 89 ADC A,C
+fn ADC_89(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 89 ADC A,C
     let mut t: u16 = cpu.a + cpu.c + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2340,7 +2480,8 @@ fn ADC_89(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 89 ADC A,C
     return 4;
 }
 
-fn ADC_8A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8A ADC A,D
+fn ADC_8A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 8A ADC A,D
     let mut t: u16 = cpu.a + cpu.d + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2355,7 +2496,8 @@ fn ADC_8A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8A ADC A,D
     return 4;
 }
 
-fn ADC_8B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8B ADC A,E
+fn ADC_8B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 8B ADC A,E
     let mut t: u16 = cpu.a + cpu.e + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2370,11 +2512,13 @@ fn ADC_8B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8B ADC A,E
     return 4;
 }
 
-fn ADC_8C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8C ADC A,H
+fn ADC_8C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 8C ADC A,H
     let mut t: u16 = cpu.a + (cpu.get_hl() >> 8) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) + ((cpu.get_hl() >> 8) & 0xF) + u16::from(cpu.f_c())) > 0xF) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) + ((cpu.get_hl() >> 8) & 0xF) + u16::from(cpu.f_c())) > 0xF)
+        << FLAGH;
     flag += u16::from(t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2385,11 +2529,13 @@ fn ADC_8C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8C ADC A,H
     return 4;
 }
 
-fn ADC_8D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8D ADC A,L
+fn ADC_8D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 8D ADC A,L
     let mut t: u16 = cpu.a + (cpu.get_hl() & 0xFF) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) + ((cpu.get_hl() & 0xFF) & 0xF) + u16::from(cpu.f_c())) > 0xF) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) + ((cpu.get_hl() & 0xFF) & 0xF) + u16::from(cpu.f_c())) > 0xF)
+        << FLAGH;
     flag += u16::from(t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2400,11 +2546,16 @@ fn ADC_8D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8D ADC A,L
     return 4;
 }
 
-fn ADC_8E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8E ADC A,(HL)
+fn ADC_8E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 8E ADC A,(HL)
     let mut t: u16 = cpu.a + (memory.read8(cpu.get_hl()).unwrap() as u16) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) + u16::from(cpu.f_c())) > 0xF)) << FLAGH;
+    flag += u16::from(
+        (cpu.a & 0xF)
+            + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) + u16::from(cpu.f_c()))
+            > 0xF,
+    ) << FLAGH;
     flag += u16::from(t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2415,7 +2566,8 @@ fn ADC_8E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8E ADC A,(HL)
     return 8;
 }
 
-fn ADC_8F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8F ADC A,A
+fn ADC_8F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 8F ADC A,A
     let mut t: u16 = cpu.a + cpu.a + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2430,7 +2582,8 @@ fn ADC_8F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 8F ADC A,A
     return 4;
 }
 
-fn SUB_90(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 90 SUB B
+fn SUB_90(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 90 SUB B
     let mut t: u16 = cpu.a - cpu.b;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2445,7 +2598,8 @@ fn SUB_90(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 90 SUB B
     return 4;
 }
 
-fn SUB_91(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 91 SUB C
+fn SUB_91(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 91 SUB C
     let mut t: u16 = cpu.a - cpu.c;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2460,7 +2614,8 @@ fn SUB_91(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 91 SUB C
     return 4;
 }
 
-fn SUB_92(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 92 SUB D
+fn SUB_92(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 92 SUB D
     let mut t: u16 = cpu.a - cpu.d;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2475,7 +2630,8 @@ fn SUB_92(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 92 SUB D
     return 4;
 }
 
-fn SUB_93(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 93 SUB E
+fn SUB_93(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 93 SUB E
     let mut t: u16 = cpu.a - cpu.e;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2490,7 +2646,8 @@ fn SUB_93(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 93 SUB E
     return 4;
 }
 
-fn SUB_94(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 94 SUB H
+fn SUB_94(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 94 SUB H
     let mut t: u16 = cpu.a - (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2505,7 +2662,8 @@ fn SUB_94(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 94 SUB H
     return 4;
 }
 
-fn SUB_95(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 95 SUB L
+fn SUB_95(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 95 SUB L
     let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2520,11 +2678,13 @@ fn SUB_95(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 95 SUB L
     return 4;
 }
 
-fn SUB_96(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 96 SUB (HL)
+fn SUB_96(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 96 SUB (HL)
     let mut t: u16 = cpu.a - memory.read8(cpu.get_hl()).unwrap() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF)) > 0)) << FLAGH;
+    flag += u16::from((cpu.a & 0xF) - ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0)
+        << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2535,7 +2695,8 @@ fn SUB_96(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 96 SUB (HL)
     return 8;
 }
 
-fn SUB_97(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 97 SUB A
+fn SUB_97(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 97 SUB A
     let mut t: u16 = cpu.a - cpu.a;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2550,7 +2711,8 @@ fn SUB_97(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 97 SUB A
     return 4;
 }
 
-fn SBC_98(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 98 SBC A,B
+fn SBC_98(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 98 SBC A,B
     let mut t: u16 = cpu.a - cpu.b - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2565,7 +2727,8 @@ fn SBC_98(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 98 SBC A,B
     return 4;
 }
 
-fn SBC_99(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 99 SBC A,C
+fn SBC_99(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 99 SBC A,C
     let mut t: u16 = cpu.a - cpu.c - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2580,7 +2743,8 @@ fn SBC_99(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 99 SBC A,C
     return 4;
 }
 
-fn SBC_9A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9A SBC A,D
+fn SBC_9A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 9A SBC A,D
     let mut t: u16 = cpu.a - cpu.d - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2595,7 +2759,8 @@ fn SBC_9A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9A SBC A,D
     return 4;
 }
 
-fn SBC_9B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9B SBC A,E
+fn SBC_9B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 9B SBC A,E
     let mut t: u16 = cpu.a - cpu.e - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2610,11 +2775,13 @@ fn SBC_9B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9B SBC A,E
     return 4;
 }
 
-fn SBC_9C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9C SBC A,H
+fn SBC_9C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 9C SBC A,H
     let mut t: u16 = cpu.a - (cpu.get_hl() >> 8) - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag +=
+        u16::from(((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2625,11 +2792,13 @@ fn SBC_9C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9C SBC A,H
     return 4;
 }
 
-fn SBC_9D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9D SBC A,L
+fn SBC_9D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 9D SBC A,L
     let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF) - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag +=
+        u16::from(((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2640,11 +2809,15 @@ fn SBC_9D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9D SBC A,L
     return 4;
 }
 
-fn SBC_9E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9E SBC A,(HL)
+fn SBC_9E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 9E SBC A,(HL)
     let mut t: u16 = cpu.a - (memory.read8(cpu.get_hl()).unwrap() as u16) - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) - cpu.f_c() as u16) > 0)) << FLAGH;
+    flag += u16::from(
+        (cpu.a & 0xF) - (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) - cpu.f_c() as u16)
+            > 0,
+    ) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2655,7 +2828,8 @@ fn SBC_9E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9E SBC A,(HL)
     return 8;
 }
 
-fn SBC_9F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9F SBC A,A
+fn SBC_9F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 9F SBC A,A
     let mut t: u16 = cpu.a - cpu.a - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2670,7 +2844,8 @@ fn SBC_9F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 9F SBC A,A
     return 4;
 }
 
-fn AND_A0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A0 AND B
+fn AND_A0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A0 AND B
     let mut t: u16 = cpu.a & cpu.b;
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2683,7 +2858,8 @@ fn AND_A0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A0 AND B
     return 4;
 }
 
-fn AND_A1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A1 AND C
+fn AND_A1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A1 AND C
     let mut t: u16 = cpu.a & cpu.c;
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2696,7 +2872,8 @@ fn AND_A1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A1 AND C
     return 4;
 }
 
-fn AND_A2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A2 AND D
+fn AND_A2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A2 AND D
     let mut t: u16 = cpu.a & cpu.d;
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2709,7 +2886,8 @@ fn AND_A2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A2 AND D
     return 4;
 }
 
-fn AND_A3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A3 AND E
+fn AND_A3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A3 AND E
     let mut t: u16 = cpu.a & cpu.e;
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2722,7 +2900,8 @@ fn AND_A3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A3 AND E
     return 4;
 }
 
-fn AND_A4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A4 AND H
+fn AND_A4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A4 AND H
     let mut t: u16 = cpu.a & (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2735,7 +2914,8 @@ fn AND_A4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A4 AND H
     return 4;
 }
 
-fn AND_A5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A5 AND L
+fn AND_A5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A5 AND L
     let mut t: u16 = cpu.a & (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2748,7 +2928,8 @@ fn AND_A5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A5 AND L
     return 4;
 }
 
-fn AND_A6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A6 AND (HL)
+fn AND_A6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // A6 AND (HL)
     let mut t: u16 = cpu.a & memory.read8(cpu.get_hl()).unwrap() as u16;
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2761,7 +2942,8 @@ fn AND_A6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A6 AND (HL)
     return 8;
 }
 
-fn AND_A7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A7 AND A
+fn AND_A7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A7 AND A
     let mut t: u16 = cpu.a & cpu.a;
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2774,7 +2956,8 @@ fn AND_A7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A7 AND A
     return 4;
 }
 
-fn XOR_A8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A8 XOR B
+fn XOR_A8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A8 XOR B
     let mut t: u16 = cpu.a ^ cpu.b;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2787,7 +2970,8 @@ fn XOR_A8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A8 XOR B
     return 4;
 }
 
-fn XOR_A9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A9 XOR C
+fn XOR_A9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // A9 XOR C
     let mut t: u16 = cpu.a ^ cpu.c;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2800,7 +2984,8 @@ fn XOR_A9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // A9 XOR C
     return 4;
 }
 
-fn XOR_AA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AA XOR D
+fn XOR_AA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // AA XOR D
     let mut t: u16 = cpu.a ^ cpu.d;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2813,7 +2998,8 @@ fn XOR_AA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AA XOR D
     return 4;
 }
 
-fn XOR_AB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AB XOR E
+fn XOR_AB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // AB XOR E
     let mut t: u16 = cpu.a ^ cpu.e;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2826,7 +3012,8 @@ fn XOR_AB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AB XOR E
     return 4;
 }
 
-fn XOR_AC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AC XOR H
+fn XOR_AC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // AC XOR H
     let mut t: u16 = cpu.a ^ (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2839,7 +3026,8 @@ fn XOR_AC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AC XOR H
     return 4;
 }
 
-fn XOR_AD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AD XOR L
+fn XOR_AD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // AD XOR L
     let mut t: u16 = cpu.a ^ (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2852,7 +3040,8 @@ fn XOR_AD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AD XOR L
     return 4;
 }
 
-fn XOR_AE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AE XOR (HL)
+fn XOR_AE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // AE XOR (HL)
     let mut t: u16 = cpu.a ^ memory.read8(cpu.get_hl()).unwrap() as u16;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2865,7 +3054,8 @@ fn XOR_AE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AE XOR (HL)
     return 8;
 }
 
-fn XOR_AF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AF XOR A
+fn XOR_AF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // AF XOR A
     let mut t: u16 = cpu.a ^ cpu.a;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2878,7 +3068,8 @@ fn XOR_AF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // AF XOR A
     return 4;
 }
 
-fn OR_B0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B0 OR B
+fn OR_B0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B0 OR B
     let mut t: u16 = cpu.a | cpu.b;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2891,7 +3082,8 @@ fn OR_B0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B0 OR B
     return 4;
 }
 
-fn OR_B1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B1 OR C
+fn OR_B1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B1 OR C
     let mut t: u16 = cpu.a | cpu.c;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2904,7 +3096,8 @@ fn OR_B1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B1 OR C
     return 4;
 }
 
-fn OR_B2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B2 OR D
+fn OR_B2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B2 OR D
     let mut t: u16 = cpu.a | cpu.d;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2917,7 +3110,8 @@ fn OR_B2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B2 OR D
     return 4;
 }
 
-fn OR_B3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B3 OR E
+fn OR_B3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B3 OR E
     let mut t: u16 = cpu.a | cpu.e;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2930,7 +3124,8 @@ fn OR_B3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B3 OR E
     return 4;
 }
 
-fn OR_B4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B4 OR H
+fn OR_B4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B4 OR H
     let mut t: u16 = cpu.a | (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2943,7 +3138,8 @@ fn OR_B4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B4 OR H
     return 4;
 }
 
-fn OR_B5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B5 OR L
+fn OR_B5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B5 OR L
     let mut t: u16 = cpu.a | (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2956,7 +3152,8 @@ fn OR_B5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B5 OR L
     return 4;
 }
 
-fn OR_B6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B6 OR (HL)
+fn OR_B6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // B6 OR (HL)
     let mut t: u16 = cpu.a | memory.read8(cpu.get_hl()).unwrap() as u16;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2969,7 +3166,8 @@ fn OR_B6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B6 OR (HL)
     return 8;
 }
 
-fn OR_B7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B7 OR A
+fn OR_B7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B7 OR A
     let mut t: u16 = cpu.a | cpu.a;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2982,7 +3180,8 @@ fn OR_B7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B7 OR A
     return 4;
 }
 
-fn CP_B8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B8 CP B
+fn CP_B8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B8 CP B
     let mut t: u16 = cpu.a - cpu.b;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -2996,7 +3195,8 @@ fn CP_B8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B8 CP B
     return 4;
 }
 
-fn CP_B9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B9 CP C
+fn CP_B9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // B9 CP C
     let mut t: u16 = cpu.a - cpu.c;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3010,7 +3210,8 @@ fn CP_B9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // B9 CP C
     return 4;
 }
 
-fn CP_BA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BA CP D
+fn CP_BA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // BA CP D
     let mut t: u16 = cpu.a - cpu.d;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3024,7 +3225,8 @@ fn CP_BA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BA CP D
     return 4;
 }
 
-fn CP_BB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BB CP E
+fn CP_BB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // BB CP E
     let mut t: u16 = cpu.a - cpu.e;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3038,7 +3240,8 @@ fn CP_BB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BB CP E
     return 4;
 }
 
-fn CP_BC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BC CP H
+fn CP_BC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // BC CP H
     let mut t: u16 = cpu.a - (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3052,7 +3255,8 @@ fn CP_BC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BC CP H
     return 4;
 }
 
-fn CP_BD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BD CP L
+fn CP_BD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // BD CP L
     let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3066,11 +3270,13 @@ fn CP_BD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BD CP L
     return 4;
 }
 
-fn CP_BE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BE CP (HL)
+fn CP_BE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // BE CP (HL)
     let mut t: u16 = cpu.a - memory.read8(cpu.get_hl()).unwrap() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF)) > 0)) << FLAGH;
+    flag += u16::from((cpu.a & 0xF) - ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0)
+        << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3080,7 +3286,8 @@ fn CP_BE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BE CP (HL)
     return 8;
 }
 
-fn CP_BF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BF CP A
+fn CP_BF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // BF CP A
     let mut t: u16 = cpu.a - cpu.a;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3094,7 +3301,8 @@ fn CP_BF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // BF CP A
     return 4;
 }
 
-fn RET_C0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C0 RET NZ
+fn RET_C0(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // C0 RET NZ
     if cpu.f_nz() {
         cpu.pc = (memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8; // High;
         cpu.pc |= memory.read8(cpu.sp).unwrap() as u16; // Low;
@@ -3108,7 +3316,8 @@ fn RET_C0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C0 RET NZ
     }
 }
 
-fn POP_C1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C1 POP BC
+fn POP_C1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // C1 POP BC
     cpu.b = memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16; // High;
     cpu.c = memory.read8(cpu.sp).unwrap() as u16; // Low;
     cpu.sp += 2;
@@ -3118,7 +3327,8 @@ fn POP_C1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C1 POP BC
     return 12;
 }
 
-fn JP_C2(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // C2 JP NZ,a16
+fn JP_C2(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // C2 JP NZ,a16
     if cpu.f_nz() {
         cpu.pc = v;
         return 16;
@@ -3129,17 +3339,19 @@ fn JP_C2(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // C2 JP NZ,a16
     }
 }
 
-fn JP_C3(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // C3 JP a16
+fn JP_C3(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // C3 JP a16
     cpu.pc = v;
     return 16;
 }
 
-fn CALL_C4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // C4 CALL NZ,a16
+fn CALL_C4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // C4 CALL NZ,a16
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     if cpu.f_nz() {
-        memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-        memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3149,9 +3361,10 @@ fn CALL_C4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // C4 CALL NZ,a1
     }
 }
 
-fn PUSH_C5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C5 PUSH BC
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.b) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.c) as u8); // Low;
+fn PUSH_C5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // C5 PUSH BC
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.b) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.c) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc += 1;
@@ -3159,7 +3372,8 @@ fn PUSH_C5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C5 PUSH BC
     return 16;
 }
 
-fn ADD_C6(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // C6 ADD A,d8
+fn ADD_C6(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // C6 ADD A,d8
     let mut t: u16 = cpu.a + v;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3174,18 +3388,20 @@ fn ADD_C6(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // C6 ADD A,d8
     return 8;
 }
 
-fn RST_C7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C7 RST 00H
+fn RST_C7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // C7 RST 00H
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 0;
     return 16;
 }
 
-fn RET_C8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C8 RET Z
+fn RET_C8(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // C8 RET Z
     if cpu.f_z() {
         cpu.pc = (memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8; // High;
         cpu.pc |= memory.read8(cpu.sp).unwrap() as u16; // Low;
@@ -3199,7 +3415,8 @@ fn RET_C8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C8 RET Z
     }
 }
 
-fn RET_C9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C9 RET
+fn RET_C9(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // C9 RET
     cpu.pc = (memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8; // High;
     cpu.pc |= memory.read8(cpu.sp).unwrap() as u16; // Low;
     cpu.sp += 2;
@@ -3207,7 +3424,8 @@ fn RET_C9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // C9 RET
     return 16;
 }
 
-fn JP_CA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // CA JP Z,a16
+fn JP_CA(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // CA JP Z,a16
     if cpu.f_z() {
         cpu.pc = v;
         return 16;
@@ -3218,19 +3436,21 @@ fn JP_CA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // CA JP Z,a16
     }
 }
 
-fn PREFIX_CB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // CB PREFIX CB
+fn PREFIX_CB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // CB PREFIX CB
     log::error!("CB cannot be called!");
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn CALL_CC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // CC CALL Z,a16
+fn CALL_CC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // CC CALL Z,a16
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     if cpu.f_z() {
-        memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-        memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3240,18 +3460,20 @@ fn CALL_CC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // CC CALL Z,a16
     }
 }
 
-fn CALL_CD(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // CD CALL a16
+fn CALL_CD(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // CD CALL a16
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = v;
     return 24;
 }
 
-fn ADC_CE(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // CE ADC A,d8
+fn ADC_CE(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // CE ADC A,d8
     let mut t: u16 = cpu.a + v + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3266,18 +3488,20 @@ fn ADC_CE(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // CE ADC A,d8
     return 8;
 }
 
-fn RST_CF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // CF RST 08H
+fn RST_CF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // CF RST 08H
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 8;
     return 16;
 }
 
-fn RET_D0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D0 RET NC
+fn RET_D0(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // D0 RET NC
     if cpu.f_nc() {
         cpu.pc = (memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8; // High;
         cpu.pc |= memory.read8(cpu.sp).unwrap() as u16; // Low;
@@ -3291,7 +3515,8 @@ fn RET_D0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D0 RET NC
     }
 }
 
-fn POP_D1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D1 POP DE
+fn POP_D1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // D1 POP DE
     cpu.d = memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16; // High;
     cpu.e = memory.read8(cpu.sp).unwrap() as u16; // Low;
     cpu.sp += 2;
@@ -3301,7 +3526,8 @@ fn POP_D1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D1 POP DE
     return 12;
 }
 
-fn JP_D2(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // D2 JP NC,a16
+fn JP_D2(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // D2 JP NC,a16
     if cpu.f_nc() {
         cpu.pc = v;
         return 16;
@@ -3312,12 +3538,13 @@ fn JP_D2(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // D2 JP NC,a16
     }
 }
 
-fn CALL_D4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // D4 CALL NC,a16
+fn CALL_D4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // D4 CALL NC,a16
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     if cpu.f_nc() {
-        memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-        memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3327,9 +3554,10 @@ fn CALL_D4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // D4 CALL NC,a1
     }
 }
 
-fn PUSH_D5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D5 PUSH DE
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.d) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.e) as u8); // Low;
+fn PUSH_D5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // D5 PUSH DE
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.d) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.e) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc += 1;
@@ -3337,7 +3565,8 @@ fn PUSH_D5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D5 PUSH DE
     return 16;
 }
 
-fn SUB_D6(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // D6 SUB d8
+fn SUB_D6(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // D6 SUB d8
     let mut t: u16 = cpu.a - v;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3352,18 +3581,20 @@ fn SUB_D6(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // D6 SUB d8
     return 8;
 }
 
-fn RST_D7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D7 RST 10H
+fn RST_D7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // D7 RST 10H
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 16;
     return 16;
 }
 
-fn RET_D8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D8 RET C
+fn RET_D8(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // D8 RET C
     if cpu.f_c() {
         cpu.pc = (memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8; // High;
         cpu.pc |= memory.read8(cpu.sp).unwrap() as u16; // Low;
@@ -3377,7 +3608,8 @@ fn RET_D8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D8 RET C
     }
 }
 
-fn RETI_D9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D9 RETI
+fn RETI_D9(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // D9 RETI
     cpu.interrupt_master_enable = true;
     cpu.pc = (memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8; // High;
     cpu.pc |= memory.read8(cpu.sp).unwrap() as u16; // Low;
@@ -3386,7 +3618,8 @@ fn RETI_D9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // D9 RETI
     return 16;
 }
 
-fn JP_DA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // DA JP C,a16
+fn JP_DA(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // DA JP C,a16
     if cpu.f_c() {
         cpu.pc = v;
         return 16;
@@ -3397,12 +3630,13 @@ fn JP_DA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // DA JP C,a16
     }
 }
 
-fn CALL_DC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // DC CALL C,a16
+fn CALL_DC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // DC CALL C,a16
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     if cpu.f_c() {
-        memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-        memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3412,7 +3646,8 @@ fn CALL_DC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // DC CALL C,a16
     }
 }
 
-fn SBC_DE(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // DE SBC A,d8
+fn SBC_DE(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // DE SBC A,d8
     let mut t: u16 = cpu.a - v - cpu.f_c() as u16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3427,26 +3662,32 @@ fn SBC_DE(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // DE SBC A,d8
     return 8;
 }
 
-fn RST_DF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // DF RST 18H
+fn RST_DF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // DF RST 18H
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 24;
     return 16;
 }
 
-fn LDH_E0(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // E0 LDH (a8),A
+fn LDH_E0(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // E0 LDH (a8),A
     memory.write8(v + 0xFF00, (cpu.a) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn POP_E1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // E1 POP HL
-    cpu.set_hl(((memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8) + memory.read8(cpu.sp).unwrap() as u16); // High);
+fn POP_E1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // E1 POP HL
+    cpu.set_hl(
+        ((memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8)
+            + memory.read8(cpu.sp).unwrap() as u16,
+    ); // High);
     cpu.sp += 2;
     cpu.sp &= 0xFFFF;
     cpu.pc += 1;
@@ -3454,16 +3695,18 @@ fn POP_E1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // E1 POP HL
     return 12;
 }
 
-fn LD_E2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // E2 LD (C),A
+fn LD_E2(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // E2 LD (C),A
     memory.write8(0xFF00 + cpu.c, (cpu.a) as u8);
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn PUSH_E5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // E5 PUSH HL
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.get_hl() >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.get_hl() & 0xFF) as u8); // Low;
+fn PUSH_E5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // E5 PUSH HL
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.get_hl() >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.get_hl() & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc += 1;
@@ -3471,7 +3714,8 @@ fn PUSH_E5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // E5 PUSH HL
     return 16;
 }
 
-fn AND_E6(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // E6 AND d8
+fn AND_E6(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // E6 AND d8
     let mut t: u16 = cpu.a & v;
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3484,18 +3728,20 @@ fn AND_E6(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // E6 AND d8
     return 8;
 }
 
-fn RST_E7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // E7 RST 20H
+fn RST_E7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // E7 RST 20H
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 32;
     return 16;
 }
 
-fn ADD_E8(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // E8 ADD SP,r8
+fn ADD_E8(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // E8 ADD SP,r8
     let mut t: u16 = cpu.sp + ((v ^ 0x80) - 0x80);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.sp & 0xF) + (v & 0xF)) > 0xF) << FLAGH;
@@ -3509,19 +3755,22 @@ fn ADD_E8(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // E8 ADD SP,r8
     return 16;
 }
 
-fn JP_E9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // E9 JP (HL)
+fn JP_E9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // E9 JP (HL)
     cpu.pc = cpu.get_hl();
     return 4;
 }
 
-fn LD_EA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // EA LD (a16),A
+fn LD_EA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // EA LD (a16),A
     memory.write8(v, (cpu.a) as u8);
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn XOR_EE(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // EE XOR d8
+fn XOR_EE(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // EE XOR d8
     let mut t: u16 = cpu.a ^ v;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3534,25 +3783,28 @@ fn XOR_EE(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // EE XOR d8
     return 8;
 }
 
-fn RST_EF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // EF RST 28H
+fn RST_EF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // EF RST 28H
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 40;
     return 16;
 }
 
-fn LDH_F0(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // F0 LDH A,(a8)
+fn LDH_F0(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // F0 LDH A,(a8)
     cpu.a = memory.read8(v + 0xFF00).unwrap() as u16;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn POP_F1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // F1 POP AF
+fn POP_F1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // F1 POP AF
     cpu.a = memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16; // High;
     cpu.f = memory.read8(cpu.sp).unwrap() as u16 & 0xF0 & 0xF0; // Low;
     cpu.sp += 2;
@@ -3562,23 +3814,26 @@ fn POP_F1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // F1 POP AF
     return 12;
 }
 
-fn LD_F2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // F2 LD A,(C)
+fn LD_F2(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // F2 LD A,(C)
     cpu.a = memory.read8(0xFF00 + cpu.c).unwrap() as u16;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn DI_F3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // F3 DI
+fn DI_F3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // F3 DI
     cpu.interrupt_master_enable = false;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn PUSH_F5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // F5 PUSH AF
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.a) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.f & 0xF0) as u8); // Low;
+fn PUSH_F5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // F5 PUSH AF
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.a) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.f & 0xF0) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc += 1;
@@ -3586,7 +3841,8 @@ fn PUSH_F5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // F5 PUSH AF
     return 16;
 }
 
-fn OR_F6(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // F6 OR d8
+fn OR_F6(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // F6 OR d8
     let mut t: u16 = cpu.a | v;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3599,53 +3855,59 @@ fn OR_F6(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // F6 OR d8
     return 8;
 }
 
-fn RST_F7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // F7 RST 30H
+fn RST_F7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // F7 RST 30H
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 48;
     return 16;
 }
 
-fn LD_F8(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // F8 LD HL,SP+r8
+fn LD_F8(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // F8 LD HL,SP+r8
     cpu.set_hl(cpu.sp + ((v ^ 0x80) - 0x80));
-    let mut t: u16 = cpu.get_hl();
+    let _t: u16 = cpu.get_hl();
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.sp & 0xF) + (v & 0xF)) > 0xF) << FLAGH;
     flag += u16::from(((cpu.sp & 0xFF) + (v & 0xFF)) > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    cpu.set_hl( cpu.get_hl() & 0xFFFF);
+    cpu.set_hl(cpu.get_hl() & 0xFFFF);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
-fn LD_F9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // F9 LD SP,HL
+fn LD_F9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // F9 LD SP,HL
     cpu.sp = cpu.get_hl();
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn LD_FA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // FA LD A,(a16)
+fn LD_FA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
+    // FA LD A,(a16)
     cpu.a = memory.read8(v).unwrap() as u16;
     cpu.pc += 3;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn EI_FB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // FB EI
+fn EI_FB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // FB EI
     cpu.interrupt_master_enable = true;
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
-fn CP_FE(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // FE CP d8
+fn CP_FE(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
+    // FE CP d8
     let mut t: u16 = cpu.a - v;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3659,18 +3921,20 @@ fn CP_FE(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 { // FE CP d8
     return 8;
 }
 
-fn RST_FF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // FF RST 38H
+fn RST_FF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // FF RST 38H
     cpu.pc += 1;
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp- 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp- 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 56;
     return 16;
 }
 
-fn RLC_100(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 100 RLC B
+fn RLC_100(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 100 RLC B
     let mut t: u16 = (cpu.b << 1) + (cpu.b >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3684,7 +3948,8 @@ fn RLC_100(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 100 RLC B
     return 8;
 }
 
-fn RLC_101(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 101 RLC C
+fn RLC_101(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 101 RLC C
     let mut t: u16 = (cpu.c << 1) + (cpu.c >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3698,7 +3963,8 @@ fn RLC_101(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 101 RLC C
     return 8;
 }
 
-fn RLC_102(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 102 RLC D
+fn RLC_102(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 102 RLC D
     let mut t: u16 = (cpu.d << 1) + (cpu.d >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3712,7 +3978,8 @@ fn RLC_102(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 102 RLC D
     return 8;
 }
 
-fn RLC_103(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 103 RLC E
+fn RLC_103(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 103 RLC E
     let mut t: u16 = (cpu.e << 1) + (cpu.e >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3726,7 +3993,8 @@ fn RLC_103(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 103 RLC E
     return 8;
 }
 
-fn RLC_104(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 104 RLC H
+fn RLC_104(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 104 RLC H
     let mut t: u16 = ((cpu.get_hl() >> 8) << 1) + ((cpu.get_hl() >> 8) >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3740,7 +4008,8 @@ fn RLC_104(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 104 RLC H
     return 8;
 }
 
-fn RLC_105(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 105 RLC L
+fn RLC_105(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 105 RLC L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) << 1) + ((cpu.get_hl() & 0xFF) >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3754,8 +4023,10 @@ fn RLC_105(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 105 RLC L
     return 8;
 }
 
-fn RLC_106(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 106 RLC (HL)
-    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) << 1) + ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 7);
+fn RLC_106(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 106 RLC (HL)
+    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) << 1)
+        + ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -3768,7 +4039,8 @@ fn RLC_106(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 106 RLC (HL)
     return 16;
 }
 
-fn RLC_107(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 107 RLC A
+fn RLC_107(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 107 RLC A
     let mut t: u16 = (cpu.a << 1) + (cpu.a >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3782,7 +4054,8 @@ fn RLC_107(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 107 RLC A
     return 8;
 }
 
-fn RRC_108(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 108 RRC B
+fn RRC_108(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 108 RRC B
     let mut t: u16 = (cpu.b >> 1) + ((cpu.b & 1) << 7) + ((cpu.b & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3796,7 +4069,8 @@ fn RRC_108(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 108 RRC B
     return 8;
 }
 
-fn RRC_109(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 109 RRC C
+fn RRC_109(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 109 RRC C
     let mut t: u16 = (cpu.c >> 1) + ((cpu.c & 1) << 7) + ((cpu.c & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3810,7 +4084,8 @@ fn RRC_109(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 109 RRC C
     return 8;
 }
 
-fn RRC_10A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10A RRC D
+fn RRC_10A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 10A RRC D
     let mut t: u16 = (cpu.d >> 1) + ((cpu.d & 1) << 7) + ((cpu.d & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3824,7 +4099,8 @@ fn RRC_10A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10A RRC D
     return 8;
 }
 
-fn RRC_10B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10B RRC E
+fn RRC_10B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 10B RRC E
     let mut t: u16 = (cpu.e >> 1) + ((cpu.e & 1) << 7) + ((cpu.e & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3838,8 +4114,11 @@ fn RRC_10B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10B RRC E
     return 8;
 }
 
-fn RRC_10C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10C RRC H
-    let mut t: u16 = ((cpu.get_hl() >> 8) >> 1) + (((cpu.get_hl() >> 8) & 1) << 7) + (((cpu.get_hl() >> 8) & 1) << 8);
+fn RRC_10C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 10C RRC H
+    let mut t: u16 = ((cpu.get_hl() >> 8) >> 1)
+        + (((cpu.get_hl() >> 8) & 1) << 7)
+        + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -3852,8 +4131,11 @@ fn RRC_10C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10C RRC H
     return 8;
 }
 
-fn RRC_10D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10D RRC L
-    let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1) + (((cpu.get_hl() & 0xFF) & 1) << 7) + (((cpu.get_hl() & 0xFF) & 1) << 8);
+fn RRC_10D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 10D RRC L
+    let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1)
+        + (((cpu.get_hl() & 0xFF) & 1) << 7)
+        + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -3866,8 +4148,11 @@ fn RRC_10D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10D RRC L
     return 8;
 }
 
-fn RRC_10E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10E RRC (HL)
-    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 7) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
+fn RRC_10E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 10E RRC (HL)
+    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1)
+        + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 7)
+        + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -3880,7 +4165,8 @@ fn RRC_10E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10E RRC (HL)
     return 16;
 }
 
-fn RRC_10F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10F RRC A
+fn RRC_10F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 10F RRC A
     let mut t: u16 = (cpu.a >> 1) + ((cpu.a & 1) << 7) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3894,7 +4180,8 @@ fn RRC_10F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 10F RRC A
     return 8;
 }
 
-fn RL_110(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 110 RL B
+fn RL_110(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 110 RL B
     let mut t: u16 = (cpu.b << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3908,7 +4195,8 @@ fn RL_110(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 110 RL B
     return 8;
 }
 
-fn RL_111(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 111 RL C
+fn RL_111(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 111 RL C
     let mut t: u16 = (cpu.c << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3922,7 +4210,8 @@ fn RL_111(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 111 RL C
     return 8;
 }
 
-fn RL_112(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 112 RL D
+fn RL_112(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 112 RL D
     let mut t: u16 = (cpu.d << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3936,7 +4225,8 @@ fn RL_112(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 112 RL D
     return 8;
 }
 
-fn RL_113(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 113 RL E
+fn RL_113(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 113 RL E
     let mut t: u16 = (cpu.e << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3950,7 +4240,8 @@ fn RL_113(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 113 RL E
     return 8;
 }
 
-fn RL_114(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 114 RL H
+fn RL_114(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 114 RL H
     let mut t: u16 = ((cpu.get_hl() >> 8) << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3964,7 +4255,8 @@ fn RL_114(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 114 RL H
     return 8;
 }
 
-fn RL_115(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 115 RL L
+fn RL_115(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 115 RL L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3978,7 +4270,8 @@ fn RL_115(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 115 RL L
     return 8;
 }
 
-fn RL_116(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 116 RL (HL)
+fn RL_116(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 116 RL (HL)
     let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -3992,7 +4285,8 @@ fn RL_116(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 116 RL (HL)
     return 16;
 }
 
-fn RL_117(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 117 RL A
+fn RL_117(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 117 RL A
     let mut t: u16 = (cpu.a << 1) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4006,7 +4300,8 @@ fn RL_117(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 117 RL A
     return 8;
 }
 
-fn RR_118(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 118 RR B
+fn RR_118(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 118 RR B
     let mut t: u16 = (cpu.b >> 1) + ((cpu.f_c() as u16) << 7) + ((cpu.b & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4020,7 +4315,8 @@ fn RR_118(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 118 RR B
     return 8;
 }
 
-fn RR_119(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 119 RR C
+fn RR_119(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 119 RR C
     let mut t: u16 = (cpu.c >> 1) + ((cpu.f_c() as u16) << 7) + ((cpu.c & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4034,7 +4330,8 @@ fn RR_119(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 119 RR C
     return 8;
 }
 
-fn RR_11A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11A RR D
+fn RR_11A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 11A RR D
     let mut t: u16 = (cpu.d >> 1) + ((cpu.f_c() as u16) << 7) + ((cpu.d & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4048,7 +4345,8 @@ fn RR_11A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11A RR D
     return 8;
 }
 
-fn RR_11B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11B RR E
+fn RR_11B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 11B RR E
     let mut t: u16 = (cpu.e >> 1) + ((cpu.f_c() as u16) << 7) + ((cpu.e & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4062,8 +4360,10 @@ fn RR_11B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11B RR E
     return 8;
 }
 
-fn RR_11C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11C RR H
-    let mut t: u16 = ((cpu.get_hl() >> 8) >> 1) + ((cpu.f_c() as u16) << 7) + (((cpu.get_hl() >> 8) & 1) << 8);
+fn RR_11C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 11C RR H
+    let mut t: u16 =
+        ((cpu.get_hl() >> 8) >> 1) + ((cpu.f_c() as u16) << 7) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4076,8 +4376,11 @@ fn RR_11C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11C RR H
     return 8;
 }
 
-fn RR_11D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11D RR L
-    let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1) + ((cpu.f_c() as u16) << 7) + (((cpu.get_hl() & 0xFF) & 1) << 8);
+fn RR_11D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 11D RR L
+    let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1)
+        + ((cpu.f_c() as u16) << 7)
+        + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4090,8 +4393,11 @@ fn RR_11D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11D RR L
     return 8;
 }
 
-fn RR_11E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11E RR (HL)
-    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1) + ((cpu.f_c() as u16) << 7) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
+fn RR_11E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 11E RR (HL)
+    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1)
+        + ((cpu.f_c() as u16) << 7)
+        + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4104,7 +4410,8 @@ fn RR_11E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11E RR (HL)
     return 16;
 }
 
-fn RR_11F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11F RR A
+fn RR_11F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 11F RR A
     let mut t: u16 = (cpu.a >> 1) + ((cpu.f_c() as u16) << 7) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4118,8 +4425,9 @@ fn RR_11F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 11F RR A
     return 8;
 }
 
-fn SLA_120(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 120 SLA B
-    let mut t: u16 = (cpu.b << 1);
+fn SLA_120(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 120 SLA B
+    let mut t: u16 = cpu.b << 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4132,8 +4440,9 @@ fn SLA_120(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 120 SLA B
     return 8;
 }
 
-fn SLA_121(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 121 SLA C
-    let mut t: u16 = (cpu.c << 1);
+fn SLA_121(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 121 SLA C
+    let mut t: u16 = cpu.c << 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4146,8 +4455,9 @@ fn SLA_121(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 121 SLA C
     return 8;
 }
 
-fn SLA_122(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 122 SLA D
-    let mut t: u16 = (cpu.d << 1);
+fn SLA_122(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 122 SLA D
+    let mut t: u16 = cpu.d << 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4160,8 +4470,9 @@ fn SLA_122(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 122 SLA D
     return 8;
 }
 
-fn SLA_123(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 123 SLA E
-    let mut t: u16 = (cpu.e << 1);
+fn SLA_123(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 123 SLA E
+    let mut t: u16 = cpu.e << 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4174,8 +4485,9 @@ fn SLA_123(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 123 SLA E
     return 8;
 }
 
-fn SLA_124(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 124 SLA H
-    let mut t: u16 = ((cpu.get_hl() >> 8) << 1);
+fn SLA_124(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 124 SLA H
+    let mut t: u16 = (cpu.get_hl() >> 8) << 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4188,8 +4500,9 @@ fn SLA_124(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 124 SLA H
     return 8;
 }
 
-fn SLA_125(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 125 SLA L
-    let mut t: u16 = ((cpu.get_hl() & 0xFF) << 1);
+fn SLA_125(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 125 SLA L
+    let mut t: u16 = (cpu.get_hl() & 0xFF) << 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4202,8 +4515,9 @@ fn SLA_125(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 125 SLA L
     return 8;
 }
 
-fn SLA_126(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 126 SLA (HL)
-    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) << 1);
+fn SLA_126(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 126 SLA (HL)
+    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) << 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4216,8 +4530,9 @@ fn SLA_126(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 126 SLA (HL)
     return 16;
 }
 
-fn SLA_127(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 127 SLA A
-    let mut t: u16 = (cpu.a << 1);
+fn SLA_127(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 127 SLA A
+    let mut t: u16 = cpu.a << 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4230,7 +4545,8 @@ fn SLA_127(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 127 SLA A
     return 8;
 }
 
-fn SRA_128(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 128 SRA B
+fn SRA_128(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 128 SRA B
     let mut t: u16 = ((cpu.b >> 1) | (cpu.b & 0x80)) + ((cpu.b & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4244,7 +4560,8 @@ fn SRA_128(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 128 SRA B
     return 8;
 }
 
-fn SRA_129(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 129 SRA C
+fn SRA_129(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 129 SRA C
     let mut t: u16 = ((cpu.c >> 1) | (cpu.c & 0x80)) + ((cpu.c & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4258,7 +4575,8 @@ fn SRA_129(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 129 SRA C
     return 8;
 }
 
-fn SRA_12A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12A SRA D
+fn SRA_12A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 12A SRA D
     let mut t: u16 = ((cpu.d >> 1) | (cpu.d & 0x80)) + ((cpu.d & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4272,7 +4590,8 @@ fn SRA_12A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12A SRA D
     return 8;
 }
 
-fn SRA_12B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12B SRA E
+fn SRA_12B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 12B SRA E
     let mut t: u16 = ((cpu.e >> 1) | (cpu.e & 0x80)) + ((cpu.e & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4286,8 +4605,10 @@ fn SRA_12B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12B SRA E
     return 8;
 }
 
-fn SRA_12C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12C SRA H
-    let mut t: u16 = (((cpu.get_hl() >> 8) >> 1) | ((cpu.get_hl() >> 8) & 0x80)) + (((cpu.get_hl() >> 8) & 1) << 8);
+fn SRA_12C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 12C SRA H
+    let mut t: u16 = (((cpu.get_hl() >> 8) >> 1) | ((cpu.get_hl() >> 8) & 0x80))
+        + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4300,8 +4621,10 @@ fn SRA_12C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12C SRA H
     return 8;
 }
 
-fn SRA_12D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12D SRA L
-    let mut t: u16 = (((cpu.get_hl() & 0xFF) >> 1) | ((cpu.get_hl() & 0xFF) & 0x80)) + (((cpu.get_hl() & 0xFF) & 1) << 8);
+fn SRA_12D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 12D SRA L
+    let mut t: u16 = (((cpu.get_hl() & 0xFF) >> 1) | ((cpu.get_hl() & 0xFF) & 0x80))
+        + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4314,8 +4637,11 @@ fn SRA_12D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12D SRA L
     return 8;
 }
 
-fn SRA_12E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12E SRA (HL)
-    let mut t: u16 = (((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1) | ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0x80)) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
+fn SRA_12E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 12E SRA (HL)
+    let mut t: u16 = (((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1)
+        | ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0x80))
+        + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4328,7 +4654,8 @@ fn SRA_12E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12E SRA (HL)
     return 16;
 }
 
-fn SRA_12F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12F SRA A
+fn SRA_12F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 12F SRA A
     let mut t: u16 = ((cpu.a >> 1) | (cpu.a & 0x80)) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4342,7 +4669,8 @@ fn SRA_12F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 12F SRA A
     return 8;
 }
 
-fn SWAP_130(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 130 SWAP B
+fn SWAP_130(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 130 SWAP B
     let mut t: u16 = ((cpu.b & 0xF0) >> 4) | ((cpu.b & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4355,7 +4683,8 @@ fn SWAP_130(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 130 SWAP B
     return 8;
 }
 
-fn SWAP_131(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 131 SWAP C
+fn SWAP_131(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 131 SWAP C
     let mut t: u16 = ((cpu.c & 0xF0) >> 4) | ((cpu.c & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4368,7 +4697,8 @@ fn SWAP_131(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 131 SWAP C
     return 8;
 }
 
-fn SWAP_132(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 132 SWAP D
+fn SWAP_132(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 132 SWAP D
     let mut t: u16 = ((cpu.d & 0xF0) >> 4) | ((cpu.d & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4381,7 +4711,8 @@ fn SWAP_132(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 132 SWAP D
     return 8;
 }
 
-fn SWAP_133(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 133 SWAP E
+fn SWAP_133(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 133 SWAP E
     let mut t: u16 = ((cpu.e & 0xF0) >> 4) | ((cpu.e & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4394,7 +4725,8 @@ fn SWAP_133(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 133 SWAP E
     return 8;
 }
 
-fn SWAP_134(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 134 SWAP H
+fn SWAP_134(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 134 SWAP H
     let mut t: u16 = (((cpu.get_hl() >> 8) & 0xF0) >> 4) | (((cpu.get_hl() >> 8) & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4407,7 +4739,8 @@ fn SWAP_134(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 134 SWAP H
     return 8;
 }
 
-fn SWAP_135(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 135 SWAP L
+fn SWAP_135(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 135 SWAP L
     let mut t: u16 = (((cpu.get_hl() & 0xFF) & 0xF0) >> 4) | (((cpu.get_hl() & 0xFF) & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4420,8 +4753,10 @@ fn SWAP_135(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 135 SWAP L
     return 8;
 }
 
-fn SWAP_136(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 136 SWAP (HL)
-    let mut t: u16 = (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF0) >> 4) | (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0x0F) << 4);
+fn SWAP_136(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 136 SWAP (HL)
+    let mut t: u16 = (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF0) >> 4)
+        | (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00000000;
@@ -4433,7 +4768,8 @@ fn SWAP_136(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 136 SWAP (HL)
     return 16;
 }
 
-fn SWAP_137(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 137 SWAP A
+fn SWAP_137(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 137 SWAP A
     let mut t: u16 = ((cpu.a & 0xF0) >> 4) | ((cpu.a & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4446,7 +4782,8 @@ fn SWAP_137(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 137 SWAP A
     return 8;
 }
 
-fn SRL_138(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 138 SRL B
+fn SRL_138(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 138 SRL B
     let mut t: u16 = (cpu.b >> 1) + ((cpu.b & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4460,7 +4797,8 @@ fn SRL_138(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 138 SRL B
     return 8;
 }
 
-fn SRL_139(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 139 SRL C
+fn SRL_139(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 139 SRL C
     let mut t: u16 = (cpu.c >> 1) + ((cpu.c & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4474,7 +4812,8 @@ fn SRL_139(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 139 SRL C
     return 8;
 }
 
-fn SRL_13A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13A SRL D
+fn SRL_13A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 13A SRL D
     let mut t: u16 = (cpu.d >> 1) + ((cpu.d & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4488,7 +4827,8 @@ fn SRL_13A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13A SRL D
     return 8;
 }
 
-fn SRL_13B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13B SRL E
+fn SRL_13B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 13B SRL E
     let mut t: u16 = (cpu.e >> 1) + ((cpu.e & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4502,7 +4842,8 @@ fn SRL_13B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13B SRL E
     return 8;
 }
 
-fn SRL_13C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13C SRL H
+fn SRL_13C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 13C SRL H
     let mut t: u16 = ((cpu.get_hl() >> 8) >> 1) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4516,7 +4857,8 @@ fn SRL_13C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13C SRL H
     return 8;
 }
 
-fn SRL_13D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13D SRL L
+fn SRL_13D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 13D SRL L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1) + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4530,8 +4872,10 @@ fn SRL_13D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13D SRL L
     return 8;
 }
 
-fn SRL_13E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13E SRL (HL)
-    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
+fn SRL_13E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 13E SRL (HL)
+    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1)
+        + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4544,7 +4888,8 @@ fn SRL_13E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13E SRL (HL)
     return 16;
 }
 
-fn SRL_13F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13F SRL A
+fn SRL_13F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 13F SRL A
     let mut t: u16 = (cpu.a >> 1) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
@@ -4558,8 +4903,9 @@ fn SRL_13F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 13F SRL A
     return 8;
 }
 
-fn BIT_140(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 140 BIT 0,B
-    let mut t: u16 = cpu.b & (1 << 0);
+fn BIT_140(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 140 BIT 0,B
+    let t: u16 = cpu.b & (1 << 0);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4569,8 +4915,9 @@ fn BIT_140(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 140 BIT 0,B
     return 8;
 }
 
-fn BIT_141(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 141 BIT 0,C
-    let mut t: u16 = cpu.c & (1 << 0);
+fn BIT_141(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 141 BIT 0,C
+    let t: u16 = cpu.c & (1 << 0);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4580,8 +4927,9 @@ fn BIT_141(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 141 BIT 0,C
     return 8;
 }
 
-fn BIT_142(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 142 BIT 0,D
-    let mut t: u16 = cpu.d & (1 << 0);
+fn BIT_142(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 142 BIT 0,D
+    let t: u16 = cpu.d & (1 << 0);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4591,8 +4939,9 @@ fn BIT_142(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 142 BIT 0,D
     return 8;
 }
 
-fn BIT_143(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 143 BIT 0,E
-    let mut t: u16 = cpu.e & (1 << 0);
+fn BIT_143(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 143 BIT 0,E
+    let t: u16 = cpu.e & (1 << 0);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4602,8 +4951,9 @@ fn BIT_143(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 143 BIT 0,E
     return 8;
 }
 
-fn BIT_144(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 144 BIT 0,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 0);
+fn BIT_144(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 144 BIT 0,H
+    let t: u16 = (cpu.get_hl() >> 8) & (1 << 0);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4613,8 +4963,9 @@ fn BIT_144(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 144 BIT 0,H
     return 8;
 }
 
-fn BIT_145(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 145 BIT 0,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 0);
+fn BIT_145(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 145 BIT 0,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & (1 << 0);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4624,8 +4975,9 @@ fn BIT_145(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 145 BIT 0,L
     return 8;
 }
 
-fn BIT_146(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 146 BIT 0,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 0);
+fn BIT_146(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 146 BIT 0,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 0);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4635,8 +4987,9 @@ fn BIT_146(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 146 BIT 0,(HL)
     return 16;
 }
 
-fn BIT_147(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 147 BIT 0,A
-    let mut t: u16 = cpu.a & (1 << 0);
+fn BIT_147(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 147 BIT 0,A
+    let t: u16 = cpu.a & (1 << 0);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4646,8 +4999,9 @@ fn BIT_147(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 147 BIT 0,A
     return 8;
 }
 
-fn BIT_148(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 148 BIT 1,B
-    let mut t: u16 = cpu.b & (1 << 1);
+fn BIT_148(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 148 BIT 1,B
+    let t: u16 = cpu.b & (1 << 1);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4657,8 +5011,9 @@ fn BIT_148(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 148 BIT 1,B
     return 8;
 }
 
-fn BIT_149(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 149 BIT 1,C
-    let mut t: u16 = cpu.c & (1 << 1);
+fn BIT_149(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 149 BIT 1,C
+    let t: u16 = cpu.c & (1 << 1);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4668,8 +5023,9 @@ fn BIT_149(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 149 BIT 1,C
     return 8;
 }
 
-fn BIT_14A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14A BIT 1,D
-    let mut t: u16 = cpu.d & (1 << 1);
+fn BIT_14A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 14A BIT 1,D
+    let t: u16 = cpu.d & (1 << 1);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4679,8 +5035,9 @@ fn BIT_14A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14A BIT 1,D
     return 8;
 }
 
-fn BIT_14B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14B BIT 1,E
-    let mut t: u16 = cpu.e & (1 << 1);
+fn BIT_14B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 14B BIT 1,E
+    let t: u16 = cpu.e & (1 << 1);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4690,8 +5047,9 @@ fn BIT_14B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14B BIT 1,E
     return 8;
 }
 
-fn BIT_14C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14C BIT 1,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 1);
+fn BIT_14C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 14C BIT 1,H
+    let t: u16 = (cpu.get_hl() >> 8) & (1 << 1);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4701,8 +5059,9 @@ fn BIT_14C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14C BIT 1,H
     return 8;
 }
 
-fn BIT_14D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14D BIT 1,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 1);
+fn BIT_14D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 14D BIT 1,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & (1 << 1);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4712,8 +5071,9 @@ fn BIT_14D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14D BIT 1,L
     return 8;
 }
 
-fn BIT_14E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14E BIT 1,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 1);
+fn BIT_14E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 14E BIT 1,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 1);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4723,8 +5083,9 @@ fn BIT_14E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14E BIT 1,(HL)
     return 16;
 }
 
-fn BIT_14F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14F BIT 1,A
-    let mut t: u16 = cpu.a & (1 << 1);
+fn BIT_14F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 14F BIT 1,A
+    let t: u16 = cpu.a & (1 << 1);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4734,8 +5095,9 @@ fn BIT_14F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 14F BIT 1,A
     return 8;
 }
 
-fn BIT_150(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 150 BIT 2,B
-    let mut t: u16 = cpu.b & (1 << 2);
+fn BIT_150(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 150 BIT 2,B
+    let t: u16 = cpu.b & (1 << 2);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4745,8 +5107,9 @@ fn BIT_150(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 150 BIT 2,B
     return 8;
 }
 
-fn BIT_151(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 151 BIT 2,C
-    let mut t: u16 = cpu.c & (1 << 2);
+fn BIT_151(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 151 BIT 2,C
+    let t: u16 = cpu.c & (1 << 2);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4756,8 +5119,9 @@ fn BIT_151(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 151 BIT 2,C
     return 8;
 }
 
-fn BIT_152(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 152 BIT 2,D
-    let mut t: u16 = cpu.d & (1 << 2);
+fn BIT_152(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 152 BIT 2,D
+    let t: u16 = cpu.d & (1 << 2);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4767,8 +5131,9 @@ fn BIT_152(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 152 BIT 2,D
     return 8;
 }
 
-fn BIT_153(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 153 BIT 2,E
-    let mut t: u16 = cpu.e & (1 << 2);
+fn BIT_153(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 153 BIT 2,E
+    let t: u16 = cpu.e & (1 << 2);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4778,8 +5143,9 @@ fn BIT_153(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 153 BIT 2,E
     return 8;
 }
 
-fn BIT_154(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 154 BIT 2,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 2);
+fn BIT_154(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 154 BIT 2,H
+    let t: u16 = (cpu.get_hl() >> 8) & (1 << 2);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4789,8 +5155,9 @@ fn BIT_154(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 154 BIT 2,H
     return 8;
 }
 
-fn BIT_155(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 155 BIT 2,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 2);
+fn BIT_155(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 155 BIT 2,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & (1 << 2);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4800,8 +5167,9 @@ fn BIT_155(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 155 BIT 2,L
     return 8;
 }
 
-fn BIT_156(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 156 BIT 2,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 2);
+fn BIT_156(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 156 BIT 2,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 2);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4811,8 +5179,9 @@ fn BIT_156(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 156 BIT 2,(HL)
     return 16;
 }
 
-fn BIT_157(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 157 BIT 2,A
-    let mut t: u16 = cpu.a & (1 << 2);
+fn BIT_157(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 157 BIT 2,A
+    let t: u16 = cpu.a & (1 << 2);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4822,8 +5191,9 @@ fn BIT_157(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 157 BIT 2,A
     return 8;
 }
 
-fn BIT_158(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 158 BIT 3,B
-    let mut t: u16 = cpu.b & (1 << 3);
+fn BIT_158(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 158 BIT 3,B
+    let t: u16 = cpu.b & (1 << 3);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4833,8 +5203,9 @@ fn BIT_158(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 158 BIT 3,B
     return 8;
 }
 
-fn BIT_159(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 159 BIT 3,C
-    let mut t: u16 = cpu.c & (1 << 3);
+fn BIT_159(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 159 BIT 3,C
+    let t: u16 = cpu.c & (1 << 3);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4844,8 +5215,9 @@ fn BIT_159(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 159 BIT 3,C
     return 8;
 }
 
-fn BIT_15A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15A BIT 3,D
-    let mut t: u16 = cpu.d & (1 << 3);
+fn BIT_15A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 15A BIT 3,D
+    let t: u16 = cpu.d & (1 << 3);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4855,8 +5227,9 @@ fn BIT_15A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15A BIT 3,D
     return 8;
 }
 
-fn BIT_15B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15B BIT 3,E
-    let mut t: u16 = cpu.e & (1 << 3);
+fn BIT_15B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 15B BIT 3,E
+    let t: u16 = cpu.e & (1 << 3);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4866,8 +5239,9 @@ fn BIT_15B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15B BIT 3,E
     return 8;
 }
 
-fn BIT_15C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15C BIT 3,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 3);
+fn BIT_15C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 15C BIT 3,H
+    let t: u16 = (cpu.get_hl() >> 8) & (1 << 3);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4877,8 +5251,9 @@ fn BIT_15C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15C BIT 3,H
     return 8;
 }
 
-fn BIT_15D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15D BIT 3,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 3);
+fn BIT_15D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 15D BIT 3,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & (1 << 3);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4888,8 +5263,9 @@ fn BIT_15D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15D BIT 3,L
     return 8;
 }
 
-fn BIT_15E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15E BIT 3,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 3);
+fn BIT_15E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 15E BIT 3,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 3);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4899,8 +5275,9 @@ fn BIT_15E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15E BIT 3,(HL)
     return 16;
 }
 
-fn BIT_15F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15F BIT 3,A
-    let mut t: u16 = cpu.a & (1 << 3);
+fn BIT_15F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 15F BIT 3,A
+    let t: u16 = cpu.a & (1 << 3);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4910,8 +5287,9 @@ fn BIT_15F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 15F BIT 3,A
     return 8;
 }
 
-fn BIT_160(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 160 BIT 4,B
-    let mut t: u16 = cpu.b & (1 << 4);
+fn BIT_160(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 160 BIT 4,B
+    let t: u16 = cpu.b & (1 << 4);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4921,8 +5299,9 @@ fn BIT_160(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 160 BIT 4,B
     return 8;
 }
 
-fn BIT_161(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 161 BIT 4,C
-    let mut t: u16 = cpu.c & (1 << 4);
+fn BIT_161(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 161 BIT 4,C
+    let t: u16 = cpu.c & (1 << 4);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4932,8 +5311,9 @@ fn BIT_161(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 161 BIT 4,C
     return 8;
 }
 
-fn BIT_162(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 162 BIT 4,D
-    let mut t: u16 = cpu.d & (1 << 4);
+fn BIT_162(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 162 BIT 4,D
+    let t: u16 = cpu.d & (1 << 4);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4943,8 +5323,9 @@ fn BIT_162(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 162 BIT 4,D
     return 8;
 }
 
-fn BIT_163(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 163 BIT 4,E
-    let mut t: u16 = cpu.e & (1 << 4);
+fn BIT_163(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 163 BIT 4,E
+    let t: u16 = cpu.e & (1 << 4);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4954,8 +5335,9 @@ fn BIT_163(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 163 BIT 4,E
     return 8;
 }
 
-fn BIT_164(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 164 BIT 4,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 4);
+fn BIT_164(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 164 BIT 4,H
+    let t: u16 = (cpu.get_hl() >> 8) & (1 << 4);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4965,8 +5347,9 @@ fn BIT_164(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 164 BIT 4,H
     return 8;
 }
 
-fn BIT_165(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 165 BIT 4,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 4);
+fn BIT_165(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 165 BIT 4,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & (1 << 4);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4976,8 +5359,9 @@ fn BIT_165(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 165 BIT 4,L
     return 8;
 }
 
-fn BIT_166(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 166 BIT 4,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 4);
+fn BIT_166(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 166 BIT 4,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 4);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4987,8 +5371,9 @@ fn BIT_166(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 166 BIT 4,(HL)
     return 16;
 }
 
-fn BIT_167(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 167 BIT 4,A
-    let mut t: u16 = cpu.a & (1 << 4);
+fn BIT_167(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 167 BIT 4,A
+    let t: u16 = cpu.a & (1 << 4);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -4998,8 +5383,9 @@ fn BIT_167(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 167 BIT 4,A
     return 8;
 }
 
-fn BIT_168(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 168 BIT 5,B
-    let mut t: u16 = cpu.b & (1 << 5);
+fn BIT_168(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 168 BIT 5,B
+    let t: u16 = cpu.b & (1 << 5);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5009,8 +5395,9 @@ fn BIT_168(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 168 BIT 5,B
     return 8;
 }
 
-fn BIT_169(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 169 BIT 5,C
-    let mut t: u16 = cpu.c & (1 << 5);
+fn BIT_169(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 169 BIT 5,C
+    let t: u16 = cpu.c & (1 << 5);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5020,8 +5407,9 @@ fn BIT_169(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 169 BIT 5,C
     return 8;
 }
 
-fn BIT_16A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16A BIT 5,D
-    let mut t: u16 = cpu.d & (1 << 5);
+fn BIT_16A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 16A BIT 5,D
+    let t: u16 = cpu.d & (1 << 5);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5031,8 +5419,9 @@ fn BIT_16A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16A BIT 5,D
     return 8;
 }
 
-fn BIT_16B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16B BIT 5,E
-    let mut t: u16 = cpu.e & (1 << 5);
+fn BIT_16B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 16B BIT 5,E
+    let t: u16 = cpu.e & (1 << 5);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5042,8 +5431,9 @@ fn BIT_16B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16B BIT 5,E
     return 8;
 }
 
-fn BIT_16C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16C BIT 5,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 5);
+fn BIT_16C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 16C BIT 5,H
+    let t: u16 = (cpu.get_hl() >> 8) & (1 << 5);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5053,8 +5443,9 @@ fn BIT_16C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16C BIT 5,H
     return 8;
 }
 
-fn BIT_16D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16D BIT 5,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 5);
+fn BIT_16D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 16D BIT 5,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & (1 << 5);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5064,8 +5455,9 @@ fn BIT_16D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16D BIT 5,L
     return 8;
 }
 
-fn BIT_16E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16E BIT 5,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 5);
+fn BIT_16E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 16E BIT 5,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 5);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5075,8 +5467,9 @@ fn BIT_16E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16E BIT 5,(HL)
     return 16;
 }
 
-fn BIT_16F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16F BIT 5,A
-    let mut t: u16 = cpu.a & (1 << 5);
+fn BIT_16F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 16F BIT 5,A
+    let t: u16 = cpu.a & (1 << 5);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5086,8 +5479,9 @@ fn BIT_16F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 16F BIT 5,A
     return 8;
 }
 
-fn BIT_170(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 170 BIT 6,B
-    let mut t: u16 = cpu.b & (1 << 6);
+fn BIT_170(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 170 BIT 6,B
+    let t: u16 = cpu.b & (1 << 6);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5097,8 +5491,9 @@ fn BIT_170(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 170 BIT 6,B
     return 8;
 }
 
-fn BIT_171(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 171 BIT 6,C
-    let mut t: u16 = cpu.c & (1 << 6);
+fn BIT_171(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 171 BIT 6,C
+    let t: u16 = cpu.c & (1 << 6);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5108,8 +5503,9 @@ fn BIT_171(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 171 BIT 6,C
     return 8;
 }
 
-fn BIT_172(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 172 BIT 6,D
-    let mut t: u16 = cpu.d & (1 << 6);
+fn BIT_172(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 172 BIT 6,D
+    let t: u16 = cpu.d & (1 << 6);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5119,8 +5515,9 @@ fn BIT_172(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 172 BIT 6,D
     return 8;
 }
 
-fn BIT_173(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 173 BIT 6,E
-    let mut t: u16 = cpu.e & (1 << 6);
+fn BIT_173(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 173 BIT 6,E
+    let t: u16 = cpu.e & (1 << 6);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5130,8 +5527,9 @@ fn BIT_173(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 173 BIT 6,E
     return 8;
 }
 
-fn BIT_174(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 174 BIT 6,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 6);
+fn BIT_174(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 174 BIT 6,H
+    let t: u16 = (cpu.get_hl() >> 8) & (1 << 6);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5141,8 +5539,9 @@ fn BIT_174(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 174 BIT 6,H
     return 8;
 }
 
-fn BIT_175(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 175 BIT 6,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 6);
+fn BIT_175(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 175 BIT 6,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & (1 << 6);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5152,8 +5551,9 @@ fn BIT_175(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 175 BIT 6,L
     return 8;
 }
 
-fn BIT_176(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 176 BIT 6,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 6);
+fn BIT_176(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 176 BIT 6,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 6);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5163,8 +5563,9 @@ fn BIT_176(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 176 BIT 6,(HL)
     return 16;
 }
 
-fn BIT_177(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 177 BIT 6,A
-    let mut t: u16 = cpu.a & (1 << 6);
+fn BIT_177(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 177 BIT 6,A
+    let t: u16 = cpu.a & (1 << 6);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5174,8 +5575,9 @@ fn BIT_177(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 177 BIT 6,A
     return 8;
 }
 
-fn BIT_178(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 178 BIT 7,B
-    let mut t: u16 = cpu.b & (1 << 7);
+fn BIT_178(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 178 BIT 7,B
+    let t: u16 = cpu.b & (1 << 7);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5185,8 +5587,9 @@ fn BIT_178(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 178 BIT 7,B
     return 8;
 }
 
-fn BIT_179(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 179 BIT 7,C
-    let mut t: u16 = cpu.c & (1 << 7);
+fn BIT_179(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 179 BIT 7,C
+    let t: u16 = cpu.c & (1 << 7);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5196,8 +5599,9 @@ fn BIT_179(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 179 BIT 7,C
     return 8;
 }
 
-fn BIT_17A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17A BIT 7,D
-    let mut t: u16 = cpu.d & (1 << 7);
+fn BIT_17A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 17A BIT 7,D
+    let t: u16 = cpu.d & (1 << 7);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5207,8 +5611,9 @@ fn BIT_17A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17A BIT 7,D
     return 8;
 }
 
-fn BIT_17B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17B BIT 7,E
-    let mut t: u16 = cpu.e & (1 << 7);
+fn BIT_17B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 17B BIT 7,E
+    let t: u16 = cpu.e & (1 << 7);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5218,8 +5623,9 @@ fn BIT_17B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17B BIT 7,E
     return 8;
 }
 
-fn BIT_17C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17C BIT 7,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 7);
+fn BIT_17C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 17C BIT 7,H
+    let t: u16 = (cpu.get_hl() >> 8) & (1 << 7);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5229,8 +5635,9 @@ fn BIT_17C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17C BIT 7,H
     return 8;
 }
 
-fn BIT_17D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17D BIT 7,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 7);
+fn BIT_17D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 17D BIT 7,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & (1 << 7);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5240,8 +5647,9 @@ fn BIT_17D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17D BIT 7,L
     return 8;
 }
 
-fn BIT_17E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17E BIT 7,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 7);
+fn BIT_17E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 17E BIT 7,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & (1 << 7);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5251,8 +5659,9 @@ fn BIT_17E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17E BIT 7,(HL)
     return 16;
 }
 
-fn BIT_17F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17F BIT 7,A
-    let mut t: u16 = cpu.a & (1 << 7);
+fn BIT_17F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 17F BIT 7,A
+    let t: u16 = cpu.a & (1 << 7);
     let mut flag: u16 = 0b00100000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
@@ -5262,1024 +5671,1152 @@ fn BIT_17F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 17F BIT 7,A
     return 8;
 }
 
-fn RES_180(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 180 RES 0,B
-    let mut t: u16 = cpu.b & !(1 << 0);
+fn RES_180(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 180 RES 0,B
+    let t: u16 = cpu.b & !(1 << 0);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_181(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 181 RES 0,C
-    let mut t: u16 = cpu.c & !(1 << 0);
+fn RES_181(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 181 RES 0,C
+    let t: u16 = cpu.c & !(1 << 0);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_182(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 182 RES 0,D
-    let mut t: u16 = cpu.d & !(1 << 0);
+fn RES_182(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 182 RES 0,D
+    let t: u16 = cpu.d & !(1 << 0);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_183(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 183 RES 0,E
-    let mut t: u16 = cpu.e & !(1 << 0);
+fn RES_183(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 183 RES 0,E
+    let t: u16 = cpu.e & !(1 << 0);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_184(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 184 RES 0,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 0);
+fn RES_184(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 184 RES 0,H
+    let t: u16 = (cpu.get_hl() >> 8) & !(1 << 0);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_185(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 185 RES 0,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 0);
+fn RES_185(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 185 RES 0,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 0);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_186(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 186 RES 0,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 0);
+fn RES_186(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 186 RES 0,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 0);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn RES_187(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 187 RES 0,A
-    let mut t: u16 = cpu.a & !(1 << 0);
+fn RES_187(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 187 RES 0,A
+    let t: u16 = cpu.a & !(1 << 0);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_188(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 188 RES 1,B
-    let mut t: u16 = cpu.b & !(1 << 1);
+fn RES_188(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 188 RES 1,B
+    let t: u16 = cpu.b & !(1 << 1);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_189(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 189 RES 1,C
-    let mut t: u16 = cpu.c & !(1 << 1);
+fn RES_189(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 189 RES 1,C
+    let t: u16 = cpu.c & !(1 << 1);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_18A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 18A RES 1,D
-    let mut t: u16 = cpu.d & !(1 << 1);
+fn RES_18A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 18A RES 1,D
+    let t: u16 = cpu.d & !(1 << 1);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_18B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 18B RES 1,E
-    let mut t: u16 = cpu.e & !(1 << 1);
+fn RES_18B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 18B RES 1,E
+    let t: u16 = cpu.e & !(1 << 1);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_18C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 18C RES 1,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 1);
+fn RES_18C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 18C RES 1,H
+    let t: u16 = (cpu.get_hl() >> 8) & !(1 << 1);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_18D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 18D RES 1,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 1);
+fn RES_18D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 18D RES 1,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 1);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_18E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 18E RES 1,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 1);
+fn RES_18E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 18E RES 1,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 1);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn RES_18F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 18F RES 1,A
-    let mut t: u16 = cpu.a & !(1 << 1);
+fn RES_18F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 18F RES 1,A
+    let t: u16 = cpu.a & !(1 << 1);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_190(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 190 RES 2,B
-    let mut t: u16 = cpu.b & !(1 << 2);
+fn RES_190(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 190 RES 2,B
+    let t: u16 = cpu.b & !(1 << 2);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_191(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 191 RES 2,C
-    let mut t: u16 = cpu.c & !(1 << 2);
+fn RES_191(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 191 RES 2,C
+    let t: u16 = cpu.c & !(1 << 2);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_192(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 192 RES 2,D
-    let mut t: u16 = cpu.d & !(1 << 2);
+fn RES_192(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 192 RES 2,D
+    let t: u16 = cpu.d & !(1 << 2);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_193(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 193 RES 2,E
-    let mut t: u16 = cpu.e & !(1 << 2);
+fn RES_193(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 193 RES 2,E
+    let t: u16 = cpu.e & !(1 << 2);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_194(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 194 RES 2,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 2);
+fn RES_194(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 194 RES 2,H
+    let t: u16 = (cpu.get_hl() >> 8) & !(1 << 2);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_195(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 195 RES 2,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 2);
+fn RES_195(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 195 RES 2,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 2);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_196(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 196 RES 2,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 2);
+fn RES_196(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 196 RES 2,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 2);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn RES_197(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 197 RES 2,A
-    let mut t: u16 = cpu.a & !(1 << 2);
+fn RES_197(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 197 RES 2,A
+    let t: u16 = cpu.a & !(1 << 2);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_198(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 198 RES 3,B
-    let mut t: u16 = cpu.b & !(1 << 3);
+fn RES_198(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 198 RES 3,B
+    let t: u16 = cpu.b & !(1 << 3);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_199(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 199 RES 3,C
-    let mut t: u16 = cpu.c & !(1 << 3);
+fn RES_199(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 199 RES 3,C
+    let t: u16 = cpu.c & !(1 << 3);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_19A(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 19A RES 3,D
-    let mut t: u16 = cpu.d & !(1 << 3);
+fn RES_19A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 19A RES 3,D
+    let t: u16 = cpu.d & !(1 << 3);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_19B(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 19B RES 3,E
-    let mut t: u16 = cpu.e & !(1 << 3);
+fn RES_19B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 19B RES 3,E
+    let t: u16 = cpu.e & !(1 << 3);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_19C(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 19C RES 3,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 3);
+fn RES_19C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 19C RES 3,H
+    let t: u16 = (cpu.get_hl() >> 8) & !(1 << 3);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_19D(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 19D RES 3,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 3);
+fn RES_19D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 19D RES 3,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 3);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_19E(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 19E RES 3,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 3);
+fn RES_19E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 19E RES 3,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 3);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn RES_19F(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 19F RES 3,A
-    let mut t: u16 = cpu.a & !(1 << 3);
+fn RES_19F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 19F RES 3,A
+    let t: u16 = cpu.a & !(1 << 3);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A0 RES 4,B
-    let mut t: u16 = cpu.b & !(1 << 4);
+fn RES_1A0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A0 RES 4,B
+    let t: u16 = cpu.b & !(1 << 4);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A1 RES 4,C
-    let mut t: u16 = cpu.c & !(1 << 4);
+fn RES_1A1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A1 RES 4,C
+    let t: u16 = cpu.c & !(1 << 4);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A2 RES 4,D
-    let mut t: u16 = cpu.d & !(1 << 4);
+fn RES_1A2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A2 RES 4,D
+    let t: u16 = cpu.d & !(1 << 4);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A3 RES 4,E
-    let mut t: u16 = cpu.e & !(1 << 4);
+fn RES_1A3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A3 RES 4,E
+    let t: u16 = cpu.e & !(1 << 4);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A4 RES 4,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 4);
+fn RES_1A4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A4 RES 4,H
+    let t: u16 = (cpu.get_hl() >> 8) & !(1 << 4);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A5 RES 4,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 4);
+fn RES_1A5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A5 RES 4,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 4);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A6 RES 4,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 4);
+fn RES_1A6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1A6 RES 4,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 4);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn RES_1A7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A7 RES 4,A
-    let mut t: u16 = cpu.a & !(1 << 4);
+fn RES_1A7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A7 RES 4,A
+    let t: u16 = cpu.a & !(1 << 4);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A8 RES 5,B
-    let mut t: u16 = cpu.b & !(1 << 5);
+fn RES_1A8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A8 RES 5,B
+    let t: u16 = cpu.b & !(1 << 5);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1A9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1A9 RES 5,C
-    let mut t: u16 = cpu.c & !(1 << 5);
+fn RES_1A9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1A9 RES 5,C
+    let t: u16 = cpu.c & !(1 << 5);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1AA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1AA RES 5,D
-    let mut t: u16 = cpu.d & !(1 << 5);
+fn RES_1AA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1AA RES 5,D
+    let t: u16 = cpu.d & !(1 << 5);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1AB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1AB RES 5,E
-    let mut t: u16 = cpu.e & !(1 << 5);
+fn RES_1AB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1AB RES 5,E
+    let t: u16 = cpu.e & !(1 << 5);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1AC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1AC RES 5,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 5);
+fn RES_1AC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1AC RES 5,H
+    let t: u16 = (cpu.get_hl() >> 8) & !(1 << 5);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1AD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1AD RES 5,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 5);
+fn RES_1AD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1AD RES 5,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 5);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1AE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1AE RES 5,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 5);
+fn RES_1AE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1AE RES 5,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 5);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn RES_1AF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1AF RES 5,A
-    let mut t: u16 = cpu.a & !(1 << 5);
+fn RES_1AF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1AF RES 5,A
+    let t: u16 = cpu.a & !(1 << 5);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B0 RES 6,B
-    let mut t: u16 = cpu.b & !(1 << 6);
+fn RES_1B0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B0 RES 6,B
+    let t: u16 = cpu.b & !(1 << 6);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B1 RES 6,C
-    let mut t: u16 = cpu.c & !(1 << 6);
+fn RES_1B1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B1 RES 6,C
+    let t: u16 = cpu.c & !(1 << 6);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B2 RES 6,D
-    let mut t: u16 = cpu.d & !(1 << 6);
+fn RES_1B2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B2 RES 6,D
+    let t: u16 = cpu.d & !(1 << 6);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B3 RES 6,E
-    let mut t: u16 = cpu.e & !(1 << 6);
+fn RES_1B3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B3 RES 6,E
+    let t: u16 = cpu.e & !(1 << 6);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B4 RES 6,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 6);
+fn RES_1B4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B4 RES 6,H
+    let t: u16 = (cpu.get_hl() >> 8) & !(1 << 6);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B5 RES 6,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 6);
+fn RES_1B5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B5 RES 6,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 6);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B6 RES 6,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 6);
+fn RES_1B6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1B6 RES 6,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 6);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn RES_1B7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B7 RES 6,A
-    let mut t: u16 = cpu.a & !(1 << 6);
+fn RES_1B7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B7 RES 6,A
+    let t: u16 = cpu.a & !(1 << 6);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B8 RES 7,B
-    let mut t: u16 = cpu.b & !(1 << 7);
+fn RES_1B8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B8 RES 7,B
+    let t: u16 = cpu.b & !(1 << 7);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1B9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1B9 RES 7,C
-    let mut t: u16 = cpu.c & !(1 << 7);
+fn RES_1B9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1B9 RES 7,C
+    let t: u16 = cpu.c & !(1 << 7);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1BA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1BA RES 7,D
-    let mut t: u16 = cpu.d & !(1 << 7);
+fn RES_1BA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1BA RES 7,D
+    let t: u16 = cpu.d & !(1 << 7);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1BB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1BB RES 7,E
-    let mut t: u16 = cpu.e & !(1 << 7);
+fn RES_1BB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1BB RES 7,E
+    let t: u16 = cpu.e & !(1 << 7);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1BC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1BC RES 7,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 7);
+fn RES_1BC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1BC RES 7,H
+    let t: u16 = (cpu.get_hl() >> 8) & !(1 << 7);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1BD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1BD RES 7,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 7);
+fn RES_1BD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1BD RES 7,L
+    let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 7);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn RES_1BE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1BE RES 7,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 7);
+fn RES_1BE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1BE RES 7,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 7);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn RES_1BF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1BF RES 7,A
-    let mut t: u16 = cpu.a & !(1 << 7);
+fn RES_1BF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1BF RES 7,A
+    let t: u16 = cpu.a & !(1 << 7);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C0 SET 0,B
-    let mut t: u16 = cpu.b | (1 << 0);
+fn SET_1C0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C0 SET 0,B
+    let t: u16 = cpu.b | (1 << 0);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C1 SET 0,C
-    let mut t: u16 = cpu.c | (1 << 0);
+fn SET_1C1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C1 SET 0,C
+    let t: u16 = cpu.c | (1 << 0);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C2 SET 0,D
-    let mut t: u16 = cpu.d | (1 << 0);
+fn SET_1C2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C2 SET 0,D
+    let t: u16 = cpu.d | (1 << 0);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C3 SET 0,E
-    let mut t: u16 = cpu.e | (1 << 0);
+fn SET_1C3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C3 SET 0,E
+    let t: u16 = cpu.e | (1 << 0);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C4 SET 0,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 0);
+fn SET_1C4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C4 SET 0,H
+    let t: u16 = (cpu.get_hl() >> 8) | (1 << 0);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C5 SET 0,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 0);
+fn SET_1C5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C5 SET 0,L
+    let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 0);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C6 SET 0,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 0);
+fn SET_1C6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1C6 SET 0,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 0);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn SET_1C7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C7 SET 0,A
-    let mut t: u16 = cpu.a | (1 << 0);
+fn SET_1C7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C7 SET 0,A
+    let t: u16 = cpu.a | (1 << 0);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C8 SET 1,B
-    let mut t: u16 = cpu.b | (1 << 1);
+fn SET_1C8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C8 SET 1,B
+    let t: u16 = cpu.b | (1 << 1);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1C9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1C9 SET 1,C
-    let mut t: u16 = cpu.c | (1 << 1);
+fn SET_1C9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1C9 SET 1,C
+    let t: u16 = cpu.c | (1 << 1);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1CA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1CA SET 1,D
-    let mut t: u16 = cpu.d | (1 << 1);
+fn SET_1CA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1CA SET 1,D
+    let t: u16 = cpu.d | (1 << 1);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1CB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1CB SET 1,E
-    let mut t: u16 = cpu.e | (1 << 1);
+fn SET_1CB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1CB SET 1,E
+    let t: u16 = cpu.e | (1 << 1);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1CC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1CC SET 1,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 1);
+fn SET_1CC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1CC SET 1,H
+    let t: u16 = (cpu.get_hl() >> 8) | (1 << 1);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1CD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1CD SET 1,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 1);
+fn SET_1CD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1CD SET 1,L
+    let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 1);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1CE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1CE SET 1,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 1);
+fn SET_1CE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1CE SET 1,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 1);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn SET_1CF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1CF SET 1,A
-    let mut t: u16 = cpu.a | (1 << 1);
+fn SET_1CF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1CF SET 1,A
+    let t: u16 = cpu.a | (1 << 1);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D0 SET 2,B
-    let mut t: u16 = cpu.b | (1 << 2);
+fn SET_1D0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D0 SET 2,B
+    let t: u16 = cpu.b | (1 << 2);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D1 SET 2,C
-    let mut t: u16 = cpu.c | (1 << 2);
+fn SET_1D1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D1 SET 2,C
+    let t: u16 = cpu.c | (1 << 2);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D2 SET 2,D
-    let mut t: u16 = cpu.d | (1 << 2);
+fn SET_1D2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D2 SET 2,D
+    let t: u16 = cpu.d | (1 << 2);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D3 SET 2,E
-    let mut t: u16 = cpu.e | (1 << 2);
+fn SET_1D3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D3 SET 2,E
+    let t: u16 = cpu.e | (1 << 2);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D4 SET 2,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 2);
+fn SET_1D4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D4 SET 2,H
+    let t: u16 = (cpu.get_hl() >> 8) | (1 << 2);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D5 SET 2,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 2);
+fn SET_1D5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D5 SET 2,L
+    let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 2);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D6 SET 2,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 2);
+fn SET_1D6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1D6 SET 2,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 2);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn SET_1D7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D7 SET 2,A
-    let mut t: u16 = cpu.a | (1 << 2);
+fn SET_1D7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D7 SET 2,A
+    let t: u16 = cpu.a | (1 << 2);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D8 SET 3,B
-    let mut t: u16 = cpu.b | (1 << 3);
+fn SET_1D8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D8 SET 3,B
+    let t: u16 = cpu.b | (1 << 3);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1D9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1D9 SET 3,C
-    let mut t: u16 = cpu.c | (1 << 3);
+fn SET_1D9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1D9 SET 3,C
+    let t: u16 = cpu.c | (1 << 3);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1DA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1DA SET 3,D
-    let mut t: u16 = cpu.d | (1 << 3);
+fn SET_1DA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1DA SET 3,D
+    let t: u16 = cpu.d | (1 << 3);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1DB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1DB SET 3,E
-    let mut t: u16 = cpu.e | (1 << 3);
+fn SET_1DB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1DB SET 3,E
+    let t: u16 = cpu.e | (1 << 3);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1DC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1DC SET 3,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 3);
+fn SET_1DC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1DC SET 3,H
+    let t: u16 = (cpu.get_hl() >> 8) | (1 << 3);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1DD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1DD SET 3,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 3);
+fn SET_1DD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1DD SET 3,L
+    let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 3);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1DE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1DE SET 3,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 3);
+fn SET_1DE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1DE SET 3,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 3);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn SET_1DF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1DF SET 3,A
-    let mut t: u16 = cpu.a | (1 << 3);
+fn SET_1DF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1DF SET 3,A
+    let t: u16 = cpu.a | (1 << 3);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E0 SET 4,B
-    let mut t: u16 = cpu.b | (1 << 4);
+fn SET_1E0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E0 SET 4,B
+    let t: u16 = cpu.b | (1 << 4);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E1 SET 4,C
-    let mut t: u16 = cpu.c | (1 << 4);
+fn SET_1E1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E1 SET 4,C
+    let t: u16 = cpu.c | (1 << 4);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E2 SET 4,D
-    let mut t: u16 = cpu.d | (1 << 4);
+fn SET_1E2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E2 SET 4,D
+    let t: u16 = cpu.d | (1 << 4);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E3 SET 4,E
-    let mut t: u16 = cpu.e | (1 << 4);
+fn SET_1E3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E3 SET 4,E
+    let t: u16 = cpu.e | (1 << 4);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E4 SET 4,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 4);
+fn SET_1E4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E4 SET 4,H
+    let t: u16 = (cpu.get_hl() >> 8) | (1 << 4);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E5 SET 4,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 4);
+fn SET_1E5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E5 SET 4,L
+    let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 4);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E6 SET 4,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 4);
+fn SET_1E6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1E6 SET 4,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 4);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn SET_1E7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E7 SET 4,A
-    let mut t: u16 = cpu.a | (1 << 4);
+fn SET_1E7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E7 SET 4,A
+    let t: u16 = cpu.a | (1 << 4);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E8 SET 5,B
-    let mut t: u16 = cpu.b | (1 << 5);
+fn SET_1E8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E8 SET 5,B
+    let t: u16 = cpu.b | (1 << 5);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1E9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1E9 SET 5,C
-    let mut t: u16 = cpu.c | (1 << 5);
+fn SET_1E9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1E9 SET 5,C
+    let t: u16 = cpu.c | (1 << 5);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1EA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1EA SET 5,D
-    let mut t: u16 = cpu.d | (1 << 5);
+fn SET_1EA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1EA SET 5,D
+    let t: u16 = cpu.d | (1 << 5);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1EB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1EB SET 5,E
-    let mut t: u16 = cpu.e | (1 << 5);
+fn SET_1EB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1EB SET 5,E
+    let t: u16 = cpu.e | (1 << 5);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1EC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1EC SET 5,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 5);
+fn SET_1EC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1EC SET 5,H
+    let t: u16 = (cpu.get_hl() >> 8) | (1 << 5);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1ED(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1ED SET 5,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 5);
+fn SET_1ED(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1ED SET 5,L
+    let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 5);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1EE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1EE SET 5,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 5);
+fn SET_1EE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1EE SET 5,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 5);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn SET_1EF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1EF SET 5,A
-    let mut t: u16 = cpu.a | (1 << 5);
+fn SET_1EF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1EF SET 5,A
+    let t: u16 = cpu.a | (1 << 5);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F0(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F0 SET 6,B
-    let mut t: u16 = cpu.b | (1 << 6);
+fn SET_1F0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F0 SET 6,B
+    let t: u16 = cpu.b | (1 << 6);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F1(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F1 SET 6,C
-    let mut t: u16 = cpu.c | (1 << 6);
+fn SET_1F1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F1 SET 6,C
+    let t: u16 = cpu.c | (1 << 6);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F2(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F2 SET 6,D
-    let mut t: u16 = cpu.d | (1 << 6);
+fn SET_1F2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F2 SET 6,D
+    let t: u16 = cpu.d | (1 << 6);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F3(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F3 SET 6,E
-    let mut t: u16 = cpu.e | (1 << 6);
+fn SET_1F3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F3 SET 6,E
+    let t: u16 = cpu.e | (1 << 6);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F4(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F4 SET 6,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 6);
+fn SET_1F4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F4 SET 6,H
+    let t: u16 = (cpu.get_hl() >> 8) | (1 << 6);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F5(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F5 SET 6,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 6);
+fn SET_1F5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F5 SET 6,L
+    let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 6);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F6(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F6 SET 6,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 6);
+fn SET_1F6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1F6 SET 6,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 6);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn SET_1F7(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F7 SET 6,A
-    let mut t: u16 = cpu.a | (1 << 6);
+fn SET_1F7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F7 SET 6,A
+    let t: u16 = cpu.a | (1 << 6);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F8(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F8 SET 7,B
-    let mut t: u16 = cpu.b | (1 << 7);
+fn SET_1F8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F8 SET 7,B
+    let t: u16 = cpu.b | (1 << 7);
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1F9(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1F9 SET 7,C
-    let mut t: u16 = cpu.c | (1 << 7);
+fn SET_1F9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1F9 SET 7,C
+    let t: u16 = cpu.c | (1 << 7);
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1FA(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1FA SET 7,D
-    let mut t: u16 = cpu.d | (1 << 7);
+fn SET_1FA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1FA SET 7,D
+    let t: u16 = cpu.d | (1 << 7);
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1FB(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1FB SET 7,E
-    let mut t: u16 = cpu.e | (1 << 7);
+fn SET_1FB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1FB SET 7,E
+    let t: u16 = cpu.e | (1 << 7);
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1FC(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1FC SET 7,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 7);
+fn SET_1FC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1FC SET 7,H
+    let t: u16 = (cpu.get_hl() >> 8) | (1 << 7);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1FD(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1FD SET 7,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 7);
+fn SET_1FD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1FD SET 7,L
+    let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 7);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
-fn SET_1FE(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1FE SET 7,(HL)
-    let mut t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 7);
+fn SET_1FE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
+    // 1FE SET 7,(HL)
+    let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 7);
     memory.write8(cpu.get_hl(), (t) as u8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
-fn SET_1FF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1FF SET 7,A
-    let mut t: u16 = cpu.a | (1 << 7);
+fn SET_1FF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
+    // 1FF SET 7,A
+    let t: u16 = cpu.a | (1 << 7);
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -6287,40 +6824,23 @@ fn SET_1FF(cpu: &mut CPU, memory: &mut Memory) -> u32 { // 1FF SET 7,A
 }
 
 const OPCODE_LENGTHS: [u8; 512] = [
-    1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1,
-    2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,
-    2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,
-    2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 3, 3, 3, 1, 2, 1, 1, 1, 3, 1, 3, 3, 2, 1,
-    1, 1, 3, 0, 3, 1, 2, 1, 1, 1, 3, 0, 3, 0, 2, 1,
-    2, 1, 1, 0, 0, 1, 2, 1, 2, 1, 3, 0, 0, 0, 2, 1,
-    2, 1, 1, 1, 0, 1, 2, 1, 2, 1, 3, 1, 0, 0, 2, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    ];
-
+    1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,
+    2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 3, 3, 3, 1, 2, 1, 1, 1, 3, 1, 3, 3, 2, 1, 1, 1, 3, 0, 3, 1, 2, 1, 1, 1, 3, 0, 3, 0, 2, 1,
+    2, 1, 1, 0, 0, 1, 2, 1, 2, 1, 3, 0, 0, 0, 2, 1, 2, 1, 1, 1, 0, 1, 2, 1, 2, 1, 3, 1, 0, 0, 2, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+];
 
 const CPU_COMMANDS: [&str; 512] = [
     "NOP",
@@ -6834,5 +7354,5 @@ const CPU_COMMANDS: [&str; 512] = [
     "SET 7,H",
     "SET 7,L",
     "SET 7,(HL)",
-    "SET 7,A"
-    ];
+    "SET 7,A",
+];

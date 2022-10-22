@@ -31,7 +31,7 @@ pub enum Register16 {
 
 #[repr(u8)]
 pub enum Flag {
-    Z = 7, 
+    Z = 7,
     N = 6,
     H = 5,
     C = 4,
@@ -135,19 +135,19 @@ impl CPU {
             Register16::PC => self.pc = value,
             Register16::SP => self.sp = value,
             Register16::AF => {
-                self.a = (value >> 8);
+                self.a = value >> 8;
                 self.f = value;
             }
             Register16::BC => {
-                self.b = (value >> 8);
+                self.b = value >> 8;
                 self.c = value;
             }
             Register16::DE => {
-                self.d = (value >> 8);
+                self.d = value >> 8;
                 self.e = value;
             }
             Register16::HL => {
-                self.h = (value >> 8);
+                self.h = value >> 8;
                 self.l = value;
             }
         }
