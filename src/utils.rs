@@ -24,3 +24,10 @@ pub fn print_memory_bytes(mem: &[u8], name: &str, bytes: usize) {
     }
     println!("\n\n");
 }
+
+#[macro_export]
+macro_rules! bit {
+    ($a:expr,$b:expr) => {{
+        ($a >> $b) & 0b1
+    }};
+}

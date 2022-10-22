@@ -1,9 +1,9 @@
-mod types;
+mod lcdc;
+mod palette;
+mod sprite;
+mod stat;
 
 use crate::{gameboy::memory, utils};
-
-const ROWS: usize = 160;
-const COLUMNS: usize = 144;
 
 pub enum MonochromeColor {
     Off = 0x00CADC9F,
@@ -14,7 +14,7 @@ pub enum MonochromeColor {
 }
 
 pub struct PPU {
-    frame_buffer: [u32; ROWS * COLUMNS],
+    frame_buffer: [u32; Self::ROWS * Self::COLUMNS],
     vram: [u8; memory::ppu::VRAM.size],
 }
 
@@ -33,10 +33,13 @@ impl super::MemoryInterface for PPU {
 }
 
 impl PPU {
+    const ROWS: usize = 160;
+    const COLUMNS: usize = 144;
+
     pub fn new() -> Self {
         let vram: [u8; memory::ppu::VRAM.size] = [0; memory::ppu::VRAM.size];
         let mut ppu = Self {
-            frame_buffer: [0; ROWS * COLUMNS],
+            frame_buffer: [0; Self::ROWS * Self::COLUMNS],
             vram: vram,
         };
 
