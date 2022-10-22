@@ -5,25 +5,52 @@ use super::MemoryInterface;
 pub struct Memory {
     rom: Vec<u8>,
     pub cgb_mode: bool,
+    ram: [u8; 0x10000],
 }
 
 impl MemoryInterface for Memory {
     fn read8(&self, addr: u16) -> super::MemoryResult<u8> {
-        Ok(self.rom[usize::from(addr)])
+        Ok(self.ram[usize::from(addr)])
     }
 
     fn write8(&mut self, addr: u16, value: u8) -> super::MemoryResult<()> {
-        self.rom[usize::from(addr)] = value;
+        self.ram[usize::from(addr)] = value;
         Ok(())
     }
 }
 
 impl Memory {
     pub fn new(bootrom_path: String, rom_path: String) -> Self {
-        Memory {
+        let mut mem = Memory {
             rom: Self::load_rom(bootrom_path, rom_path),
             cgb_mode: false,
+            ram: [0; 0x10000],
+        };
+        mem.ram[0..0x8000].clone_from_slice(mem.rom[0..0x8000].into());
+
+        // Read.
+        print!("ram    |  ");
+        for i in 0..0x10 {
+            print!("{:#04X}  |  ", i);
         }
+        println!();
+        for _i in 0..0x11 {
+            print!("{:_<9}", "");
+        }
+        for (i, value) in mem.ram.iter_mut().enumerate() {
+            if (i % 0x10) == 0 {
+                println!();
+                print!("{:#04X}  |  ", i);
+            }
+            print!("{:#04X}  |  ", value);
+            if i > 0x1000 {
+                break;
+            };
+        }
+        println!("\n\n");
+        println!("{:#04X}", mem.ram[0x7C48]);
+
+        mem
     }
 
     fn load_rom(bootrom_path: String, rom_path: String) -> Vec<u8> {

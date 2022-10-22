@@ -1,4 +1,4 @@
-use super::{Register16, CPU};
+use super::CPU;
 use super::{FLAGC, FLAGH, FLAGZ};
 use crate::gameboy::memory::Memory;
 use crate::gameboy::MemoryInterface;
@@ -15,7 +15,7 @@ pub fn execute_opcode(opcode: u16, cpu: &mut CPU, memory: &mut Memory) -> u32 {
     println!("executing opcode: {:#06X}", opcode);
     let oplen = opcode_length(opcode);
     let mut v: u16 = 0;
-    let pc = cpu.get_reg16(Register16::PC);
+    let pc = cpu.pc;
     if oplen == 2 {
         // 8-bit immediate
         v = memory.read8(pc + 1).unwrap() as u16;
@@ -1055,7 +1055,7 @@ pub fn execute_opcode(opcode: u16, cpu: &mut CPU, memory: &mut Memory) -> u32 {
 
 fn NOP_00(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 00 NOP
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1063,26 +1063,26 @@ fn NOP_00(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_01(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 01 LD BC,d16
     cpu.set_bc(v);
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
 fn LD_02(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 02 LD (BC),A
-    memory.write8((cpu.b << 8) + cpu.c, (cpu.a) as u8);
-    cpu.pc += 1;
+    memory.write8((cpu.b << 8) + cpu.c, (cpu.a) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn INC_03(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 03 INC BC
-    let mut t: u16 = ((cpu.b << 8) + cpu.c) + 1;
+    let mut t: u32 = ((cpu.b << 8) as u32 + cpu.c as u32) + 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.set_bc(t);
-    cpu.pc += 1;
+    cpu.set_bc(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1097,7 +1097,7 @@ fn INC_04(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1107,12 +1107,12 @@ fn DEC_05(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.b - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.b & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.b & 0xF) as i32 - (1 & 0xF) as i32) < 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1120,7 +1120,7 @@ fn DEC_05(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_06(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 06 LD B,d8
     cpu.b = v;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1134,31 +1134,31 @@ fn RLCA_07(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn LD_08(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // 08 LD (a16),SP
-    memory.write8(v, (cpu.sp & 0xFF) as u8);
-    memory.write8(v + 1, (cpu.sp >> 8) as u8);
-    cpu.pc += 3;
+    memory.write8(v, (cpu.sp & 0xFF) as u8).unwrap();
+    memory.write8(v + 1, (cpu.sp >> 8) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     return 20;
 }
 
 fn ADD_09(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 09 ADD HL,BC
-    let mut t: u16 = cpu.get_hl() + ((cpu.b << 8) + cpu.c);
+    let mut t: u32 = cpu.get_hl() as u32 + ((cpu.b << 8) as u32 + cpu.c as u32);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.get_hl() & 0xFFF) + (((cpu.b << 8) + cpu.c) & 0xFFF)) > 0xFFF) << FLAGH;
     flag += u16::from(t > 0xFFFF) << FLAGC;
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.set_hl(t);
-    cpu.pc += 1;
+    cpu.set_hl(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1166,18 +1166,18 @@ fn ADD_09(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_0A(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 0A LD A,(BC)
     cpu.a = memory.read8((cpu.b << 8) + cpu.c).unwrap() as u16;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn DEC_0B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 0B DEC BC
-    let mut t: u16 = ((cpu.b << 8) + cpu.c) - 1;
+    let mut t: u32 = ((cpu.b << 8) as u32 + cpu.c as u32) - 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.set_bc(t);
-    cpu.pc += 1;
+    cpu.set_bc(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1192,7 +1192,7 @@ fn INC_0C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1202,12 +1202,12 @@ fn DEC_0D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.c - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.c & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.c & 0xF) as i32 - (1 & 0xF) as i32) < 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1215,7 +1215,7 @@ fn DEC_0D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_0E(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 0E LD C,d8
     cpu.c = v;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1229,7 +1229,7 @@ fn RRCA_0F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1238,9 +1238,9 @@ fn STOP_10(cpu: &mut CPU, memory: &mut Memory, _v: u16) -> u32 {
     // 10 STOP 0
     if memory.cgb_mode {
         memory.switch_speed();
-        memory.write8(0xFF04, (0) as u8);
+        memory.write8(0xFF04, (0) as u8).unwrap();
     }
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1248,26 +1248,26 @@ fn STOP_10(cpu: &mut CPU, memory: &mut Memory, _v: u16) -> u32 {
 fn LD_11(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 11 LD DE,d16
     cpu.set_de(v);
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
 fn LD_12(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 12 LD (DE),A
-    memory.write8((cpu.d << 8) + cpu.e, (cpu.a) as u8);
-    cpu.pc += 1;
+    memory.write8((cpu.d << 8) + cpu.e, (cpu.a) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn INC_13(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 13 INC DE
-    let mut t: u16 = ((cpu.d << 8) + cpu.e) + 1;
+    let mut t: u32 = ((cpu.d << 8) as u32 + cpu.e as u32) + 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.set_de(t);
-    cpu.pc += 1;
+    cpu.set_de(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1282,7 +1282,7 @@ fn INC_14(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1292,12 +1292,12 @@ fn DEC_15(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.d - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.d & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.d & 0xF) as i32 - (1 & 0xF) as i32) < 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1305,7 +1305,7 @@ fn DEC_15(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_16(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 16 LD D,d8
     cpu.d = v;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1319,29 +1319,29 @@ fn RLA_17(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn JR_18(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 18 JR r8
-    cpu.pc += 2 + ((v ^ 0x80) - 0x80);
+    cpu.pc = cpu.pc.wrapping_add(2 + ((v ^ 0x80) - 0x80));
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
 fn ADD_19(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 19 ADD HL,DE
-    let mut t: u16 = cpu.get_hl() + ((cpu.d << 8) + cpu.e);
+    let mut t: u32 = cpu.get_hl() as u32 + ((cpu.d << 8) as u32 + cpu.e as u32);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.get_hl() & 0xFFF) + (((cpu.d << 8) + cpu.e) & 0xFFF)) > 0xFFF) << FLAGH;
     flag += u16::from(t > 0xFFFF) << FLAGC;
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.set_hl(t);
-    cpu.pc += 1;
+    cpu.set_hl(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1349,18 +1349,18 @@ fn ADD_19(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_1A(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1A LD A,(DE)
     cpu.a = memory.read8((cpu.d << 8) + cpu.e).unwrap() as u16;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn DEC_1B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B DEC DE
-    let mut t: u16 = ((cpu.d << 8) + cpu.e) - 1;
+    let mut t: u32 = ((cpu.d << 8) as u32 + cpu.e as u32) - 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.set_de(t);
-    cpu.pc += 1;
+    cpu.set_de(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1375,7 +1375,7 @@ fn INC_1C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1385,12 +1385,12 @@ fn DEC_1D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.e - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.e & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.e & 0xF) as i32 - (1 & 0xF) as i32) < 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1398,7 +1398,7 @@ fn DEC_1D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_1E(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 1E LD E,d8
     cpu.e = v;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1412,16 +1412,18 @@ fn RRA_1F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn JR_20(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 20 JR NZ,r8
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     if cpu.f_nz() {
-        cpu.pc += (v ^ 0x80) - 0x80;
+        cpu.pc = cpu
+            .pc
+            .wrapping_add(((v ^ 0x80) as i16 - 0x80 as i16) as u16);
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1433,28 +1435,28 @@ fn JR_20(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 fn LD_21(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 21 LD HL,d16
     cpu.set_hl(v);
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
 fn LD_22(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 22 LD (HL+),A
-    memory.write8(cpu.get_hl(), (cpu.a) as u8);
+    memory.write8(cpu.get_hl(), (cpu.a) as u8).unwrap();
     cpu.set_hl(cpu.get_hl() + 1);
     cpu.set_hl(cpu.get_hl() & 0xFFFF);
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn INC_23(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 23 INC HL
-    let mut t: u16 = cpu.get_hl() + 1;
+    let mut t: u32 = cpu.get_hl() as u32 + 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.set_hl(t);
-    cpu.pc += 1;
+    cpu.set_hl(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1469,7 +1471,7 @@ fn INC_24(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1479,12 +1481,12 @@ fn DEC_25(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = (cpu.get_hl() >> 8) - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from((((cpu.get_hl() >> 8) & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += u16::from((((cpu.get_hl() >> 8) & 0xF) as i32 - (1 & 0xF) as i32) < 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1492,7 +1494,7 @@ fn DEC_25(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_26(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 26 LD H,d8
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (v << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1517,16 +1519,16 @@ fn DAA_27(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn JR_28(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 28 JR Z,r8
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     if cpu.f_z() {
-        cpu.pc += (v ^ 0x80) - 0x80;
+        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80) - 0x80);
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1537,15 +1539,15 @@ fn JR_28(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 
 fn ADD_29(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 29 ADD HL,HL
-    let mut t: u16 = cpu.get_hl() + cpu.get_hl();
+    let mut t: u32 = cpu.get_hl() as u32 + cpu.get_hl() as u32;
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.get_hl() & 0xFFF) + (cpu.get_hl() & 0xFFF)) > 0xFFF) << FLAGH;
     flag += u16::from(t > 0xFFFF) << FLAGC;
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.set_hl(t);
-    cpu.pc += 1;
+    cpu.set_hl(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1555,18 +1557,18 @@ fn LD_2A(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.a = memory.read8(cpu.get_hl()).unwrap() as u16;
     cpu.set_hl(cpu.get_hl() + 1);
     cpu.set_hl(cpu.get_hl() & 0xFFFF);
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn DEC_2B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 2B DEC HL
-    let mut t: u16 = cpu.get_hl() - 1;
+    let mut t: u32 = cpu.get_hl() as u32 - 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.set_hl(t);
-    cpu.pc += 1;
+    cpu.set_hl(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1581,7 +1583,7 @@ fn INC_2C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1591,12 +1593,12 @@ fn DEC_2D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = (cpu.get_hl() & 0xFF) - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from((((cpu.get_hl() & 0xFF) & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += u16::from((((cpu.get_hl() & 0xFF) & 0xF) as i32 - (1 & 0xF) as i32) < 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1604,7 +1606,7 @@ fn DEC_2D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_2E(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 2E LD L,d8
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (v & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1615,16 +1617,16 @@ fn CPL_2F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let flag: u16 = 0b01100000;
     cpu.f &= 0b10010000;
     cpu.f |= flag;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn JR_30(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 30 JR NC,r8
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     if cpu.f_nc() {
-        cpu.pc += (v ^ 0x80) - 0x80;
+        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80) - 0x80);
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1636,28 +1638,28 @@ fn JR_30(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 fn LD_31(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 31 LD SP,d16
     cpu.sp = v;
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
 fn LD_32(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 32 LD (HL-),A
-    memory.write8(cpu.get_hl(), (cpu.a) as u8);
+    memory.write8(cpu.get_hl(), (cpu.a) as u8).unwrap();
     cpu.set_hl(cpu.get_hl() - 1);
     cpu.set_hl(cpu.get_hl() & 0xFFFF);
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn INC_33(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 33 INC SP
-    let mut t: u16 = cpu.sp + 1;
+    let mut t: u32 = cpu.sp as u32 + 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.sp = t;
-    cpu.pc += 1;
+    cpu.sp = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1672,8 +1674,8 @@ fn INC_34(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 1;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -1688,16 +1690,16 @@ fn DEC_35(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 1;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
 fn LD_36(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // 36 LD (HL),d8
-    memory.write8(cpu.get_hl(), (v) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (v) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -1707,16 +1709,16 @@ fn SCF_37(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let flag: u16 = 0b00010000;
     cpu.f &= 0b10000000;
     cpu.f |= flag;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn JR_38(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 38 JR C,r8
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     if cpu.f_c() {
-        cpu.pc += (v ^ 0x80) - 0x80;
+        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80) - 0x80);
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1727,15 +1729,15 @@ fn JR_38(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 
 fn ADD_39(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 39 ADD HL,SP
-    let mut t: u16 = cpu.get_hl() + cpu.sp;
+    let mut t: u32 = cpu.get_hl() as u32 + cpu.sp as u32;
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.get_hl() & 0xFFF) + (cpu.sp & 0xFFF)) > 0xFFF) << FLAGH;
     flag += u16::from(t > 0xFFFF) << FLAGC;
     cpu.f &= 0b10000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.set_hl(t);
-    cpu.pc += 1;
+    cpu.set_hl(t as u16);
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1745,18 +1747,18 @@ fn LD_3A(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.a = memory.read8(cpu.get_hl()).unwrap() as u16;
     cpu.set_hl(cpu.get_hl() - 1);
     cpu.set_hl(cpu.get_hl() & 0xFFFF);
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn DEC_3B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 3B DEC SP
-    let mut t: u16 = cpu.sp - 1;
+    let mut t: u32 = cpu.sp as u32 - 1;
     // No flag operations;
     t &= 0xFFFF;
-    cpu.sp = t;
-    cpu.pc += 1;
+    cpu.sp = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1771,7 +1773,7 @@ fn INC_3C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1781,12 +1783,12 @@ fn DEC_3D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.a - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (1 & 0xF) as i32) < 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1794,7 +1796,7 @@ fn DEC_3D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_3E(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 3E LD A,d8
     cpu.a = v;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1804,7 +1806,7 @@ fn CCF_3F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let flag: u16 = (cpu.f & 0b00010000) ^ 0b00010000;
     cpu.f &= 0b10000000;
     cpu.f |= flag;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1812,7 +1814,7 @@ fn CCF_3F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_40(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 40 LD B,B
     cpu.b = cpu.b;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1820,7 +1822,7 @@ fn LD_40(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_41(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 41 LD B,C
     cpu.b = cpu.c;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1828,7 +1830,7 @@ fn LD_41(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_42(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 42 LD B,D
     cpu.b = cpu.d;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1836,7 +1838,7 @@ fn LD_42(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_43(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 43 LD B,E
     cpu.b = cpu.e;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1844,7 +1846,7 @@ fn LD_43(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_44(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 44 LD B,H
     cpu.b = cpu.get_hl() >> 8;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1852,7 +1854,7 @@ fn LD_44(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_45(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 45 LD B,L
     cpu.b = cpu.get_hl() & 0xFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1860,7 +1862,7 @@ fn LD_45(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_46(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 46 LD B,(HL)
     cpu.b = memory.read8(cpu.get_hl()).unwrap() as u16;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1868,7 +1870,7 @@ fn LD_46(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_47(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 47 LD B,A
     cpu.b = cpu.a;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1876,7 +1878,7 @@ fn LD_47(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_48(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 48 LD C,B
     cpu.c = cpu.b;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1884,7 +1886,7 @@ fn LD_48(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_49(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 49 LD C,C
     cpu.c = cpu.c;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1892,7 +1894,7 @@ fn LD_49(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_4A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 4A LD C,D
     cpu.c = cpu.d;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1900,7 +1902,7 @@ fn LD_4A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_4B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 4B LD C,E
     cpu.c = cpu.e;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1908,7 +1910,7 @@ fn LD_4B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_4C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 4C LD C,H
     cpu.c = cpu.get_hl() >> 8;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1916,7 +1918,7 @@ fn LD_4C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_4D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 4D LD C,L
     cpu.c = cpu.get_hl() & 0xFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1924,7 +1926,7 @@ fn LD_4D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_4E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 4E LD C,(HL)
     cpu.c = memory.read8(cpu.get_hl()).unwrap() as u16;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1932,7 +1934,7 @@ fn LD_4E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_4F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 4F LD C,A
     cpu.c = cpu.a;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1940,7 +1942,7 @@ fn LD_4F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_50(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 50 LD D,B
     cpu.d = cpu.b;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1948,7 +1950,7 @@ fn LD_50(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_51(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 51 LD D,C
     cpu.d = cpu.c;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1956,7 +1958,7 @@ fn LD_51(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_52(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 52 LD D,D
     cpu.d = cpu.d;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1964,7 +1966,7 @@ fn LD_52(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_53(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 53 LD D,E
     cpu.d = cpu.e;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1972,7 +1974,7 @@ fn LD_53(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_54(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 54 LD D,H
     cpu.d = cpu.get_hl() >> 8;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1980,7 +1982,7 @@ fn LD_54(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_55(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 55 LD D,L
     cpu.d = cpu.get_hl() & 0xFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -1988,7 +1990,7 @@ fn LD_55(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_56(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 56 LD D,(HL)
     cpu.d = memory.read8(cpu.get_hl()).unwrap() as u16;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -1996,7 +1998,7 @@ fn LD_56(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_57(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 57 LD D,A
     cpu.d = cpu.a;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2004,7 +2006,7 @@ fn LD_57(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_58(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 58 LD E,B
     cpu.e = cpu.b;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2012,7 +2014,7 @@ fn LD_58(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_59(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 59 LD E,C
     cpu.e = cpu.c;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2020,7 +2022,7 @@ fn LD_59(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_5A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 5A LD E,D
     cpu.e = cpu.d;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2028,7 +2030,7 @@ fn LD_5A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_5B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 5B LD E,E
     cpu.e = cpu.e;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2036,7 +2038,7 @@ fn LD_5B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_5C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 5C LD E,H
     cpu.e = cpu.get_hl() >> 8;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2044,7 +2046,7 @@ fn LD_5C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_5D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 5D LD E,L
     cpu.e = cpu.get_hl() & 0xFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2052,7 +2054,7 @@ fn LD_5D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_5E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 5E LD E,(HL)
     cpu.e = memory.read8(cpu.get_hl()).unwrap() as u16;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2060,7 +2062,7 @@ fn LD_5E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_5F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 5F LD E,A
     cpu.e = cpu.a;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2068,7 +2070,7 @@ fn LD_5F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_60(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 60 LD H,B
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.b << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2076,7 +2078,7 @@ fn LD_60(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_61(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 61 LD H,C
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.c << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2084,7 +2086,7 @@ fn LD_61(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_62(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 62 LD H,D
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.d << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2092,7 +2094,7 @@ fn LD_62(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_63(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 63 LD H,E
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.e << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2100,7 +2102,7 @@ fn LD_63(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_64(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 64 LD H,H
     cpu.set_hl((cpu.get_hl() & 0x00FF) | ((cpu.get_hl() >> 8) << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2108,7 +2110,7 @@ fn LD_64(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_65(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 65 LD H,L
     cpu.set_hl((cpu.get_hl() & 0x00FF) | ((cpu.get_hl() & 0xFF) << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2116,7 +2118,7 @@ fn LD_65(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_66(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 66 LD H,(HL)
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (memory.read8(cpu.get_hl()).unwrap() as u16) << 8);
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2124,7 +2126,7 @@ fn LD_66(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_67(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 67 LD H,A
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (cpu.a << 8));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2132,7 +2134,7 @@ fn LD_67(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_68(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 68 LD L,B
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.b & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2140,7 +2142,7 @@ fn LD_68(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_69(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 69 LD L,C
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.c & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2148,7 +2150,7 @@ fn LD_69(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_6A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 6A LD L,D
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.d & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2156,7 +2158,7 @@ fn LD_6A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_6B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 6B LD L,E
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.e & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2164,7 +2166,7 @@ fn LD_6B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_6C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 6C LD L,H
     cpu.set_hl((cpu.get_hl() & 0xFF00) | ((cpu.get_hl() >> 8) & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2172,7 +2174,7 @@ fn LD_6C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_6D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 6D LD L,L
     cpu.set_hl((cpu.get_hl() & 0xFF00) | ((cpu.get_hl() & 0xFF) & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2180,7 +2182,7 @@ fn LD_6D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_6E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 6E LD L,(HL)
     cpu.set_hl((cpu.get_hl() & 0xFF00) | ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2188,55 +2190,59 @@ fn LD_6E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_6F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 6F LD L,A
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (cpu.a & 0xFF));
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn LD_70(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 70 LD (HL),B
-    memory.write8(cpu.get_hl(), (cpu.b) as u8);
-    cpu.pc += 1;
+    memory.write8(cpu.get_hl(), (cpu.b) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn LD_71(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 71 LD (HL),C
-    memory.write8(cpu.get_hl(), (cpu.c) as u8);
-    cpu.pc += 1;
+    memory.write8(cpu.get_hl(), (cpu.c) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn LD_72(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 72 LD (HL),D
-    memory.write8(cpu.get_hl(), (cpu.d) as u8);
-    cpu.pc += 1;
+    memory.write8(cpu.get_hl(), (cpu.d) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn LD_73(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 73 LD (HL),E
-    memory.write8(cpu.get_hl(), (cpu.e) as u8);
-    cpu.pc += 1;
+    memory.write8(cpu.get_hl(), (cpu.e) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn LD_74(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 74 LD (HL),H
-    memory.write8(cpu.get_hl(), (cpu.get_hl() >> 8) as u8);
-    cpu.pc += 1;
+    memory
+        .write8(cpu.get_hl(), (cpu.get_hl() >> 8) as u8)
+        .unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn LD_75(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 75 LD (HL),L
-    memory.write8(cpu.get_hl(), (cpu.get_hl() & 0xFF) as u8);
-    cpu.pc += 1;
+    memory
+        .write8(cpu.get_hl(), (cpu.get_hl() & 0xFF) as u8)
+        .unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2249,8 +2255,8 @@ fn HALT_76(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn LD_77(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 77 LD (HL),A
-    memory.write8(cpu.get_hl(), (cpu.a) as u8);
-    cpu.pc += 1;
+    memory.write8(cpu.get_hl(), (cpu.a) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2258,7 +2264,7 @@ fn LD_77(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_78(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 78 LD A,B
     cpu.a = cpu.b;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2266,7 +2272,7 @@ fn LD_78(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_79(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 79 LD A,C
     cpu.a = cpu.c;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2274,7 +2280,7 @@ fn LD_79(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_7A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 7A LD A,D
     cpu.a = cpu.d;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2282,7 +2288,7 @@ fn LD_7A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_7B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 7B LD A,E
     cpu.a = cpu.e;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2290,7 +2296,7 @@ fn LD_7B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_7C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 7C LD A,H
     cpu.a = cpu.get_hl() >> 8;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2298,7 +2304,7 @@ fn LD_7C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_7D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 7D LD A,L
     cpu.a = cpu.get_hl() & 0xFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2306,7 +2312,7 @@ fn LD_7D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_7E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 7E LD A,(HL)
     cpu.a = memory.read8(cpu.get_hl()).unwrap() as u16;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2314,7 +2320,7 @@ fn LD_7E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_7F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 7F LD A,A
     cpu.a = cpu.a;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2330,7 +2336,7 @@ fn ADD_80(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2346,7 +2352,7 @@ fn ADD_81(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2362,7 +2368,7 @@ fn ADD_82(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2378,7 +2384,7 @@ fn ADD_83(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2394,7 +2400,7 @@ fn ADD_84(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2410,7 +2416,7 @@ fn ADD_85(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2427,7 +2433,7 @@ fn ADD_86(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2443,7 +2449,7 @@ fn ADD_87(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2459,7 +2465,7 @@ fn ADC_88(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2475,7 +2481,7 @@ fn ADC_89(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2491,7 +2497,7 @@ fn ADC_8A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2507,7 +2513,7 @@ fn ADC_8B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2524,7 +2530,7 @@ fn ADC_8C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2541,7 +2547,7 @@ fn ADC_8D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2561,7 +2567,7 @@ fn ADC_8E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2577,110 +2583,110 @@ fn ADC_8F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SUB_90(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 90 SUB B
-    let mut t: u16 = cpu.a - cpu.b;
+    let mut t: i16 = cpu.a as i16 - cpu.b as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.b & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.b & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SUB_91(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 91 SUB C
-    let mut t: u16 = cpu.a - cpu.c;
+    let mut t: i16 = cpu.a as i16 - cpu.c as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.c & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.c & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SUB_92(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 92 SUB D
-    let mut t: u16 = cpu.a - cpu.d;
+    let mut t: i16 = cpu.a as i16 - cpu.d as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.d & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.d & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SUB_93(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 93 SUB E
-    let mut t: u16 = cpu.a - cpu.e;
+    let mut t: i16 = cpu.a as i16 - cpu.e as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.e & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.e & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SUB_94(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 94 SUB H
-    let mut t: u16 = cpu.a - (cpu.get_hl() >> 8);
+    let mut t: i16 = cpu.a as i16 - (cpu.get_hl() >> 8) as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - ((cpu.get_hl() >> 8) & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SUB_95(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 95 SUB L
-    let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF);
+    let mut t: i16 = cpu.a as i16 - (cpu.get_hl() & 0xFF) as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - ((cpu.get_hl() & 0xFF) & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SUB_96(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 96 SUB (HL)
-    let mut t: u16 = cpu.a - memory.read8(cpu.get_hl()).unwrap() as u16;
+    let mut t: i16 = cpu.a as i16 - memory.read8(cpu.get_hl()).unwrap() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from((cpu.a & 0xF) - ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0)
@@ -2689,157 +2695,165 @@ fn SUB_96(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn SUB_97(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 97 SUB A
-    let mut t: u16 = cpu.a - cpu.a;
+    let mut t: i16 = cpu.a as i16 - cpu.a as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.a & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.a & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SBC_98(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 98 SBC A,B
-    let mut t: u16 = cpu.a - cpu.b - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - cpu.b as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.b & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag +=
+        u16::from(((cpu.a & 0xF) as i32 - (cpu.b & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SBC_99(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 99 SBC A,C
-    let mut t: u16 = cpu.a - cpu.c - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - cpu.c as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.c & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag +=
+        u16::from(((cpu.a & 0xF) as i32 - (cpu.c & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SBC_9A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 9A SBC A,D
-    let mut t: u16 = cpu.a - cpu.d - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - cpu.d as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.d & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag +=
+        u16::from(((cpu.a & 0xF) as i32 - (cpu.d & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SBC_9B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 9B SBC A,E
-    let mut t: u16 = cpu.a - cpu.e - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - cpu.e as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.e & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag +=
+        u16::from(((cpu.a & 0xF) as i32 - (cpu.e & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SBC_9C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 9C SBC A,H
-    let mut t: u16 = cpu.a - (cpu.get_hl() >> 8) - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - (cpu.get_hl() >> 8) as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag +=
-        u16::from(((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag += u16::from(
+        ((cpu.a & 0xF) as i32 - ((cpu.get_hl() >> 8) & 0xF) as i32 - cpu.f_c() as i32) < 0,
+    ) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SBC_9D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 9D SBC A,L
-    let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF) - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - (cpu.get_hl() & 0xFF) as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag +=
-        u16::from(((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag += u16::from(
+        ((cpu.a & 0xF) as i32 - ((cpu.get_hl() & 0xFF) & 0xF) as i32 - cpu.f_c() as i32) < 0,
+    ) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn SBC_9E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 9E SBC A,(HL)
-    let mut t: u16 = cpu.a - (memory.read8(cpu.get_hl()).unwrap() as u16) - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - (memory.read8(cpu.get_hl()).unwrap() as i16) - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(
-        (cpu.a & 0xF) - (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) - cpu.f_c() as u16)
+        (cpu.a & 0xF) as i32
+            - (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) as i32 - cpu.f_c() as i32)
             > 0,
     ) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn SBC_9F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 9F SBC A,A
-    let mut t: u16 = cpu.a - cpu.a - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - cpu.a as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.a & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag +=
+        u16::from(((cpu.a & 0xF) as i32 - (cpu.a & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 1;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2853,7 +2867,7 @@ fn AND_A0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2867,7 +2881,7 @@ fn AND_A1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2881,7 +2895,7 @@ fn AND_A2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2895,7 +2909,7 @@ fn AND_A3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2909,7 +2923,7 @@ fn AND_A4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2923,7 +2937,7 @@ fn AND_A5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2937,7 +2951,7 @@ fn AND_A6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -2951,7 +2965,7 @@ fn AND_A7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2965,7 +2979,7 @@ fn XOR_A8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2979,7 +2993,7 @@ fn XOR_A9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -2993,7 +3007,7 @@ fn XOR_AA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3007,7 +3021,7 @@ fn XOR_AB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3021,7 +3035,7 @@ fn XOR_AC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3035,7 +3049,7 @@ fn XOR_AD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3049,7 +3063,7 @@ fn XOR_AE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -3063,7 +3077,7 @@ fn XOR_AF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3077,7 +3091,7 @@ fn OR_B0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3091,7 +3105,7 @@ fn OR_B1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3105,7 +3119,7 @@ fn OR_B2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3119,7 +3133,7 @@ fn OR_B3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3133,7 +3147,7 @@ fn OR_B4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3147,7 +3161,7 @@ fn OR_B5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3161,7 +3175,7 @@ fn OR_B6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -3175,104 +3189,104 @@ fn OR_B7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CP_B8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // B8 CP B
-    let mut t: u16 = cpu.a - cpu.b;
+    let t: i16 = cpu.a as i16 - cpu.b as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.b & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.b & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 1;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CP_B9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // B9 CP C
-    let mut t: u16 = cpu.a - cpu.c;
+    let t: i16 = cpu.a as i16 - cpu.c as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.c & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.c & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 1;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CP_BA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // BA CP D
-    let mut t: u16 = cpu.a - cpu.d;
+    let t: i16 = cpu.a as i16 - cpu.d as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.d & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.d & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 1;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CP_BB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // BB CP E
-    let mut t: u16 = cpu.a - cpu.e;
+    let t: i16 = cpu.a as i16 - cpu.e as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.e & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.e & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 1;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CP_BC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // BC CP H
-    let mut t: u16 = cpu.a - (cpu.get_hl() >> 8);
+    let t: i16 = cpu.a as i16 - (cpu.get_hl() >> 8) as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - ((cpu.get_hl() >> 8) & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 1;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CP_BD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // BD CP L
-    let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF);
+    let t: i16 = cpu.a as i16 - (cpu.get_hl() & 0xFF) as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - ((cpu.get_hl() & 0xFF) & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 1;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CP_BE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // BE CP (HL)
-    let mut t: u16 = cpu.a - memory.read8(cpu.get_hl()).unwrap() as u16;
+    let t: i16 = cpu.a as i16 - memory.read8(cpu.get_hl()).unwrap() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from((cpu.a & 0xF) - ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0)
@@ -3280,23 +3294,23 @@ fn CP_BE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 1;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn CP_BF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // BF CP A
-    let mut t: u16 = cpu.a - cpu.a;
+    let t: i16 = cpu.a as i16 - cpu.a as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (cpu.a & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.a & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 1;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
@@ -3310,7 +3324,7 @@ fn RET_C0(cpu: &mut CPU, memory: &mut Memory) -> u32 {
         cpu.sp &= 0xFFFF;
         return 20;
     } else {
-        cpu.pc += 1;
+        cpu.pc = cpu.pc.wrapping_add(1);
         cpu.pc &= 0xFFFF;
         return 8;
     }
@@ -3322,7 +3336,7 @@ fn POP_C1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.c = memory.read8(cpu.sp).unwrap() as u16; // Low;
     cpu.sp += 2;
     cpu.sp &= 0xFFFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -3333,7 +3347,7 @@ fn JP_C2(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
         cpu.pc = v;
         return 16;
     } else {
-        cpu.pc += 3;
+        cpu.pc = cpu.pc.wrapping_add(3);
         cpu.pc &= 0xFFFF;
         return 12;
     }
@@ -3347,11 +3361,15 @@ fn JP_C3(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 
 fn CALL_C4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // C4 CALL NZ,a16
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     if cpu.f_nz() {
-        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+        memory
+            .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+            .unwrap(); // High;
+        memory
+            .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+            .unwrap(); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3363,11 +3381,11 @@ fn CALL_C4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
 
 fn PUSH_C5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // C5 PUSH BC
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.b) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.c) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.b) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.c) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -3383,17 +3401,21 @@ fn ADD_C6(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn RST_C7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // C7 RST 00H
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 0;
@@ -3409,7 +3431,7 @@ fn RET_C8(cpu: &mut CPU, memory: &mut Memory) -> u32 {
         cpu.sp &= 0xFFFF;
         return 20;
     } else {
-        cpu.pc += 1;
+        cpu.pc = cpu.pc.wrapping_add(1);
         cpu.pc &= 0xFFFF;
         return 8;
     }
@@ -3430,7 +3452,7 @@ fn JP_CA(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
         cpu.pc = v;
         return 16;
     } else {
-        cpu.pc += 3;
+        cpu.pc = cpu.pc.wrapping_add(3);
         cpu.pc &= 0xFFFF;
         return 12;
     }
@@ -3439,18 +3461,22 @@ fn JP_CA(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 fn PREFIX_CB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // CB PREFIX CB
     log::error!("CB cannot be called!");
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CALL_CC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // CC CALL Z,a16
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     if cpu.f_z() {
-        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+        memory
+            .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+            .unwrap(); // High;
+        memory
+            .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+            .unwrap(); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3462,10 +3488,14 @@ fn CALL_CC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
 
 fn CALL_CD(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // CD CALL a16
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = v;
@@ -3483,17 +3513,21 @@ fn ADC_CE(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn RST_CF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // CF RST 08H
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 8;
@@ -3509,7 +3543,7 @@ fn RET_D0(cpu: &mut CPU, memory: &mut Memory) -> u32 {
         cpu.sp &= 0xFFFF;
         return 20;
     } else {
-        cpu.pc += 1;
+        cpu.pc = cpu.pc.wrapping_add(1);
         cpu.pc &= 0xFFFF;
         return 8;
     }
@@ -3521,7 +3555,7 @@ fn POP_D1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.e = memory.read8(cpu.sp).unwrap() as u16; // Low;
     cpu.sp += 2;
     cpu.sp &= 0xFFFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -3532,7 +3566,7 @@ fn JP_D2(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
         cpu.pc = v;
         return 16;
     } else {
-        cpu.pc += 3;
+        cpu.pc = cpu.pc.wrapping_add(3);
         cpu.pc &= 0xFFFF;
         return 12;
     }
@@ -3540,11 +3574,15 @@ fn JP_D2(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 
 fn CALL_D4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // D4 CALL NC,a16
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     if cpu.f_nc() {
-        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+        memory
+            .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+            .unwrap(); // High;
+        memory
+            .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+            .unwrap(); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3556,37 +3594,41 @@ fn CALL_D4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
 
 fn PUSH_D5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // D5 PUSH DE
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.d) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.e) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.d) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.e) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 16;
 }
 
 fn SUB_D6(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // D6 SUB d8
-    let mut t: u16 = cpu.a - v;
+    let mut t: i16 = cpu.a as i16 - v as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (v & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (v & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 2;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn RST_D7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // D7 RST 10H
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 16;
@@ -3602,7 +3644,7 @@ fn RET_D8(cpu: &mut CPU, memory: &mut Memory) -> u32 {
         cpu.sp &= 0xFFFF;
         return 20;
     } else {
-        cpu.pc += 1;
+        cpu.pc = cpu.pc.wrapping_add(1);
         cpu.pc &= 0xFFFF;
         return 8;
     }
@@ -3624,7 +3666,7 @@ fn JP_DA(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
         cpu.pc = v;
         return 16;
     } else {
-        cpu.pc += 3;
+        cpu.pc = cpu.pc.wrapping_add(3);
         cpu.pc &= 0xFFFF;
         return 12;
     }
@@ -3632,11 +3674,15 @@ fn JP_DA(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 
 fn CALL_DC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // DC CALL C,a16
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     if cpu.f_c() {
-        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+        memory
+            .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+            .unwrap(); // High;
+        memory
+            .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+            .unwrap(); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3648,26 +3694,30 @@ fn CALL_DC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
 
 fn SBC_DE(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // DE SBC A,d8
-    let mut t: u16 = cpu.a - v - cpu.f_c() as u16;
+    let mut t: i16 = cpu.a as i16 - v as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (v & 0xF) - cpu.f_c() as u16) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (v & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    cpu.a = t;
-    cpu.pc += 2;
+    cpu.a = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn RST_DF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // DF RST 18H
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 24;
@@ -3676,8 +3726,8 @@ fn RST_DF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 
 fn LDH_E0(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // E0 LDH (a8),A
-    memory.write8(v + 0xFF00, (cpu.a) as u8);
-    cpu.pc += 2;
+    memory.write8(v + 0xFF00, (cpu.a) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -3690,26 +3740,30 @@ fn POP_E1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     ); // High);
     cpu.sp += 2;
     cpu.sp &= 0xFFFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 12;
 }
 
 fn LD_E2(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // E2 LD (C),A
-    memory.write8(0xFF00 + cpu.c, (cpu.a) as u8);
-    cpu.pc += 1;
+    memory.write8(0xFF00 + cpu.c, (cpu.a) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn PUSH_E5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // E5 PUSH HL
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.get_hl() >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.get_hl() & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.get_hl() >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.get_hl() & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -3723,17 +3777,21 @@ fn AND_E6(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn RST_E7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // E7 RST 20H
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 32;
@@ -3742,15 +3800,15 @@ fn RST_E7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 
 fn ADD_E8(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // E8 ADD SP,r8
-    let mut t: u16 = cpu.sp + ((v ^ 0x80) - 0x80);
+    let mut t: u32 = cpu.sp as u32 + ((v ^ 0x80) as i32 - 0x80) as u32;
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.sp & 0xF) + (v & 0xF)) > 0xF) << FLAGH;
     flag += u16::from(((cpu.sp & 0xFF) + (v & 0xFF)) > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.sp = t;
-    cpu.pc += 2;
+    cpu.sp = t as u16;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -3763,8 +3821,8 @@ fn JP_E9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn LD_EA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // EA LD (a16),A
-    memory.write8(v, (cpu.a) as u8);
-    cpu.pc += 3;
+    memory.write8(v, (cpu.a) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -3778,17 +3836,21 @@ fn XOR_EE(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn RST_EF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // EF RST 28H
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 40;
@@ -3798,7 +3860,7 @@ fn RST_EF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LDH_F0(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // F0 LDH A,(a8)
     cpu.a = memory.read8(v + 0xFF00).unwrap() as u16;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -3809,7 +3871,7 @@ fn POP_F1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f = memory.read8(cpu.sp).unwrap() as u16 & 0xF0 & 0xF0; // Low;
     cpu.sp += 2;
     cpu.sp &= 0xFFFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -3817,7 +3879,7 @@ fn POP_F1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn LD_F2(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // F2 LD A,(C)
     cpu.a = memory.read8(0xFF00 + cpu.c).unwrap() as u16;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -3825,18 +3887,20 @@ fn LD_F2(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 fn DI_F3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // F3 DI
     cpu.interrupt_master_enable = false;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn PUSH_F5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // F5 PUSH AF
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.a) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.f & 0xF0) as u8); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.a) as u8).unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.f & 0xF0) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -3850,17 +3914,21 @@ fn OR_F6(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn RST_F7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // F7 RST 30H
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 48;
@@ -3877,7 +3945,7 @@ fn LD_F8(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     cpu.set_hl(cpu.get_hl() & 0xFFFF);
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -3885,7 +3953,7 @@ fn LD_F8(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
 fn LD_F9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // F9 LD SP,HL
     cpu.sp = cpu.get_hl();
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -3893,7 +3961,7 @@ fn LD_F9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn LD_FA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // FA LD A,(a16)
     cpu.a = memory.read8(v).unwrap() as u16;
-    cpu.pc += 3;
+    cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -3901,32 +3969,36 @@ fn LD_FA(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
 fn EI_FB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // FB EI
     cpu.interrupt_master_enable = true;
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 4;
 }
 
 fn CP_FE(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // FE CP d8
-    let mut t: u16 = cpu.a - v;
+    let t: i16 = cpu.a as i16 - v as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) - (v & 0xF)) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (v & 0xF) as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
-    t &= 0xFF;
-    cpu.pc += 2;
+    // t &= 0xFF;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
 
 fn RST_FF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // FF RST 38H
-    cpu.pc += 1;
+    cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8); // High;
-    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8); // Low;
+    memory
+        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
+        .unwrap(); // High;
+    memory
+        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
+        .unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 56;
@@ -3943,7 +4015,7 @@ fn RLC_100(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -3958,7 +4030,7 @@ fn RLC_101(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -3973,7 +4045,7 @@ fn RLC_102(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -3988,7 +4060,7 @@ fn RLC_103(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4003,7 +4075,7 @@ fn RLC_104(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4018,7 +4090,7 @@ fn RLC_105(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4033,8 +4105,8 @@ fn RLC_106(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4049,7 +4121,7 @@ fn RLC_107(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4064,7 +4136,7 @@ fn RRC_108(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4079,7 +4151,7 @@ fn RRC_109(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4094,7 +4166,7 @@ fn RRC_10A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4109,7 +4181,7 @@ fn RRC_10B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4126,7 +4198,7 @@ fn RRC_10C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4143,7 +4215,7 @@ fn RRC_10D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4159,8 +4231,8 @@ fn RRC_10E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4175,7 +4247,7 @@ fn RRC_10F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4190,7 +4262,7 @@ fn RL_110(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4205,7 +4277,7 @@ fn RL_111(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4220,7 +4292,7 @@ fn RL_112(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4235,7 +4307,7 @@ fn RL_113(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4250,7 +4322,7 @@ fn RL_114(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4265,7 +4337,7 @@ fn RL_115(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4279,8 +4351,8 @@ fn RL_116(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4295,7 +4367,7 @@ fn RL_117(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4310,7 +4382,7 @@ fn RR_118(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4325,7 +4397,7 @@ fn RR_119(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4340,7 +4412,7 @@ fn RR_11A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4355,7 +4427,7 @@ fn RR_11B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4371,7 +4443,7 @@ fn RR_11C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4388,7 +4460,7 @@ fn RR_11D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4404,8 +4476,8 @@ fn RR_11E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4420,7 +4492,7 @@ fn RR_11F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4435,7 +4507,7 @@ fn SLA_120(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4450,7 +4522,7 @@ fn SLA_121(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4465,7 +4537,7 @@ fn SLA_122(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4480,7 +4552,7 @@ fn SLA_123(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4495,7 +4567,7 @@ fn SLA_124(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4510,7 +4582,7 @@ fn SLA_125(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4524,8 +4596,8 @@ fn SLA_126(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4540,7 +4612,7 @@ fn SLA_127(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4555,7 +4627,7 @@ fn SRA_128(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4570,7 +4642,7 @@ fn SRA_129(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4585,7 +4657,7 @@ fn SRA_12A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4600,7 +4672,7 @@ fn SRA_12B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4616,7 +4688,7 @@ fn SRA_12C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4632,7 +4704,7 @@ fn SRA_12D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4648,8 +4720,8 @@ fn SRA_12E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4664,7 +4736,7 @@ fn SRA_12F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4678,7 +4750,7 @@ fn SWAP_130(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4692,7 +4764,7 @@ fn SWAP_131(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4706,7 +4778,7 @@ fn SWAP_132(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4720,7 +4792,7 @@ fn SWAP_133(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4734,7 +4806,7 @@ fn SWAP_134(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4748,7 +4820,7 @@ fn SWAP_135(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4762,8 +4834,8 @@ fn SWAP_136(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4777,7 +4849,7 @@ fn SWAP_137(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4792,7 +4864,7 @@ fn SRL_138(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4807,7 +4879,7 @@ fn SRL_139(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4822,7 +4894,7 @@ fn SRL_13A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4837,7 +4909,7 @@ fn SRL_13B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4852,7 +4924,7 @@ fn SRL_13C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4867,7 +4939,7 @@ fn SRL_13D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4882,8 +4954,8 @@ fn SRL_13E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4898,7 +4970,7 @@ fn SRL_13F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     cpu.f |= flag;
     t &= 0xFF;
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4910,7 +4982,7 @@ fn BIT_140(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4922,7 +4994,7 @@ fn BIT_141(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4934,7 +5006,7 @@ fn BIT_142(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4946,7 +5018,7 @@ fn BIT_143(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4958,7 +5030,7 @@ fn BIT_144(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4970,7 +5042,7 @@ fn BIT_145(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -4982,7 +5054,7 @@ fn BIT_146(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -4994,7 +5066,7 @@ fn BIT_147(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5006,7 +5078,7 @@ fn BIT_148(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5018,7 +5090,7 @@ fn BIT_149(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5030,7 +5102,7 @@ fn BIT_14A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5042,7 +5114,7 @@ fn BIT_14B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5054,7 +5126,7 @@ fn BIT_14C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5066,7 +5138,7 @@ fn BIT_14D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5078,7 +5150,7 @@ fn BIT_14E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5090,7 +5162,7 @@ fn BIT_14F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5102,7 +5174,7 @@ fn BIT_150(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5114,7 +5186,7 @@ fn BIT_151(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5126,7 +5198,7 @@ fn BIT_152(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5138,7 +5210,7 @@ fn BIT_153(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5150,7 +5222,7 @@ fn BIT_154(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5162,7 +5234,7 @@ fn BIT_155(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5174,7 +5246,7 @@ fn BIT_156(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5186,7 +5258,7 @@ fn BIT_157(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5198,7 +5270,7 @@ fn BIT_158(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5210,7 +5282,7 @@ fn BIT_159(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5222,7 +5294,7 @@ fn BIT_15A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5234,7 +5306,7 @@ fn BIT_15B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5246,7 +5318,7 @@ fn BIT_15C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5258,7 +5330,7 @@ fn BIT_15D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5270,7 +5342,7 @@ fn BIT_15E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5282,7 +5354,7 @@ fn BIT_15F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5294,7 +5366,7 @@ fn BIT_160(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5306,7 +5378,7 @@ fn BIT_161(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5318,7 +5390,7 @@ fn BIT_162(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5330,7 +5402,7 @@ fn BIT_163(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5342,7 +5414,7 @@ fn BIT_164(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5354,7 +5426,7 @@ fn BIT_165(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5366,7 +5438,7 @@ fn BIT_166(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5378,7 +5450,7 @@ fn BIT_167(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5390,7 +5462,7 @@ fn BIT_168(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5402,7 +5474,7 @@ fn BIT_169(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5414,7 +5486,7 @@ fn BIT_16A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5426,7 +5498,7 @@ fn BIT_16B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5438,7 +5510,7 @@ fn BIT_16C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5450,7 +5522,7 @@ fn BIT_16D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5462,7 +5534,7 @@ fn BIT_16E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5474,7 +5546,7 @@ fn BIT_16F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5486,7 +5558,7 @@ fn BIT_170(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5498,7 +5570,7 @@ fn BIT_171(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5510,7 +5582,7 @@ fn BIT_172(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5522,7 +5594,7 @@ fn BIT_173(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5534,7 +5606,7 @@ fn BIT_174(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5546,7 +5618,7 @@ fn BIT_175(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5558,7 +5630,7 @@ fn BIT_176(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5570,7 +5642,7 @@ fn BIT_177(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5582,7 +5654,7 @@ fn BIT_178(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5594,7 +5666,7 @@ fn BIT_179(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5606,7 +5678,7 @@ fn BIT_17A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5618,7 +5690,7 @@ fn BIT_17B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5630,7 +5702,7 @@ fn BIT_17C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5642,7 +5714,7 @@ fn BIT_17D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5654,7 +5726,7 @@ fn BIT_17E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5666,7 +5738,7 @@ fn BIT_17F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5675,7 +5747,7 @@ fn RES_180(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 180 RES 0,B
     let t: u16 = cpu.b & !(1 << 0);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5684,7 +5756,7 @@ fn RES_181(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 181 RES 0,C
     let t: u16 = cpu.c & !(1 << 0);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5693,7 +5765,7 @@ fn RES_182(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 182 RES 0,D
     let t: u16 = cpu.d & !(1 << 0);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5702,7 +5774,7 @@ fn RES_183(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 183 RES 0,E
     let t: u16 = cpu.e & !(1 << 0);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5711,7 +5783,7 @@ fn RES_184(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 184 RES 0,H
     let t: u16 = (cpu.get_hl() >> 8) & !(1 << 0);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5720,7 +5792,7 @@ fn RES_185(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 185 RES 0,L
     let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 0);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5728,8 +5800,8 @@ fn RES_185(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn RES_186(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 186 RES 0,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 0);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5738,7 +5810,7 @@ fn RES_187(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 187 RES 0,A
     let t: u16 = cpu.a & !(1 << 0);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5747,7 +5819,7 @@ fn RES_188(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 188 RES 1,B
     let t: u16 = cpu.b & !(1 << 1);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5756,7 +5828,7 @@ fn RES_189(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 189 RES 1,C
     let t: u16 = cpu.c & !(1 << 1);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5765,7 +5837,7 @@ fn RES_18A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 18A RES 1,D
     let t: u16 = cpu.d & !(1 << 1);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5774,7 +5846,7 @@ fn RES_18B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 18B RES 1,E
     let t: u16 = cpu.e & !(1 << 1);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5783,7 +5855,7 @@ fn RES_18C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 18C RES 1,H
     let t: u16 = (cpu.get_hl() >> 8) & !(1 << 1);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5792,7 +5864,7 @@ fn RES_18D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 18D RES 1,L
     let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 1);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5800,8 +5872,8 @@ fn RES_18D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn RES_18E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 18E RES 1,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 1);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5810,7 +5882,7 @@ fn RES_18F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 18F RES 1,A
     let t: u16 = cpu.a & !(1 << 1);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5819,7 +5891,7 @@ fn RES_190(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 190 RES 2,B
     let t: u16 = cpu.b & !(1 << 2);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5828,7 +5900,7 @@ fn RES_191(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 191 RES 2,C
     let t: u16 = cpu.c & !(1 << 2);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5837,7 +5909,7 @@ fn RES_192(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 192 RES 2,D
     let t: u16 = cpu.d & !(1 << 2);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5846,7 +5918,7 @@ fn RES_193(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 193 RES 2,E
     let t: u16 = cpu.e & !(1 << 2);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5855,7 +5927,7 @@ fn RES_194(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 194 RES 2,H
     let t: u16 = (cpu.get_hl() >> 8) & !(1 << 2);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5864,7 +5936,7 @@ fn RES_195(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 195 RES 2,L
     let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 2);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5872,8 +5944,8 @@ fn RES_195(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn RES_196(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 196 RES 2,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 2);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5882,7 +5954,7 @@ fn RES_197(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 197 RES 2,A
     let t: u16 = cpu.a & !(1 << 2);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5891,7 +5963,7 @@ fn RES_198(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 198 RES 3,B
     let t: u16 = cpu.b & !(1 << 3);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5900,7 +5972,7 @@ fn RES_199(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 199 RES 3,C
     let t: u16 = cpu.c & !(1 << 3);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5909,7 +5981,7 @@ fn RES_19A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 19A RES 3,D
     let t: u16 = cpu.d & !(1 << 3);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5918,7 +5990,7 @@ fn RES_19B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 19B RES 3,E
     let t: u16 = cpu.e & !(1 << 3);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5927,7 +5999,7 @@ fn RES_19C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 19C RES 3,H
     let t: u16 = (cpu.get_hl() >> 8) & !(1 << 3);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5936,7 +6008,7 @@ fn RES_19D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 19D RES 3,L
     let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 3);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5944,8 +6016,8 @@ fn RES_19D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn RES_19E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 19E RES 3,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 3);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -5954,7 +6026,7 @@ fn RES_19F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 19F RES 3,A
     let t: u16 = cpu.a & !(1 << 3);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5963,7 +6035,7 @@ fn RES_1A0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A0 RES 4,B
     let t: u16 = cpu.b & !(1 << 4);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5972,7 +6044,7 @@ fn RES_1A1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A1 RES 4,C
     let t: u16 = cpu.c & !(1 << 4);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5981,7 +6053,7 @@ fn RES_1A2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A2 RES 4,D
     let t: u16 = cpu.d & !(1 << 4);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5990,7 +6062,7 @@ fn RES_1A3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A3 RES 4,E
     let t: u16 = cpu.e & !(1 << 4);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -5999,7 +6071,7 @@ fn RES_1A4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A4 RES 4,H
     let t: u16 = (cpu.get_hl() >> 8) & !(1 << 4);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6008,7 +6080,7 @@ fn RES_1A5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A5 RES 4,L
     let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 4);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6016,8 +6088,8 @@ fn RES_1A5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn RES_1A6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1A6 RES 4,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 4);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6026,7 +6098,7 @@ fn RES_1A7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A7 RES 4,A
     let t: u16 = cpu.a & !(1 << 4);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6035,7 +6107,7 @@ fn RES_1A8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A8 RES 5,B
     let t: u16 = cpu.b & !(1 << 5);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6044,7 +6116,7 @@ fn RES_1A9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1A9 RES 5,C
     let t: u16 = cpu.c & !(1 << 5);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6053,7 +6125,7 @@ fn RES_1AA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1AA RES 5,D
     let t: u16 = cpu.d & !(1 << 5);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6062,7 +6134,7 @@ fn RES_1AB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1AB RES 5,E
     let t: u16 = cpu.e & !(1 << 5);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6071,7 +6143,7 @@ fn RES_1AC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1AC RES 5,H
     let t: u16 = (cpu.get_hl() >> 8) & !(1 << 5);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6080,7 +6152,7 @@ fn RES_1AD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1AD RES 5,L
     let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 5);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6088,8 +6160,8 @@ fn RES_1AD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn RES_1AE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1AE RES 5,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 5);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6098,7 +6170,7 @@ fn RES_1AF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1AF RES 5,A
     let t: u16 = cpu.a & !(1 << 5);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6107,7 +6179,7 @@ fn RES_1B0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B0 RES 6,B
     let t: u16 = cpu.b & !(1 << 6);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6116,7 +6188,7 @@ fn RES_1B1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B1 RES 6,C
     let t: u16 = cpu.c & !(1 << 6);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6125,7 +6197,7 @@ fn RES_1B2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B2 RES 6,D
     let t: u16 = cpu.d & !(1 << 6);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6134,7 +6206,7 @@ fn RES_1B3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B3 RES 6,E
     let t: u16 = cpu.e & !(1 << 6);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6143,7 +6215,7 @@ fn RES_1B4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B4 RES 6,H
     let t: u16 = (cpu.get_hl() >> 8) & !(1 << 6);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6152,7 +6224,7 @@ fn RES_1B5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B5 RES 6,L
     let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 6);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6160,8 +6232,8 @@ fn RES_1B5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn RES_1B6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1B6 RES 6,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 6);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6170,7 +6242,7 @@ fn RES_1B7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B7 RES 6,A
     let t: u16 = cpu.a & !(1 << 6);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6179,7 +6251,7 @@ fn RES_1B8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B8 RES 7,B
     let t: u16 = cpu.b & !(1 << 7);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6188,7 +6260,7 @@ fn RES_1B9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1B9 RES 7,C
     let t: u16 = cpu.c & !(1 << 7);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6197,7 +6269,7 @@ fn RES_1BA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1BA RES 7,D
     let t: u16 = cpu.d & !(1 << 7);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6206,7 +6278,7 @@ fn RES_1BB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1BB RES 7,E
     let t: u16 = cpu.e & !(1 << 7);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6215,7 +6287,7 @@ fn RES_1BC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1BC RES 7,H
     let t: u16 = (cpu.get_hl() >> 8) & !(1 << 7);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6224,7 +6296,7 @@ fn RES_1BD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1BD RES 7,L
     let t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 7);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6232,8 +6304,8 @@ fn RES_1BD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn RES_1BE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1BE RES 7,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) & !(1 << 7);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6242,7 +6314,7 @@ fn RES_1BF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1BF RES 7,A
     let t: u16 = cpu.a & !(1 << 7);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6251,7 +6323,7 @@ fn SET_1C0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C0 SET 0,B
     let t: u16 = cpu.b | (1 << 0);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6260,7 +6332,7 @@ fn SET_1C1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C1 SET 0,C
     let t: u16 = cpu.c | (1 << 0);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6269,7 +6341,7 @@ fn SET_1C2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C2 SET 0,D
     let t: u16 = cpu.d | (1 << 0);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6278,7 +6350,7 @@ fn SET_1C3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C3 SET 0,E
     let t: u16 = cpu.e | (1 << 0);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6287,7 +6359,7 @@ fn SET_1C4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C4 SET 0,H
     let t: u16 = (cpu.get_hl() >> 8) | (1 << 0);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6296,7 +6368,7 @@ fn SET_1C5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C5 SET 0,L
     let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 0);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6304,8 +6376,8 @@ fn SET_1C5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn SET_1C6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1C6 SET 0,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 0);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6314,7 +6386,7 @@ fn SET_1C7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C7 SET 0,A
     let t: u16 = cpu.a | (1 << 0);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6323,7 +6395,7 @@ fn SET_1C8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C8 SET 1,B
     let t: u16 = cpu.b | (1 << 1);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6332,7 +6404,7 @@ fn SET_1C9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1C9 SET 1,C
     let t: u16 = cpu.c | (1 << 1);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6341,7 +6413,7 @@ fn SET_1CA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1CA SET 1,D
     let t: u16 = cpu.d | (1 << 1);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6350,7 +6422,7 @@ fn SET_1CB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1CB SET 1,E
     let t: u16 = cpu.e | (1 << 1);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6359,7 +6431,7 @@ fn SET_1CC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1CC SET 1,H
     let t: u16 = (cpu.get_hl() >> 8) | (1 << 1);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6368,7 +6440,7 @@ fn SET_1CD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1CD SET 1,L
     let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 1);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6376,8 +6448,8 @@ fn SET_1CD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn SET_1CE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1CE SET 1,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 1);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6386,7 +6458,7 @@ fn SET_1CF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1CF SET 1,A
     let t: u16 = cpu.a | (1 << 1);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6395,7 +6467,7 @@ fn SET_1D0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D0 SET 2,B
     let t: u16 = cpu.b | (1 << 2);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6404,7 +6476,7 @@ fn SET_1D1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D1 SET 2,C
     let t: u16 = cpu.c | (1 << 2);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6413,7 +6485,7 @@ fn SET_1D2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D2 SET 2,D
     let t: u16 = cpu.d | (1 << 2);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6422,7 +6494,7 @@ fn SET_1D3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D3 SET 2,E
     let t: u16 = cpu.e | (1 << 2);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6431,7 +6503,7 @@ fn SET_1D4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D4 SET 2,H
     let t: u16 = (cpu.get_hl() >> 8) | (1 << 2);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6440,7 +6512,7 @@ fn SET_1D5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D5 SET 2,L
     let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 2);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6448,8 +6520,8 @@ fn SET_1D5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn SET_1D6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1D6 SET 2,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 2);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6458,7 +6530,7 @@ fn SET_1D7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D7 SET 2,A
     let t: u16 = cpu.a | (1 << 2);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6467,7 +6539,7 @@ fn SET_1D8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D8 SET 3,B
     let t: u16 = cpu.b | (1 << 3);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6476,7 +6548,7 @@ fn SET_1D9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1D9 SET 3,C
     let t: u16 = cpu.c | (1 << 3);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6485,7 +6557,7 @@ fn SET_1DA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1DA SET 3,D
     let t: u16 = cpu.d | (1 << 3);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6494,7 +6566,7 @@ fn SET_1DB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1DB SET 3,E
     let t: u16 = cpu.e | (1 << 3);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6503,7 +6575,7 @@ fn SET_1DC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1DC SET 3,H
     let t: u16 = (cpu.get_hl() >> 8) | (1 << 3);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6512,7 +6584,7 @@ fn SET_1DD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1DD SET 3,L
     let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 3);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6520,8 +6592,8 @@ fn SET_1DD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn SET_1DE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1DE SET 3,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 3);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6530,7 +6602,7 @@ fn SET_1DF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1DF SET 3,A
     let t: u16 = cpu.a | (1 << 3);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6539,7 +6611,7 @@ fn SET_1E0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E0 SET 4,B
     let t: u16 = cpu.b | (1 << 4);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6548,7 +6620,7 @@ fn SET_1E1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E1 SET 4,C
     let t: u16 = cpu.c | (1 << 4);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6557,7 +6629,7 @@ fn SET_1E2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E2 SET 4,D
     let t: u16 = cpu.d | (1 << 4);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6566,7 +6638,7 @@ fn SET_1E3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E3 SET 4,E
     let t: u16 = cpu.e | (1 << 4);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6575,7 +6647,7 @@ fn SET_1E4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E4 SET 4,H
     let t: u16 = (cpu.get_hl() >> 8) | (1 << 4);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6584,7 +6656,7 @@ fn SET_1E5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E5 SET 4,L
     let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 4);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6592,8 +6664,8 @@ fn SET_1E5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn SET_1E6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1E6 SET 4,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 4);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6602,7 +6674,7 @@ fn SET_1E7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E7 SET 4,A
     let t: u16 = cpu.a | (1 << 4);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6611,7 +6683,7 @@ fn SET_1E8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E8 SET 5,B
     let t: u16 = cpu.b | (1 << 5);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6620,7 +6692,7 @@ fn SET_1E9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1E9 SET 5,C
     let t: u16 = cpu.c | (1 << 5);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6629,7 +6701,7 @@ fn SET_1EA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1EA SET 5,D
     let t: u16 = cpu.d | (1 << 5);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6638,7 +6710,7 @@ fn SET_1EB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1EB SET 5,E
     let t: u16 = cpu.e | (1 << 5);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6647,7 +6719,7 @@ fn SET_1EC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1EC SET 5,H
     let t: u16 = (cpu.get_hl() >> 8) | (1 << 5);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6656,7 +6728,7 @@ fn SET_1ED(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1ED SET 5,L
     let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 5);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6664,8 +6736,8 @@ fn SET_1ED(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn SET_1EE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1EE SET 5,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 5);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6674,7 +6746,7 @@ fn SET_1EF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1EF SET 5,A
     let t: u16 = cpu.a | (1 << 5);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6683,7 +6755,7 @@ fn SET_1F0(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F0 SET 6,B
     let t: u16 = cpu.b | (1 << 6);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6692,7 +6764,7 @@ fn SET_1F1(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F1 SET 6,C
     let t: u16 = cpu.c | (1 << 6);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6701,7 +6773,7 @@ fn SET_1F2(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F2 SET 6,D
     let t: u16 = cpu.d | (1 << 6);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6710,7 +6782,7 @@ fn SET_1F3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F3 SET 6,E
     let t: u16 = cpu.e | (1 << 6);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6719,7 +6791,7 @@ fn SET_1F4(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F4 SET 6,H
     let t: u16 = (cpu.get_hl() >> 8) | (1 << 6);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6728,7 +6800,7 @@ fn SET_1F5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F5 SET 6,L
     let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 6);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6736,8 +6808,8 @@ fn SET_1F5(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn SET_1F6(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1F6 SET 6,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 6);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6746,7 +6818,7 @@ fn SET_1F7(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F7 SET 6,A
     let t: u16 = cpu.a | (1 << 6);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6755,7 +6827,7 @@ fn SET_1F8(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F8 SET 7,B
     let t: u16 = cpu.b | (1 << 7);
     cpu.b = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6764,7 +6836,7 @@ fn SET_1F9(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1F9 SET 7,C
     let t: u16 = cpu.c | (1 << 7);
     cpu.c = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6773,7 +6845,7 @@ fn SET_1FA(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1FA SET 7,D
     let t: u16 = cpu.d | (1 << 7);
     cpu.d = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6782,7 +6854,7 @@ fn SET_1FB(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1FB SET 7,E
     let t: u16 = cpu.e | (1 << 7);
     cpu.e = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6791,7 +6863,7 @@ fn SET_1FC(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1FC SET 7,H
     let t: u16 = (cpu.get_hl() >> 8) | (1 << 7);
     cpu.set_hl((cpu.get_hl() & 0x00FF) | (t << 8));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6800,7 +6872,7 @@ fn SET_1FD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1FD SET 7,L
     let t: u16 = (cpu.get_hl() & 0xFF) | (1 << 7);
     cpu.set_hl((cpu.get_hl() & 0xFF00) | (t & 0xFF));
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6808,8 +6880,8 @@ fn SET_1FD(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn SET_1FE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 1FE SET 7,(HL)
     let t: u16 = (memory.read8(cpu.get_hl()).unwrap() as u16) | (1 << 7);
-    memory.write8(cpu.get_hl(), (t) as u8);
-    cpu.pc += 2;
+    memory.write8(cpu.get_hl(), (t) as u8).unwrap();
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
 }
@@ -6818,7 +6890,7 @@ fn SET_1FF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 1FF SET 7,A
     let t: u16 = cpu.a | (1 << 7);
     cpu.a = t;
-    cpu.pc += 2;
+    cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 8;
 }
@@ -6842,7 +6914,7 @@ const OPCODE_LENGTHS: [u8; 512] = [
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 ];
 
-const CPU_COMMANDS: [&str; 512] = [
+const _CPU_COMMANDS: [&str; 512] = [
     "NOP",
     "LD BC,d16",
     "LD (BC),A",

@@ -12,7 +12,7 @@ fn main() {
         String::from_utf8_lossy(&Command::new("pwd").output().unwrap().stdout)
     );
 
-    let _gb = gameboy::Gameboy::new(args[1].clone(), args[2].clone());
+    let mut gb = gameboy::Gameboy::new(args[1].clone(), args[2].clone());
 
-    // gb.run();
+    gb.run().unwrap();
 }

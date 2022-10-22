@@ -2,6 +2,7 @@ use std::fmt::Error;
 
 use super::{memory::Memory, GameboyModule, MemoryInterface};
 
+#[allow(non_snake_case)]
 mod instructions;
 
 const FLAGC: u16 = 4;
@@ -93,7 +94,7 @@ impl CPU {
         }
     }
 
-    fn get_reg8(&self, reg: Register8) -> u16 {
+    fn _get_reg8(&self, reg: Register8) -> u16 {
         match reg {
             Register8::A => self.a,
             Register8::B => self.b,
@@ -106,7 +107,7 @@ impl CPU {
         }
     }
 
-    fn get_reg16(&self, reg: Register16) -> u16 {
+    fn _get_reg16(&self, reg: Register16) -> u16 {
         match reg {
             Register16::PC => self.pc,
             Register16::SP => self.sp,
@@ -117,7 +118,7 @@ impl CPU {
         }
     }
 
-    fn set_reg8(&mut self, reg: Register8, value: u16) {
+    fn _set_reg8(&mut self, reg: Register8, value: u16) {
         match reg {
             Register8::A => self.a = value,
             Register8::B => self.b = value,
@@ -130,7 +131,7 @@ impl CPU {
         }
     }
 
-    fn set_reg16(&mut self, reg: Register16, value: u16) {
+    fn _set_reg16(&mut self, reg: Register16, value: u16) {
         match reg {
             Register16::PC => self.pc = value,
             Register16::SP => self.sp = value,
@@ -153,11 +154,11 @@ impl CPU {
         }
     }
 
-    fn get_flag(&self, flag: Flag) -> u16 {
+    fn _get_flag(&self, flag: Flag) -> u16 {
         (self.f >> (flag as u16)) & 1
     }
 
-    fn set_flag(&mut self, flag: Flag, value: bool) {
+    fn _set_flag(&mut self, flag: Flag, value: bool) {
         self.f = (self.f & !1 << (flag as u16)) | ((value as u16) << (flag as u16))
     }
 
@@ -170,7 +171,7 @@ impl CPU {
         self.l = value & 0x00FF;
     }
 
-    fn get_bc(&self) -> u16 {
+    fn _get_bc(&self) -> u16 {
         self.b << 8 | self.c
     }
 
@@ -179,7 +180,7 @@ impl CPU {
         self.c = value & 0x00FF;
     }
 
-    fn get_de(&self) -> u16 {
+    fn _get_de(&self) -> u16 {
         self.d << 8 | self.e
     }
 

@@ -35,7 +35,7 @@ trait MemoryInterface {
     fn read8(&self, addr: u16) -> MemoryResult<u8>;
     fn write8(&mut self, addr: u16, value: u8) -> MemoryResult<()>;
     fn read16(&self, addr: u16) -> MemoryResult<u16> {
-        Ok(self.read8(addr)? as u16 + (self.read8(addr + 1)? << 8) as u16)
+        Ok(self.read8(addr)? as u16 + ((self.read8(addr + 1)? as u16) << 8))
     }
     fn write16(&mut self, addr: u16, value: u16) -> MemoryResult<()> {
         self.write8(addr, value as u8)?;
@@ -65,9 +65,9 @@ impl Gameboy {
         }
     }
 
-    pub fn run(&self) -> Result<(), Error> {
+    pub fn run(&mut self) -> Result<(), Error> {
         while self.running {
-            println!("hi");
+            self.cpu.tick(&mut self.memory)?;
             thread::sleep(time::Duration::from_millis(10));
         }
         Ok(())
