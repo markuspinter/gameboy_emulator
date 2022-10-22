@@ -4,6 +4,11 @@ use super::{memory::Memory, GameboyModule, MemoryInterface};
 
 mod instructions;
 
+const FLAGC: u16 = 4;
+const FLAGH: u16 = 5;
+const FLAGN: u16 = 6;
+const FLAGZ: u16 = 7;
+
 pub enum Register8 {
     A,
     B,
@@ -44,6 +49,9 @@ pub struct CPU {
 
     pub pc: u16,
     pub sp: u16,
+
+    pub halted: bool,
+    pub interrupt_master_enable: bool,
 }
 
 impl GameboyModule for CPU {
@@ -79,10 +87,13 @@ impl CPU {
             l: 0x00,
             pc: 0x0000,
             sp: 0x0000,
+
+            halted: false,
+            interrupt_master_enable: false,
         }
     }
 
-    fn get_reg8(&self, reg: Register8) -> u8 {
+    fn get_reg8(&self, reg: Register8) -> u16 {
         match reg {
             Register8::A => self.a,
             Register8::B => self.b,
@@ -106,7 +117,7 @@ impl CPU {
         }
     }
 
-    fn set_reg8(&self, reg: Register8, value: u8) {
+    fn set_reg8(&self, reg: Register8, value: u16) {
         match reg {
             Register8::A => self.a = value,
             Register8::B => self.b = value,
@@ -124,29 +135,80 @@ impl CPU {
             Register16::PC => self.pc = value,
             Register16::SP => self.sp = value,
             Register16::AF => {
-                self.a = (value >> 8) as u8;
-                self.f = value as u8;
+                self.a = (value >> 8);
+                self.f = value;
             }
             Register16::BC => {
-                self.b = (value >> 8) as u8;
-                self.c = value as u8;
+                self.b = (value >> 8);
+                self.c = value;
             }
             Register16::DE => {
-                self.d = (value >> 8) as u8;
-                self.e = value as u8;
+                self.d = (value >> 8);
+                self.e = value;
             }
             Register16::HL => {
-                self.h = (value >> 8) as u8;
-                self.l = value as u8;
+                self.h = (value >> 8);
+                self.l = value;
             }
         }
     }
 
-    fn get_flag(&self, flag: Flag) -> u8 {
-        (self.f >> flag as u8) & 1
+    fn get_flag(&self, flag: Flag) -> u16 {
+        (self.f >> (flag as u16)) & 1
     }
 
     fn set_flag(&self, flag: Flag, value: bool) {
-        self.f = (self.f & !1 << (flag as u8)) | ((value as u8) << flag as u8)
+        self.f = (self.f & !1 << (flag as u16)) | ((value as u16) << (flag as u16))
+    }
+
+    fn get_hl(&self) -> u16 {
+        self.h << 8 | self.l
+    }
+
+    fn set_hl(&self, value: u16) {
+        self.h = (value & 0xFF00) >> 8;
+        self.l = value & 0x00FF;
+    }
+
+    fn get_bc(&self) -> u16 {
+        self.b << 8 | self.c
+    }
+
+    fn set_bc(&self, value: u16) {
+        self.b = (value & 0xFF00) >> 8;
+        self.c = value & 0x00FF;
+    }
+
+    fn get_de(&self) -> u16 {
+        self.d << 8 | self.e
+    }
+
+    fn set_de(&self, value: u16) {
+        self.d = (value & 0xFF00) >> 8;
+        self.e = value & 0x00FF;
+    }
+
+    fn f_c(&self) -> bool {
+        (self.f & (1 << FLAGC)) != 0
+    }
+
+    fn f_h(&self) -> bool {
+        (self.f & (1 << FLAGH)) != 0
+    }
+
+    fn f_n(&self) -> bool {
+        (self.f & (1 << FLAGN)) != 0
+    }
+
+    fn f_z(&self) -> bool {
+        (self.f & (1 << FLAGZ)) != 0
+    }
+
+    fn f_nc(&self) -> bool {
+        (self.f & (1 << FLAGC)) == 0
+    }
+
+    fn f_nz(&self) -> bool {
+        (self.f & (1 << FLAGZ)) == 0
     }
 }

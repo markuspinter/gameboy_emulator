@@ -4,6 +4,7 @@ use std::io::{BufReader, Read};
 use super::MemoryInterface;
 pub struct Memory {
     rom: Vec<u8>,
+    pub cgb_mode: bool,
 }
 
 impl MemoryInterface for Memory {
@@ -21,6 +22,7 @@ impl Memory {
     pub fn new(bootrom_path: String, rom_path: String) -> Self {
         Memory {
             rom: Self::load_rom(bootrom_path, rom_path),
+            cgb_mode: false,
         }
     }
 
@@ -83,5 +85,9 @@ impl Memory {
         }
         println!("\n\n");
         buffer
+    }
+
+    pub fn switch_speed(&self) {
+        panic!("switch speed not implemented");
     }
 }
