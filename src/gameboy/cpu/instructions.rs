@@ -2,10 +2,10 @@ use super::{Register8, Register16, CPU};
 use crate::gameboy::memory::Memory;
 use crate::gameboy::MemoryInterface;
 
-const FLAGC: u8 = 4;
-const FLAGH: u8 = 5;
-const FLAGN: u8 = 6;
-const FLAGZ: u8 = 7;
+const FLAGC: u16 = 4;
+const FLAGH: u16 = 5;
+const FLAGN: u16 = 6;
+const FLAGZ: u16 = 7;
 
 fn NOP_00(cpu: &CPU, memory: &Memory) -> u32 { // 00 NOP
     cpu.pc += 1;
@@ -40,8 +40,8 @@ fn INC_03(cpu: &CPU, memory: &Memory) -> u32 { // 03 INC BC
 fn INC_04(cpu: &CPU, memory: &Memory) -> u32 { // 04 INC B
     let mut t: u16 = cpu.b + 1;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.b & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.b & 0xF) + (1 & 0xF)) > 0xF).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -54,8 +54,8 @@ fn INC_04(cpu: &CPU, memory: &Memory) -> u32 { // 04 INC B
 fn DEC_05(cpu: &CPU, memory: &Memory) -> u32 { // 05 DEC B
     let mut t: u16 = cpu.b - 1;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.b & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.b & 0xF) - (1 & 0xF)) < 0).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -127,8 +127,8 @@ fn DEC_0B(cpu: &CPU, memory: &Memory) -> u32 { // 0B DEC BC
 fn INC_0C(cpu: &CPU, memory: &Memory) -> u32 { // 0C INC C
     let mut t: u16 = cpu.c + 1;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.c & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.c & 0xF) + (1 & 0xF)) > 0xF).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -141,8 +141,8 @@ fn INC_0C(cpu: &CPU, memory: &Memory) -> u32 { // 0C INC C
 fn DEC_0D(cpu: &CPU, memory: &Memory) -> u32 { // 0D DEC C
     let mut t: u16 = cpu.c - 1;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.c & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.c & 0xF) - (1 & 0xF)) < 0).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -208,8 +208,8 @@ fn INC_13(cpu: &CPU, memory: &Memory) -> u32 { // 13 INC DE
 fn INC_14(cpu: &CPU, memory: &Memory) -> u32 { // 14 INC D
     let mut t: u16 = cpu.d + 1;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.d & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.d & 0xF) + (1 & 0xF)) > 0xF).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -222,8 +222,8 @@ fn INC_14(cpu: &CPU, memory: &Memory) -> u32 { // 14 INC D
 fn DEC_15(cpu: &CPU, memory: &Memory) -> u32 { // 15 DEC D
     let mut t: u16 = cpu.d - 1;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.d & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.d & 0xF) - (1 & 0xF)) < 0).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -293,8 +293,8 @@ fn DEC_1B(cpu: &CPU, memory: &Memory) -> u32 { // 1B DEC DE
 fn INC_1C(cpu: &CPU, memory: &Memory) -> u32 { // 1C INC E
     let mut t: u16 = cpu.e + 1;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.e & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.e & 0xF) + (1 & 0xF)) > 0xF).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -307,8 +307,8 @@ fn INC_1C(cpu: &CPU, memory: &Memory) -> u32 { // 1C INC E
 fn DEC_1D(cpu: &CPU, memory: &Memory) -> u32 { // 1D DEC E
     let mut t: u16 = cpu.e - 1;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.e & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.e & 0xF) - (1 & 0xF)) < 0).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -379,8 +379,8 @@ fn INC_23(cpu: &CPU, memory: &Memory) -> u32 { // 23 INC HL
 fn INC_24(cpu: &CPU, memory: &Memory) -> u32 { // 24 INC H
     let mut t: u16 = (cpu.get_hl() >> 8) + 1;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += ((((cpu.get_hl() >> 8) & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += ((((cpu.get_hl() >> 8) & 0xF) + (1 & 0xF)) > 0xF).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -393,8 +393,8 @@ fn INC_24(cpu: &CPU, memory: &Memory) -> u32 { // 24 INC H
 fn DEC_25(cpu: &CPU, memory: &Memory) -> u32 { // 25 DEC H
     let mut t: u16 = (cpu.get_hl() >> 8) - 1;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += ((((cpu.get_hl() >> 8) & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += ((((cpu.get_hl() >> 8) & 0xF) - (1 & 0xF)) < 0).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -424,7 +424,7 @@ fn DAA_27(cpu: &CPU, memory: &Memory) -> u32 { // 27 DAA
         t += corr;
     }
     let mut flag: u16 = 0;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (corr & 0x60 != 0) << FLAGC;
     cpu.f &= 0b01000000;
     cpu.f |= flag;
@@ -483,8 +483,8 @@ fn DEC_2B(cpu: &CPU, memory: &Memory) -> u32 { // 2B DEC HL
 fn INC_2C(cpu: &CPU, memory: &Memory) -> u32 { // 2C INC L
     let mut t: u16 = (cpu.get_hl() & 0xFF) + 1;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += ((((cpu.get_hl() & 0xFF) & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += ((((cpu.get_hl() & 0xFF) & 0xF) + (1 & 0xF)) > 0xF).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -497,8 +497,8 @@ fn INC_2C(cpu: &CPU, memory: &Memory) -> u32 { // 2C INC L
 fn DEC_2D(cpu: &CPU, memory: &Memory) -> u32 { // 2D DEC L
     let mut t: u16 = (cpu.get_hl() & 0xFF) - 1;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += ((((cpu.get_hl() & 0xFF) & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += ((((cpu.get_hl() & 0xFF) & 0xF) - (1 & 0xF)) < 0).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -566,8 +566,8 @@ fn INC_33(cpu: &CPU, memory: &Memory) -> u32 { // 33 INC SP
 fn INC_34(cpu: &CPU, memory: &Memory) -> u32 { // 34 INC (HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) + 1;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((memory.read8(cpu.get_hl()) & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((memory.read8(cpu.get_hl()) & 0xF) + (1 & 0xF)) > 0xF).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -580,8 +580,8 @@ fn INC_34(cpu: &CPU, memory: &Memory) -> u32 { // 34 INC (HL)
 fn DEC_35(cpu: &CPU, memory: &Memory) -> u32 { // 35 DEC (HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) - 1;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((memory.read8(cpu.get_hl()) & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((memory.read8(cpu.get_hl()) & 0xF) - (1 & 0xF)) < 0).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -655,8 +655,8 @@ fn DEC_3B(cpu: &CPU, memory: &Memory) -> u32 { // 3B DEC SP
 fn INC_3C(cpu: &CPU, memory: &Memory) -> u32 { // 3C INC A
     let mut t: u16 = cpu.a + 1;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (1 & 0xF)) > 0xF).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -669,8 +669,8 @@ fn INC_3C(cpu: &CPU, memory: &Memory) -> u32 { // 3C INC A
 fn DEC_3D(cpu: &CPU, memory: &Memory) -> u32 { // 3D DEC A
     let mut t: u16 = cpu.a - 1;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (1 & 0xF)) < 0) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (1 & 0xF)) < 0).into() << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1145,8 +1145,8 @@ fn LD_7F(cpu: &CPU, memory: &Memory) -> u32 { // 7F LD A,A
 fn ADD_80(cpu: &CPU, memory: &Memory) -> u32 { // 80 ADD A,B
     let mut t: u16 = cpu.a + cpu.b;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.b & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.b & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1160,8 +1160,8 @@ fn ADD_80(cpu: &CPU, memory: &Memory) -> u32 { // 80 ADD A,B
 fn ADD_81(cpu: &CPU, memory: &Memory) -> u32 { // 81 ADD A,C
     let mut t: u16 = cpu.a + cpu.c;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.c & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.c & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1175,8 +1175,8 @@ fn ADD_81(cpu: &CPU, memory: &Memory) -> u32 { // 81 ADD A,C
 fn ADD_82(cpu: &CPU, memory: &Memory) -> u32 { // 82 ADD A,D
     let mut t: u16 = cpu.a + cpu.d;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.d & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.d & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1190,8 +1190,8 @@ fn ADD_82(cpu: &CPU, memory: &Memory) -> u32 { // 82 ADD A,D
 fn ADD_83(cpu: &CPU, memory: &Memory) -> u32 { // 83 ADD A,E
     let mut t: u16 = cpu.a + cpu.e;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.e & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.e & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1205,8 +1205,8 @@ fn ADD_83(cpu: &CPU, memory: &Memory) -> u32 { // 83 ADD A,E
 fn ADD_84(cpu: &CPU, memory: &Memory) -> u32 { // 84 ADD A,H
     let mut t: u16 = cpu.a + (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + ((cpu.get_hl() >> 8) & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + ((cpu.get_hl() >> 8) & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1220,8 +1220,8 @@ fn ADD_84(cpu: &CPU, memory: &Memory) -> u32 { // 84 ADD A,H
 fn ADD_85(cpu: &CPU, memory: &Memory) -> u32 { // 85 ADD A,L
     let mut t: u16 = cpu.a + (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + ((cpu.get_hl() & 0xFF) & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + ((cpu.get_hl() & 0xFF) & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1235,8 +1235,8 @@ fn ADD_85(cpu: &CPU, memory: &Memory) -> u32 { // 85 ADD A,L
 fn ADD_86(cpu: &CPU, memory: &Memory) -> u32 { // 86 ADD A,(HL)
     let mut t: u16 = cpu.a + memory.read8(cpu.get_hl());
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (memory.read8(cpu.get_hl()) & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (memory.read8(cpu.get_hl()) & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1250,8 +1250,8 @@ fn ADD_86(cpu: &CPU, memory: &Memory) -> u32 { // 86 ADD A,(HL)
 fn ADD_87(cpu: &CPU, memory: &Memory) -> u32 { // 87 ADD A,A
     let mut t: u16 = cpu.a + cpu.a;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.a & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.a & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1265,8 +1265,8 @@ fn ADD_87(cpu: &CPU, memory: &Memory) -> u32 { // 87 ADD A,A
 fn ADC_88(cpu: &CPU, memory: &Memory) -> u32 { // 88 ADC A,B
     let mut t: u16 = cpu.a + cpu.b + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.b & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.b & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1280,8 +1280,8 @@ fn ADC_88(cpu: &CPU, memory: &Memory) -> u32 { // 88 ADC A,B
 fn ADC_89(cpu: &CPU, memory: &Memory) -> u32 { // 89 ADC A,C
     let mut t: u16 = cpu.a + cpu.c + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.c & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.c & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1295,8 +1295,8 @@ fn ADC_89(cpu: &CPU, memory: &Memory) -> u32 { // 89 ADC A,C
 fn ADC_8A(cpu: &CPU, memory: &Memory) -> u32 { // 8A ADC A,D
     let mut t: u16 = cpu.a + cpu.d + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.d & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.d & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1310,8 +1310,8 @@ fn ADC_8A(cpu: &CPU, memory: &Memory) -> u32 { // 8A ADC A,D
 fn ADC_8B(cpu: &CPU, memory: &Memory) -> u32 { // 8B ADC A,E
     let mut t: u16 = cpu.a + cpu.e + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.e & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.e & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1325,8 +1325,8 @@ fn ADC_8B(cpu: &CPU, memory: &Memory) -> u32 { // 8B ADC A,E
 fn ADC_8C(cpu: &CPU, memory: &Memory) -> u32 { // 8C ADC A,H
     let mut t: u16 = cpu.a + (cpu.get_hl() >> 8) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + ((cpu.get_hl() >> 8) & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + ((cpu.get_hl() >> 8) & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1340,8 +1340,8 @@ fn ADC_8C(cpu: &CPU, memory: &Memory) -> u32 { // 8C ADC A,H
 fn ADC_8D(cpu: &CPU, memory: &Memory) -> u32 { // 8D ADC A,L
     let mut t: u16 = cpu.a + (cpu.get_hl() & 0xFF) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + ((cpu.get_hl() & 0xFF) & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + ((cpu.get_hl() & 0xFF) & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1355,8 +1355,8 @@ fn ADC_8D(cpu: &CPU, memory: &Memory) -> u32 { // 8D ADC A,L
 fn ADC_8E(cpu: &CPU, memory: &Memory) -> u32 { // 8E ADC A,(HL)
     let mut t: u16 = cpu.a + memory.read8(cpu.get_hl()) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (memory.read8(cpu.get_hl()) & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (memory.read8(cpu.get_hl()) & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1370,8 +1370,8 @@ fn ADC_8E(cpu: &CPU, memory: &Memory) -> u32 { // 8E ADC A,(HL)
 fn ADC_8F(cpu: &CPU, memory: &Memory) -> u32 { // 8F ADC A,A
     let mut t: u16 = cpu.a + cpu.a + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (cpu.a & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (cpu.a & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -1385,9 +1385,9 @@ fn ADC_8F(cpu: &CPU, memory: &Memory) -> u32 { // 8F ADC A,A
 fn SUB_90(cpu: &CPU, memory: &Memory) -> u32 { // 90 SUB B
     let mut t: u16 = cpu.a - cpu.b;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.b & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.b & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1400,9 +1400,9 @@ fn SUB_90(cpu: &CPU, memory: &Memory) -> u32 { // 90 SUB B
 fn SUB_91(cpu: &CPU, memory: &Memory) -> u32 { // 91 SUB C
     let mut t: u16 = cpu.a - cpu.c;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.c & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.c & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1415,9 +1415,9 @@ fn SUB_91(cpu: &CPU, memory: &Memory) -> u32 { // 91 SUB C
 fn SUB_92(cpu: &CPU, memory: &Memory) -> u32 { // 92 SUB D
     let mut t: u16 = cpu.a - cpu.d;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.d & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.d & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1430,9 +1430,9 @@ fn SUB_92(cpu: &CPU, memory: &Memory) -> u32 { // 92 SUB D
 fn SUB_93(cpu: &CPU, memory: &Memory) -> u32 { // 93 SUB E
     let mut t: u16 = cpu.a - cpu.e;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.e & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.e & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1445,9 +1445,9 @@ fn SUB_93(cpu: &CPU, memory: &Memory) -> u32 { // 93 SUB E
 fn SUB_94(cpu: &CPU, memory: &Memory) -> u32 { // 94 SUB H
     let mut t: u16 = cpu.a - (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1460,9 +1460,9 @@ fn SUB_94(cpu: &CPU, memory: &Memory) -> u32 { // 94 SUB H
 fn SUB_95(cpu: &CPU, memory: &Memory) -> u32 { // 95 SUB L
     let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1475,9 +1475,9 @@ fn SUB_95(cpu: &CPU, memory: &Memory) -> u32 { // 95 SUB L
 fn SUB_96(cpu: &CPU, memory: &Memory) -> u32 { // 96 SUB (HL)
     let mut t: u16 = cpu.a - memory.read8(cpu.get_hl());
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (memory.read8(cpu.get_hl()) & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (memory.read8(cpu.get_hl()) & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1490,9 +1490,9 @@ fn SUB_96(cpu: &CPU, memory: &Memory) -> u32 { // 96 SUB (HL)
 fn SUB_97(cpu: &CPU, memory: &Memory) -> u32 { // 97 SUB A
     let mut t: u16 = cpu.a - cpu.a;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.a & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.a & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1505,9 +1505,9 @@ fn SUB_97(cpu: &CPU, memory: &Memory) -> u32 { // 97 SUB A
 fn SBC_98(cpu: &CPU, memory: &Memory) -> u32 { // 98 SBC A,B
     let mut t: u16 = cpu.a - cpu.b - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.b & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.b & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1520,9 +1520,9 @@ fn SBC_98(cpu: &CPU, memory: &Memory) -> u32 { // 98 SBC A,B
 fn SBC_99(cpu: &CPU, memory: &Memory) -> u32 { // 99 SBC A,C
     let mut t: u16 = cpu.a - cpu.c - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.c & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.c & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1535,9 +1535,9 @@ fn SBC_99(cpu: &CPU, memory: &Memory) -> u32 { // 99 SBC A,C
 fn SBC_9A(cpu: &CPU, memory: &Memory) -> u32 { // 9A SBC A,D
     let mut t: u16 = cpu.a - cpu.d - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.d & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.d & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1550,9 +1550,9 @@ fn SBC_9A(cpu: &CPU, memory: &Memory) -> u32 { // 9A SBC A,D
 fn SBC_9B(cpu: &CPU, memory: &Memory) -> u32 { // 9B SBC A,E
     let mut t: u16 = cpu.a - cpu.e - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.e & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.e & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1565,9 +1565,9 @@ fn SBC_9B(cpu: &CPU, memory: &Memory) -> u32 { // 9B SBC A,E
 fn SBC_9C(cpu: &CPU, memory: &Memory) -> u32 { // 9C SBC A,H
     let mut t: u16 = cpu.a - (cpu.get_hl() >> 8) - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1580,9 +1580,9 @@ fn SBC_9C(cpu: &CPU, memory: &Memory) -> u32 { // 9C SBC A,H
 fn SBC_9D(cpu: &CPU, memory: &Memory) -> u32 { // 9D SBC A,L
     let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF) - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1595,9 +1595,9 @@ fn SBC_9D(cpu: &CPU, memory: &Memory) -> u32 { // 9D SBC A,L
 fn SBC_9E(cpu: &CPU, memory: &Memory) -> u32 { // 9E SBC A,(HL)
     let mut t: u16 = cpu.a - memory.read8(cpu.get_hl()) - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (memory.read8(cpu.get_hl()) & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (memory.read8(cpu.get_hl()) & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1610,9 +1610,9 @@ fn SBC_9E(cpu: &CPU, memory: &Memory) -> u32 { // 9E SBC A,(HL)
 fn SBC_9F(cpu: &CPU, memory: &Memory) -> u32 { // 9F SBC A,A
     let mut t: u16 = cpu.a - cpu.a - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.a & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.a & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1625,7 +1625,7 @@ fn SBC_9F(cpu: &CPU, memory: &Memory) -> u32 { // 9F SBC A,A
 fn AND_A0(cpu: &CPU, memory: &Memory) -> u32 { // A0 AND B
     let mut t: u16 = cpu.a & cpu.b;
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1638,7 +1638,7 @@ fn AND_A0(cpu: &CPU, memory: &Memory) -> u32 { // A0 AND B
 fn AND_A1(cpu: &CPU, memory: &Memory) -> u32 { // A1 AND C
     let mut t: u16 = cpu.a & cpu.c;
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1651,7 +1651,7 @@ fn AND_A1(cpu: &CPU, memory: &Memory) -> u32 { // A1 AND C
 fn AND_A2(cpu: &CPU, memory: &Memory) -> u32 { // A2 AND D
     let mut t: u16 = cpu.a & cpu.d;
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1664,7 +1664,7 @@ fn AND_A2(cpu: &CPU, memory: &Memory) -> u32 { // A2 AND D
 fn AND_A3(cpu: &CPU, memory: &Memory) -> u32 { // A3 AND E
     let mut t: u16 = cpu.a & cpu.e;
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1677,7 +1677,7 @@ fn AND_A3(cpu: &CPU, memory: &Memory) -> u32 { // A3 AND E
 fn AND_A4(cpu: &CPU, memory: &Memory) -> u32 { // A4 AND H
     let mut t: u16 = cpu.a & (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1690,7 +1690,7 @@ fn AND_A4(cpu: &CPU, memory: &Memory) -> u32 { // A4 AND H
 fn AND_A5(cpu: &CPU, memory: &Memory) -> u32 { // A5 AND L
     let mut t: u16 = cpu.a & (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1703,7 +1703,7 @@ fn AND_A5(cpu: &CPU, memory: &Memory) -> u32 { // A5 AND L
 fn AND_A6(cpu: &CPU, memory: &Memory) -> u32 { // A6 AND (HL)
     let mut t: u16 = cpu.a & memory.read8(cpu.get_hl());
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1716,7 +1716,7 @@ fn AND_A6(cpu: &CPU, memory: &Memory) -> u32 { // A6 AND (HL)
 fn AND_A7(cpu: &CPU, memory: &Memory) -> u32 { // A7 AND A
     let mut t: u16 = cpu.a & cpu.a;
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1729,7 +1729,7 @@ fn AND_A7(cpu: &CPU, memory: &Memory) -> u32 { // A7 AND A
 fn XOR_A8(cpu: &CPU, memory: &Memory) -> u32 { // A8 XOR B
     let mut t: u16 = cpu.a ^ cpu.b;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1742,7 +1742,7 @@ fn XOR_A8(cpu: &CPU, memory: &Memory) -> u32 { // A8 XOR B
 fn XOR_A9(cpu: &CPU, memory: &Memory) -> u32 { // A9 XOR C
     let mut t: u16 = cpu.a ^ cpu.c;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1755,7 +1755,7 @@ fn XOR_A9(cpu: &CPU, memory: &Memory) -> u32 { // A9 XOR C
 fn XOR_AA(cpu: &CPU, memory: &Memory) -> u32 { // AA XOR D
     let mut t: u16 = cpu.a ^ cpu.d;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1768,7 +1768,7 @@ fn XOR_AA(cpu: &CPU, memory: &Memory) -> u32 { // AA XOR D
 fn XOR_AB(cpu: &CPU, memory: &Memory) -> u32 { // AB XOR E
     let mut t: u16 = cpu.a ^ cpu.e;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1781,7 +1781,7 @@ fn XOR_AB(cpu: &CPU, memory: &Memory) -> u32 { // AB XOR E
 fn XOR_AC(cpu: &CPU, memory: &Memory) -> u32 { // AC XOR H
     let mut t: u16 = cpu.a ^ (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1794,7 +1794,7 @@ fn XOR_AC(cpu: &CPU, memory: &Memory) -> u32 { // AC XOR H
 fn XOR_AD(cpu: &CPU, memory: &Memory) -> u32 { // AD XOR L
     let mut t: u16 = cpu.a ^ (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1807,7 +1807,7 @@ fn XOR_AD(cpu: &CPU, memory: &Memory) -> u32 { // AD XOR L
 fn XOR_AE(cpu: &CPU, memory: &Memory) -> u32 { // AE XOR (HL)
     let mut t: u16 = cpu.a ^ memory.read8(cpu.get_hl());
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1820,7 +1820,7 @@ fn XOR_AE(cpu: &CPU, memory: &Memory) -> u32 { // AE XOR (HL)
 fn XOR_AF(cpu: &CPU, memory: &Memory) -> u32 { // AF XOR A
     let mut t: u16 = cpu.a ^ cpu.a;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1833,7 +1833,7 @@ fn XOR_AF(cpu: &CPU, memory: &Memory) -> u32 { // AF XOR A
 fn OR_B0(cpu: &CPU, memory: &Memory) -> u32 { // B0 OR B
     let mut t: u16 = cpu.a | cpu.b;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1846,7 +1846,7 @@ fn OR_B0(cpu: &CPU, memory: &Memory) -> u32 { // B0 OR B
 fn OR_B1(cpu: &CPU, memory: &Memory) -> u32 { // B1 OR C
     let mut t: u16 = cpu.a | cpu.c;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1859,7 +1859,7 @@ fn OR_B1(cpu: &CPU, memory: &Memory) -> u32 { // B1 OR C
 fn OR_B2(cpu: &CPU, memory: &Memory) -> u32 { // B2 OR D
     let mut t: u16 = cpu.a | cpu.d;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1872,7 +1872,7 @@ fn OR_B2(cpu: &CPU, memory: &Memory) -> u32 { // B2 OR D
 fn OR_B3(cpu: &CPU, memory: &Memory) -> u32 { // B3 OR E
     let mut t: u16 = cpu.a | cpu.e;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1885,7 +1885,7 @@ fn OR_B3(cpu: &CPU, memory: &Memory) -> u32 { // B3 OR E
 fn OR_B4(cpu: &CPU, memory: &Memory) -> u32 { // B4 OR H
     let mut t: u16 = cpu.a | (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1898,7 +1898,7 @@ fn OR_B4(cpu: &CPU, memory: &Memory) -> u32 { // B4 OR H
 fn OR_B5(cpu: &CPU, memory: &Memory) -> u32 { // B5 OR L
     let mut t: u16 = cpu.a | (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1911,7 +1911,7 @@ fn OR_B5(cpu: &CPU, memory: &Memory) -> u32 { // B5 OR L
 fn OR_B6(cpu: &CPU, memory: &Memory) -> u32 { // B6 OR (HL)
     let mut t: u16 = cpu.a | memory.read8(cpu.get_hl());
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1924,7 +1924,7 @@ fn OR_B6(cpu: &CPU, memory: &Memory) -> u32 { // B6 OR (HL)
 fn OR_B7(cpu: &CPU, memory: &Memory) -> u32 { // B7 OR A
     let mut t: u16 = cpu.a | cpu.a;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1937,9 +1937,9 @@ fn OR_B7(cpu: &CPU, memory: &Memory) -> u32 { // B7 OR A
 fn CP_B8(cpu: &CPU, memory: &Memory) -> u32 { // B8 CP B
     let mut t: u16 = cpu.a - cpu.b;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.b & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.b & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1951,9 +1951,9 @@ fn CP_B8(cpu: &CPU, memory: &Memory) -> u32 { // B8 CP B
 fn CP_B9(cpu: &CPU, memory: &Memory) -> u32 { // B9 CP C
     let mut t: u16 = cpu.a - cpu.c;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.c & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.c & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1965,9 +1965,9 @@ fn CP_B9(cpu: &CPU, memory: &Memory) -> u32 { // B9 CP C
 fn CP_BA(cpu: &CPU, memory: &Memory) -> u32 { // BA CP D
     let mut t: u16 = cpu.a - cpu.d;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.d & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.d & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1979,9 +1979,9 @@ fn CP_BA(cpu: &CPU, memory: &Memory) -> u32 { // BA CP D
 fn CP_BB(cpu: &CPU, memory: &Memory) -> u32 { // BB CP E
     let mut t: u16 = cpu.a - cpu.e;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.e & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.e & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1993,9 +1993,9 @@ fn CP_BB(cpu: &CPU, memory: &Memory) -> u32 { // BB CP E
 fn CP_BC(cpu: &CPU, memory: &Memory) -> u32 { // BC CP H
     let mut t: u16 = cpu.a - (cpu.get_hl() >> 8);
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - ((cpu.get_hl() >> 8) & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2007,9 +2007,9 @@ fn CP_BC(cpu: &CPU, memory: &Memory) -> u32 { // BC CP H
 fn CP_BD(cpu: &CPU, memory: &Memory) -> u32 { // BD CP L
     let mut t: u16 = cpu.a - (cpu.get_hl() & 0xFF);
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - ((cpu.get_hl() & 0xFF) & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2021,9 +2021,9 @@ fn CP_BD(cpu: &CPU, memory: &Memory) -> u32 { // BD CP L
 fn CP_BE(cpu: &CPU, memory: &Memory) -> u32 { // BE CP (HL)
     let mut t: u16 = cpu.a - memory.read8(cpu.get_hl());
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (memory.read8(cpu.get_hl()) & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (memory.read8(cpu.get_hl()) & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2035,9 +2035,9 @@ fn CP_BE(cpu: &CPU, memory: &Memory) -> u32 { // BE CP (HL)
 fn CP_BF(cpu: &CPU, memory: &Memory) -> u32 { // BF CP A
     let mut t: u16 = cpu.a - cpu.a;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (cpu.a & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (cpu.a & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2114,8 +2114,8 @@ fn PUSH_C5(cpu: &CPU, memory: &Memory) -> u32 { // C5 PUSH BC
 fn ADD_C6(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // C6 ADD A,d8
     let mut t: u16 = cpu.a + v;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (v & 0xF)) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (v & 0xF)) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2206,8 +2206,8 @@ fn CALL_CD(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // CD CALL a16
 fn ADC_CE(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // CE ADC A,d8
     let mut t: u16 = cpu.a + v + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) + (v & 0xF) + cpu.f_c()) > 0xF) << FLAGH;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) + (v & 0xF) + cpu.f_c()) > 0xF).into() << FLAGH;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2292,9 +2292,9 @@ fn PUSH_D5(cpu: &CPU, memory: &Memory) -> u32 { // D5 PUSH DE
 fn SUB_D6(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // D6 SUB d8
     let mut t: u16 = cpu.a - v;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (v & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (v & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2367,9 +2367,9 @@ fn CALL_DC(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // DC CALL C,a16
 fn SBC_DE(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // DE SBC A,d8
     let mut t: u16 = cpu.a - v - cpu.f_c();
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (v & 0xF) - cpu.f_c()) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (v & 0xF) - cpu.f_c()) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2426,7 +2426,7 @@ fn PUSH_E5(cpu: &CPU, memory: &Memory) -> u32 { // E5 PUSH HL
 fn AND_E6(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // E6 AND d8
     let mut t: u16 = cpu.a & v;
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2450,7 +2450,7 @@ fn RST_E7(cpu: &CPU, memory: &Memory) -> u32 { // E7 RST 20H
 fn ADD_E8(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // E8 ADD SP,r8
     let mut t: u16 = cpu.sp + ((v ^ 0x80) - 0x80);
     let mut flag: u16 = 0b00000000;
-    flag += (((cpu.sp & 0xF) + (v & 0xF)) > 0xF) << FLAGH;
+    flag += (((cpu.sp & 0xF) + (v & 0xF)) > 0xF).into() << FLAGH;
     flag += (((cpu.sp & 0xFF) + (v & 0xFF)) > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2476,7 +2476,7 @@ fn LD_EA(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // EA LD (a16),A
 fn XOR_EE(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // EE XOR d8
     let mut t: u16 = cpu.a ^ v;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2541,7 +2541,7 @@ fn PUSH_F5(cpu: &CPU, memory: &Memory) -> u32 { // F5 PUSH AF
 fn OR_F6(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // F6 OR d8
     let mut t: u16 = cpu.a | v;
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2566,7 +2566,7 @@ fn LD_F8(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // F8 LD HL,SP+r8
     cpu.set_hl() =cpu.sp + ((v ^ 0x80) - 0x80);
     let mut t: u16 = cpu.get_hl();
     let mut flag: u16 = 0b00000000;
-    flag += (((cpu.sp & 0xF) + (v & 0xF)) > 0xF) << FLAGH;
+    flag += (((cpu.sp & 0xF) + (v & 0xF)) > 0xF).into() << FLAGH;
     flag += (((cpu.sp & 0xFF) + (v & 0xFF)) > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2600,9 +2600,9 @@ fn EI_FB(cpu: &CPU, memory: &Memory) -> u32 { // FB EI
 fn CP_FE(cpu: &CPU, memory: &Memory, v: u8) -> u32 { // FE CP d8
     let mut t: u16 = cpu.a - v;
     let mut flag: u16 = 0b01000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
-    flag += (((cpu.a & 0xF) - (v & 0xF)) < 0) << FLAGH;
-    flag += (t < 0) << FLAGC;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
+    flag += (((cpu.a & 0xF) - (v & 0xF)) < 0).into() << FLAGH;
+    flag += (t < 0).into() << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2625,7 +2625,7 @@ fn RST_FF(cpu: &CPU, memory: &Memory) -> u32 { // FF RST 38H
 fn RLC_100(cpu: &CPU, memory: &Memory) -> u32 { // 100 RLC B
     let mut t: u16 = (cpu.b << 1) + (cpu.b >> 7);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2639,7 +2639,7 @@ fn RLC_100(cpu: &CPU, memory: &Memory) -> u32 { // 100 RLC B
 fn RLC_101(cpu: &CPU, memory: &Memory) -> u32 { // 101 RLC C
     let mut t: u16 = (cpu.c << 1) + (cpu.c >> 7);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2653,7 +2653,7 @@ fn RLC_101(cpu: &CPU, memory: &Memory) -> u32 { // 101 RLC C
 fn RLC_102(cpu: &CPU, memory: &Memory) -> u32 { // 102 RLC D
     let mut t: u16 = (cpu.d << 1) + (cpu.d >> 7);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2667,7 +2667,7 @@ fn RLC_102(cpu: &CPU, memory: &Memory) -> u32 { // 102 RLC D
 fn RLC_103(cpu: &CPU, memory: &Memory) -> u32 { // 103 RLC E
     let mut t: u16 = (cpu.e << 1) + (cpu.e >> 7);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2681,7 +2681,7 @@ fn RLC_103(cpu: &CPU, memory: &Memory) -> u32 { // 103 RLC E
 fn RLC_104(cpu: &CPU, memory: &Memory) -> u32 { // 104 RLC H
     let mut t: u16 = ((cpu.get_hl() >> 8) << 1) + ((cpu.get_hl() >> 8) >> 7);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2695,7 +2695,7 @@ fn RLC_104(cpu: &CPU, memory: &Memory) -> u32 { // 104 RLC H
 fn RLC_105(cpu: &CPU, memory: &Memory) -> u32 { // 105 RLC L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) << 1) + ((cpu.get_hl() & 0xFF) >> 7);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2709,7 +2709,7 @@ fn RLC_105(cpu: &CPU, memory: &Memory) -> u32 { // 105 RLC L
 fn RLC_106(cpu: &CPU, memory: &Memory) -> u32 { // 106 RLC (HL)
     let mut t: u16 = (memory.read8(cpu.get_hl()) << 1) + (memory.read8(cpu.get_hl()) >> 7);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2723,7 +2723,7 @@ fn RLC_106(cpu: &CPU, memory: &Memory) -> u32 { // 106 RLC (HL)
 fn RLC_107(cpu: &CPU, memory: &Memory) -> u32 { // 107 RLC A
     let mut t: u16 = (cpu.a << 1) + (cpu.a >> 7);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2737,7 +2737,7 @@ fn RLC_107(cpu: &CPU, memory: &Memory) -> u32 { // 107 RLC A
 fn RRC_108(cpu: &CPU, memory: &Memory) -> u32 { // 108 RRC B
     let mut t: u16 = (cpu.b >> 1) + ((cpu.b & 1) << 7) + ((cpu.b & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2751,7 +2751,7 @@ fn RRC_108(cpu: &CPU, memory: &Memory) -> u32 { // 108 RRC B
 fn RRC_109(cpu: &CPU, memory: &Memory) -> u32 { // 109 RRC C
     let mut t: u16 = (cpu.c >> 1) + ((cpu.c & 1) << 7) + ((cpu.c & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2765,7 +2765,7 @@ fn RRC_109(cpu: &CPU, memory: &Memory) -> u32 { // 109 RRC C
 fn RRC_10A(cpu: &CPU, memory: &Memory) -> u32 { // 10A RRC D
     let mut t: u16 = (cpu.d >> 1) + ((cpu.d & 1) << 7) + ((cpu.d & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2779,7 +2779,7 @@ fn RRC_10A(cpu: &CPU, memory: &Memory) -> u32 { // 10A RRC D
 fn RRC_10B(cpu: &CPU, memory: &Memory) -> u32 { // 10B RRC E
     let mut t: u16 = (cpu.e >> 1) + ((cpu.e & 1) << 7) + ((cpu.e & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2793,7 +2793,7 @@ fn RRC_10B(cpu: &CPU, memory: &Memory) -> u32 { // 10B RRC E
 fn RRC_10C(cpu: &CPU, memory: &Memory) -> u32 { // 10C RRC H
     let mut t: u16 = ((cpu.get_hl() >> 8) >> 1) + (((cpu.get_hl() >> 8) & 1) << 7) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2807,7 +2807,7 @@ fn RRC_10C(cpu: &CPU, memory: &Memory) -> u32 { // 10C RRC H
 fn RRC_10D(cpu: &CPU, memory: &Memory) -> u32 { // 10D RRC L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1) + (((cpu.get_hl() & 0xFF) & 1) << 7) + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2821,7 +2821,7 @@ fn RRC_10D(cpu: &CPU, memory: &Memory) -> u32 { // 10D RRC L
 fn RRC_10E(cpu: &CPU, memory: &Memory) -> u32 { // 10E RRC (HL)
     let mut t: u16 = (memory.read8(cpu.get_hl()) >> 1) + ((memory.read8(cpu.get_hl()) & 1) << 7) + ((memory.read8(cpu.get_hl()) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2835,7 +2835,7 @@ fn RRC_10E(cpu: &CPU, memory: &Memory) -> u32 { // 10E RRC (HL)
 fn RRC_10F(cpu: &CPU, memory: &Memory) -> u32 { // 10F RRC A
     let mut t: u16 = (cpu.a >> 1) + ((cpu.a & 1) << 7) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2849,7 +2849,7 @@ fn RRC_10F(cpu: &CPU, memory: &Memory) -> u32 { // 10F RRC A
 fn RL_110(cpu: &CPU, memory: &Memory) -> u32 { // 110 RL B
     let mut t: u16 = (cpu.b << 1) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2863,7 +2863,7 @@ fn RL_110(cpu: &CPU, memory: &Memory) -> u32 { // 110 RL B
 fn RL_111(cpu: &CPU, memory: &Memory) -> u32 { // 111 RL C
     let mut t: u16 = (cpu.c << 1) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2877,7 +2877,7 @@ fn RL_111(cpu: &CPU, memory: &Memory) -> u32 { // 111 RL C
 fn RL_112(cpu: &CPU, memory: &Memory) -> u32 { // 112 RL D
     let mut t: u16 = (cpu.d << 1) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2891,7 +2891,7 @@ fn RL_112(cpu: &CPU, memory: &Memory) -> u32 { // 112 RL D
 fn RL_113(cpu: &CPU, memory: &Memory) -> u32 { // 113 RL E
     let mut t: u16 = (cpu.e << 1) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2905,7 +2905,7 @@ fn RL_113(cpu: &CPU, memory: &Memory) -> u32 { // 113 RL E
 fn RL_114(cpu: &CPU, memory: &Memory) -> u32 { // 114 RL H
     let mut t: u16 = ((cpu.get_hl() >> 8) << 1) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2919,7 +2919,7 @@ fn RL_114(cpu: &CPU, memory: &Memory) -> u32 { // 114 RL H
 fn RL_115(cpu: &CPU, memory: &Memory) -> u32 { // 115 RL L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) << 1) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2933,7 +2933,7 @@ fn RL_115(cpu: &CPU, memory: &Memory) -> u32 { // 115 RL L
 fn RL_116(cpu: &CPU, memory: &Memory) -> u32 { // 116 RL (HL)
     let mut t: u16 = (memory.read8(cpu.get_hl()) << 1) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2947,7 +2947,7 @@ fn RL_116(cpu: &CPU, memory: &Memory) -> u32 { // 116 RL (HL)
 fn RL_117(cpu: &CPU, memory: &Memory) -> u32 { // 117 RL A
     let mut t: u16 = (cpu.a << 1) + cpu.f_c();
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2961,7 +2961,7 @@ fn RL_117(cpu: &CPU, memory: &Memory) -> u32 { // 117 RL A
 fn RR_118(cpu: &CPU, memory: &Memory) -> u32 { // 118 RR B
     let mut t: u16 = (cpu.b >> 1) + (cpu.f_c() << 7) + ((cpu.b & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2975,7 +2975,7 @@ fn RR_118(cpu: &CPU, memory: &Memory) -> u32 { // 118 RR B
 fn RR_119(cpu: &CPU, memory: &Memory) -> u32 { // 119 RR C
     let mut t: u16 = (cpu.c >> 1) + (cpu.f_c() << 7) + ((cpu.c & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2989,7 +2989,7 @@ fn RR_119(cpu: &CPU, memory: &Memory) -> u32 { // 119 RR C
 fn RR_11A(cpu: &CPU, memory: &Memory) -> u32 { // 11A RR D
     let mut t: u16 = (cpu.d >> 1) + (cpu.f_c() << 7) + ((cpu.d & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3003,7 +3003,7 @@ fn RR_11A(cpu: &CPU, memory: &Memory) -> u32 { // 11A RR D
 fn RR_11B(cpu: &CPU, memory: &Memory) -> u32 { // 11B RR E
     let mut t: u16 = (cpu.e >> 1) + (cpu.f_c() << 7) + ((cpu.e & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3017,7 +3017,7 @@ fn RR_11B(cpu: &CPU, memory: &Memory) -> u32 { // 11B RR E
 fn RR_11C(cpu: &CPU, memory: &Memory) -> u32 { // 11C RR H
     let mut t: u16 = ((cpu.get_hl() >> 8) >> 1) + (cpu.f_c() << 7) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3031,7 +3031,7 @@ fn RR_11C(cpu: &CPU, memory: &Memory) -> u32 { // 11C RR H
 fn RR_11D(cpu: &CPU, memory: &Memory) -> u32 { // 11D RR L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1) + (cpu.f_c() << 7) + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3045,7 +3045,7 @@ fn RR_11D(cpu: &CPU, memory: &Memory) -> u32 { // 11D RR L
 fn RR_11E(cpu: &CPU, memory: &Memory) -> u32 { // 11E RR (HL)
     let mut t: u16 = (memory.read8(cpu.get_hl()) >> 1) + (cpu.f_c() << 7) + ((memory.read8(cpu.get_hl()) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3059,7 +3059,7 @@ fn RR_11E(cpu: &CPU, memory: &Memory) -> u32 { // 11E RR (HL)
 fn RR_11F(cpu: &CPU, memory: &Memory) -> u32 { // 11F RR A
     let mut t: u16 = (cpu.a >> 1) + (cpu.f_c() << 7) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3073,7 +3073,7 @@ fn RR_11F(cpu: &CPU, memory: &Memory) -> u32 { // 11F RR A
 fn SLA_120(cpu: &CPU, memory: &Memory) -> u32 { // 120 SLA B
     let mut t: u16 = (cpu.b << 1);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3087,7 +3087,7 @@ fn SLA_120(cpu: &CPU, memory: &Memory) -> u32 { // 120 SLA B
 fn SLA_121(cpu: &CPU, memory: &Memory) -> u32 { // 121 SLA C
     let mut t: u16 = (cpu.c << 1);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3101,7 +3101,7 @@ fn SLA_121(cpu: &CPU, memory: &Memory) -> u32 { // 121 SLA C
 fn SLA_122(cpu: &CPU, memory: &Memory) -> u32 { // 122 SLA D
     let mut t: u16 = (cpu.d << 1);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3115,7 +3115,7 @@ fn SLA_122(cpu: &CPU, memory: &Memory) -> u32 { // 122 SLA D
 fn SLA_123(cpu: &CPU, memory: &Memory) -> u32 { // 123 SLA E
     let mut t: u16 = (cpu.e << 1);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3129,7 +3129,7 @@ fn SLA_123(cpu: &CPU, memory: &Memory) -> u32 { // 123 SLA E
 fn SLA_124(cpu: &CPU, memory: &Memory) -> u32 { // 124 SLA H
     let mut t: u16 = ((cpu.get_hl() >> 8) << 1);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3143,7 +3143,7 @@ fn SLA_124(cpu: &CPU, memory: &Memory) -> u32 { // 124 SLA H
 fn SLA_125(cpu: &CPU, memory: &Memory) -> u32 { // 125 SLA L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) << 1);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3157,7 +3157,7 @@ fn SLA_125(cpu: &CPU, memory: &Memory) -> u32 { // 125 SLA L
 fn SLA_126(cpu: &CPU, memory: &Memory) -> u32 { // 126 SLA (HL)
     let mut t: u16 = (memory.read8(cpu.get_hl()) << 1);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3171,7 +3171,7 @@ fn SLA_126(cpu: &CPU, memory: &Memory) -> u32 { // 126 SLA (HL)
 fn SLA_127(cpu: &CPU, memory: &Memory) -> u32 { // 127 SLA A
     let mut t: u16 = (cpu.a << 1);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3185,7 +3185,7 @@ fn SLA_127(cpu: &CPU, memory: &Memory) -> u32 { // 127 SLA A
 fn SRA_128(cpu: &CPU, memory: &Memory) -> u32 { // 128 SRA B
     let mut t: u16 = ((cpu.b >> 1) | (cpu.b & 0x80)) + ((cpu.b & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3199,7 +3199,7 @@ fn SRA_128(cpu: &CPU, memory: &Memory) -> u32 { // 128 SRA B
 fn SRA_129(cpu: &CPU, memory: &Memory) -> u32 { // 129 SRA C
     let mut t: u16 = ((cpu.c >> 1) | (cpu.c & 0x80)) + ((cpu.c & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3213,7 +3213,7 @@ fn SRA_129(cpu: &CPU, memory: &Memory) -> u32 { // 129 SRA C
 fn SRA_12A(cpu: &CPU, memory: &Memory) -> u32 { // 12A SRA D
     let mut t: u16 = ((cpu.d >> 1) | (cpu.d & 0x80)) + ((cpu.d & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3227,7 +3227,7 @@ fn SRA_12A(cpu: &CPU, memory: &Memory) -> u32 { // 12A SRA D
 fn SRA_12B(cpu: &CPU, memory: &Memory) -> u32 { // 12B SRA E
     let mut t: u16 = ((cpu.e >> 1) | (cpu.e & 0x80)) + ((cpu.e & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3241,7 +3241,7 @@ fn SRA_12B(cpu: &CPU, memory: &Memory) -> u32 { // 12B SRA E
 fn SRA_12C(cpu: &CPU, memory: &Memory) -> u32 { // 12C SRA H
     let mut t: u16 = (((cpu.get_hl() >> 8) >> 1) | ((cpu.get_hl() >> 8) & 0x80)) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3255,7 +3255,7 @@ fn SRA_12C(cpu: &CPU, memory: &Memory) -> u32 { // 12C SRA H
 fn SRA_12D(cpu: &CPU, memory: &Memory) -> u32 { // 12D SRA L
     let mut t: u16 = (((cpu.get_hl() & 0xFF) >> 1) | ((cpu.get_hl() & 0xFF) & 0x80)) + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3269,7 +3269,7 @@ fn SRA_12D(cpu: &CPU, memory: &Memory) -> u32 { // 12D SRA L
 fn SRA_12E(cpu: &CPU, memory: &Memory) -> u32 { // 12E SRA (HL)
     let mut t: u16 = ((memory.read8(cpu.get_hl()) >> 1) | (memory.read8(cpu.get_hl()) & 0x80)) + ((memory.read8(cpu.get_hl()) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3283,7 +3283,7 @@ fn SRA_12E(cpu: &CPU, memory: &Memory) -> u32 { // 12E SRA (HL)
 fn SRA_12F(cpu: &CPU, memory: &Memory) -> u32 { // 12F SRA A
     let mut t: u16 = ((cpu.a >> 1) | (cpu.a & 0x80)) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3297,7 +3297,7 @@ fn SRA_12F(cpu: &CPU, memory: &Memory) -> u32 { // 12F SRA A
 fn SWAP_130(cpu: &CPU, memory: &Memory) -> u32 { // 130 SWAP B
     let mut t: u16 = ((cpu.b & 0xF0) >> 4) | ((cpu.b & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -3310,7 +3310,7 @@ fn SWAP_130(cpu: &CPU, memory: &Memory) -> u32 { // 130 SWAP B
 fn SWAP_131(cpu: &CPU, memory: &Memory) -> u32 { // 131 SWAP C
     let mut t: u16 = ((cpu.c & 0xF0) >> 4) | ((cpu.c & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -3323,7 +3323,7 @@ fn SWAP_131(cpu: &CPU, memory: &Memory) -> u32 { // 131 SWAP C
 fn SWAP_132(cpu: &CPU, memory: &Memory) -> u32 { // 132 SWAP D
     let mut t: u16 = ((cpu.d & 0xF0) >> 4) | ((cpu.d & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -3336,7 +3336,7 @@ fn SWAP_132(cpu: &CPU, memory: &Memory) -> u32 { // 132 SWAP D
 fn SWAP_133(cpu: &CPU, memory: &Memory) -> u32 { // 133 SWAP E
     let mut t: u16 = ((cpu.e & 0xF0) >> 4) | ((cpu.e & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -3349,7 +3349,7 @@ fn SWAP_133(cpu: &CPU, memory: &Memory) -> u32 { // 133 SWAP E
 fn SWAP_134(cpu: &CPU, memory: &Memory) -> u32 { // 134 SWAP H
     let mut t: u16 = (((cpu.get_hl() >> 8) & 0xF0) >> 4) | (((cpu.get_hl() >> 8) & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -3362,7 +3362,7 @@ fn SWAP_134(cpu: &CPU, memory: &Memory) -> u32 { // 134 SWAP H
 fn SWAP_135(cpu: &CPU, memory: &Memory) -> u32 { // 135 SWAP L
     let mut t: u16 = (((cpu.get_hl() & 0xFF) & 0xF0) >> 4) | (((cpu.get_hl() & 0xFF) & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -3375,7 +3375,7 @@ fn SWAP_135(cpu: &CPU, memory: &Memory) -> u32 { // 135 SWAP L
 fn SWAP_136(cpu: &CPU, memory: &Memory) -> u32 { // 136 SWAP (HL)
     let mut t: u16 = ((memory.read8(cpu.get_hl()) & 0xF0) >> 4) | ((memory.read8(cpu.get_hl()) & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -3388,7 +3388,7 @@ fn SWAP_136(cpu: &CPU, memory: &Memory) -> u32 { // 136 SWAP (HL)
 fn SWAP_137(cpu: &CPU, memory: &Memory) -> u32 { // 137 SWAP A
     let mut t: u16 = ((cpu.a & 0xF0) >> 4) | ((cpu.a & 0x0F) << 4);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -3401,7 +3401,7 @@ fn SWAP_137(cpu: &CPU, memory: &Memory) -> u32 { // 137 SWAP A
 fn SRL_138(cpu: &CPU, memory: &Memory) -> u32 { // 138 SRL B
     let mut t: u16 = (cpu.b >> 1) + ((cpu.b & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3415,7 +3415,7 @@ fn SRL_138(cpu: &CPU, memory: &Memory) -> u32 { // 138 SRL B
 fn SRL_139(cpu: &CPU, memory: &Memory) -> u32 { // 139 SRL C
     let mut t: u16 = (cpu.c >> 1) + ((cpu.c & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3429,7 +3429,7 @@ fn SRL_139(cpu: &CPU, memory: &Memory) -> u32 { // 139 SRL C
 fn SRL_13A(cpu: &CPU, memory: &Memory) -> u32 { // 13A SRL D
     let mut t: u16 = (cpu.d >> 1) + ((cpu.d & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3443,7 +3443,7 @@ fn SRL_13A(cpu: &CPU, memory: &Memory) -> u32 { // 13A SRL D
 fn SRL_13B(cpu: &CPU, memory: &Memory) -> u32 { // 13B SRL E
     let mut t: u16 = (cpu.e >> 1) + ((cpu.e & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3457,7 +3457,7 @@ fn SRL_13B(cpu: &CPU, memory: &Memory) -> u32 { // 13B SRL E
 fn SRL_13C(cpu: &CPU, memory: &Memory) -> u32 { // 13C SRL H
     let mut t: u16 = ((cpu.get_hl() >> 8) >> 1) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3471,7 +3471,7 @@ fn SRL_13C(cpu: &CPU, memory: &Memory) -> u32 { // 13C SRL H
 fn SRL_13D(cpu: &CPU, memory: &Memory) -> u32 { // 13D SRL L
     let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1) + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3485,7 +3485,7 @@ fn SRL_13D(cpu: &CPU, memory: &Memory) -> u32 { // 13D SRL L
 fn SRL_13E(cpu: &CPU, memory: &Memory) -> u32 { // 13E SRL (HL)
     let mut t: u16 = (memory.read8(cpu.get_hl()) >> 1) + ((memory.read8(cpu.get_hl()) & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3499,7 +3499,7 @@ fn SRL_13E(cpu: &CPU, memory: &Memory) -> u32 { // 13E SRL (HL)
 fn SRL_13F(cpu: &CPU, memory: &Memory) -> u32 { // 13F SRL A
     let mut t: u16 = (cpu.a >> 1) + ((cpu.a & 1) << 8);
     let mut flag: u16 = 0b00000000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     flag += (t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3511,9 +3511,9 @@ fn SRL_13F(cpu: &CPU, memory: &Memory) -> u32 { // 13F SRL A
 }
 
 fn BIT_140(cpu: &CPU, memory: &Memory) -> u32 { // 140 BIT 0,B
-    let mut t: u16 = cpu.b & (1 << 0);
+    let mut t: u16 = cpu.b & (1 << 0).into();
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3522,9 +3522,9 @@ fn BIT_140(cpu: &CPU, memory: &Memory) -> u32 { // 140 BIT 0,B
 }
 
 fn BIT_141(cpu: &CPU, memory: &Memory) -> u32 { // 141 BIT 0,C
-    let mut t: u16 = cpu.c & (1 << 0);
+    let mut t: u16 = cpu.c & (1 << 0).into();
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3533,9 +3533,9 @@ fn BIT_141(cpu: &CPU, memory: &Memory) -> u32 { // 141 BIT 0,C
 }
 
 fn BIT_142(cpu: &CPU, memory: &Memory) -> u32 { // 142 BIT 0,D
-    let mut t: u16 = cpu.d & (1 << 0);
+    let mut t: u16 = cpu.d & (1 << 0).into();
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3544,9 +3544,9 @@ fn BIT_142(cpu: &CPU, memory: &Memory) -> u32 { // 142 BIT 0,D
 }
 
 fn BIT_143(cpu: &CPU, memory: &Memory) -> u32 { // 143 BIT 0,E
-    let mut t: u16 = cpu.e & (1 << 0);
+    let mut t: u16 = cpu.e & (1 << 0).into();
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3555,9 +3555,9 @@ fn BIT_143(cpu: &CPU, memory: &Memory) -> u32 { // 143 BIT 0,E
 }
 
 fn BIT_144(cpu: &CPU, memory: &Memory) -> u32 { // 144 BIT 0,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 0);
+    let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 0).into();
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3566,9 +3566,9 @@ fn BIT_144(cpu: &CPU, memory: &Memory) -> u32 { // 144 BIT 0,H
 }
 
 fn BIT_145(cpu: &CPU, memory: &Memory) -> u32 { // 145 BIT 0,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 0);
+    let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 0).into();
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3577,9 +3577,9 @@ fn BIT_145(cpu: &CPU, memory: &Memory) -> u32 { // 145 BIT 0,L
 }
 
 fn BIT_146(cpu: &CPU, memory: &Memory) -> u32 { // 146 BIT 0,(HL)
-    let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 0);
+    let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 0).into();
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3588,9 +3588,9 @@ fn BIT_146(cpu: &CPU, memory: &Memory) -> u32 { // 146 BIT 0,(HL)
 }
 
 fn BIT_147(cpu: &CPU, memory: &Memory) -> u32 { // 147 BIT 0,A
-    let mut t: u16 = cpu.a & (1 << 0);
+    let mut t: u16 = cpu.a & (1 << 0).into();
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3601,7 +3601,7 @@ fn BIT_147(cpu: &CPU, memory: &Memory) -> u32 { // 147 BIT 0,A
 fn BIT_148(cpu: &CPU, memory: &Memory) -> u32 { // 148 BIT 1,B
     let mut t: u16 = cpu.b & (1 << 1);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3612,7 +3612,7 @@ fn BIT_148(cpu: &CPU, memory: &Memory) -> u32 { // 148 BIT 1,B
 fn BIT_149(cpu: &CPU, memory: &Memory) -> u32 { // 149 BIT 1,C
     let mut t: u16 = cpu.c & (1 << 1);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3623,7 +3623,7 @@ fn BIT_149(cpu: &CPU, memory: &Memory) -> u32 { // 149 BIT 1,C
 fn BIT_14A(cpu: &CPU, memory: &Memory) -> u32 { // 14A BIT 1,D
     let mut t: u16 = cpu.d & (1 << 1);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3634,7 +3634,7 @@ fn BIT_14A(cpu: &CPU, memory: &Memory) -> u32 { // 14A BIT 1,D
 fn BIT_14B(cpu: &CPU, memory: &Memory) -> u32 { // 14B BIT 1,E
     let mut t: u16 = cpu.e & (1 << 1);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3645,7 +3645,7 @@ fn BIT_14B(cpu: &CPU, memory: &Memory) -> u32 { // 14B BIT 1,E
 fn BIT_14C(cpu: &CPU, memory: &Memory) -> u32 { // 14C BIT 1,H
     let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 1);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3656,7 +3656,7 @@ fn BIT_14C(cpu: &CPU, memory: &Memory) -> u32 { // 14C BIT 1,H
 fn BIT_14D(cpu: &CPU, memory: &Memory) -> u32 { // 14D BIT 1,L
     let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 1);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3667,7 +3667,7 @@ fn BIT_14D(cpu: &CPU, memory: &Memory) -> u32 { // 14D BIT 1,L
 fn BIT_14E(cpu: &CPU, memory: &Memory) -> u32 { // 14E BIT 1,(HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 1);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3678,7 +3678,7 @@ fn BIT_14E(cpu: &CPU, memory: &Memory) -> u32 { // 14E BIT 1,(HL)
 fn BIT_14F(cpu: &CPU, memory: &Memory) -> u32 { // 14F BIT 1,A
     let mut t: u16 = cpu.a & (1 << 1);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3689,7 +3689,7 @@ fn BIT_14F(cpu: &CPU, memory: &Memory) -> u32 { // 14F BIT 1,A
 fn BIT_150(cpu: &CPU, memory: &Memory) -> u32 { // 150 BIT 2,B
     let mut t: u16 = cpu.b & (1 << 2);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3700,7 +3700,7 @@ fn BIT_150(cpu: &CPU, memory: &Memory) -> u32 { // 150 BIT 2,B
 fn BIT_151(cpu: &CPU, memory: &Memory) -> u32 { // 151 BIT 2,C
     let mut t: u16 = cpu.c & (1 << 2);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3711,7 +3711,7 @@ fn BIT_151(cpu: &CPU, memory: &Memory) -> u32 { // 151 BIT 2,C
 fn BIT_152(cpu: &CPU, memory: &Memory) -> u32 { // 152 BIT 2,D
     let mut t: u16 = cpu.d & (1 << 2);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3722,7 +3722,7 @@ fn BIT_152(cpu: &CPU, memory: &Memory) -> u32 { // 152 BIT 2,D
 fn BIT_153(cpu: &CPU, memory: &Memory) -> u32 { // 153 BIT 2,E
     let mut t: u16 = cpu.e & (1 << 2);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3733,7 +3733,7 @@ fn BIT_153(cpu: &CPU, memory: &Memory) -> u32 { // 153 BIT 2,E
 fn BIT_154(cpu: &CPU, memory: &Memory) -> u32 { // 154 BIT 2,H
     let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 2);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3744,7 +3744,7 @@ fn BIT_154(cpu: &CPU, memory: &Memory) -> u32 { // 154 BIT 2,H
 fn BIT_155(cpu: &CPU, memory: &Memory) -> u32 { // 155 BIT 2,L
     let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 2);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3755,7 +3755,7 @@ fn BIT_155(cpu: &CPU, memory: &Memory) -> u32 { // 155 BIT 2,L
 fn BIT_156(cpu: &CPU, memory: &Memory) -> u32 { // 156 BIT 2,(HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 2);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3766,7 +3766,7 @@ fn BIT_156(cpu: &CPU, memory: &Memory) -> u32 { // 156 BIT 2,(HL)
 fn BIT_157(cpu: &CPU, memory: &Memory) -> u32 { // 157 BIT 2,A
     let mut t: u16 = cpu.a & (1 << 2);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3777,7 +3777,7 @@ fn BIT_157(cpu: &CPU, memory: &Memory) -> u32 { // 157 BIT 2,A
 fn BIT_158(cpu: &CPU, memory: &Memory) -> u32 { // 158 BIT 3,B
     let mut t: u16 = cpu.b & (1 << 3);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3788,7 +3788,7 @@ fn BIT_158(cpu: &CPU, memory: &Memory) -> u32 { // 158 BIT 3,B
 fn BIT_159(cpu: &CPU, memory: &Memory) -> u32 { // 159 BIT 3,C
     let mut t: u16 = cpu.c & (1 << 3);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3799,7 +3799,7 @@ fn BIT_159(cpu: &CPU, memory: &Memory) -> u32 { // 159 BIT 3,C
 fn BIT_15A(cpu: &CPU, memory: &Memory) -> u32 { // 15A BIT 3,D
     let mut t: u16 = cpu.d & (1 << 3);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3810,7 +3810,7 @@ fn BIT_15A(cpu: &CPU, memory: &Memory) -> u32 { // 15A BIT 3,D
 fn BIT_15B(cpu: &CPU, memory: &Memory) -> u32 { // 15B BIT 3,E
     let mut t: u16 = cpu.e & (1 << 3);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3821,7 +3821,7 @@ fn BIT_15B(cpu: &CPU, memory: &Memory) -> u32 { // 15B BIT 3,E
 fn BIT_15C(cpu: &CPU, memory: &Memory) -> u32 { // 15C BIT 3,H
     let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 3);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3832,7 +3832,7 @@ fn BIT_15C(cpu: &CPU, memory: &Memory) -> u32 { // 15C BIT 3,H
 fn BIT_15D(cpu: &CPU, memory: &Memory) -> u32 { // 15D BIT 3,L
     let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 3);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3843,7 +3843,7 @@ fn BIT_15D(cpu: &CPU, memory: &Memory) -> u32 { // 15D BIT 3,L
 fn BIT_15E(cpu: &CPU, memory: &Memory) -> u32 { // 15E BIT 3,(HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 3);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3854,7 +3854,7 @@ fn BIT_15E(cpu: &CPU, memory: &Memory) -> u32 { // 15E BIT 3,(HL)
 fn BIT_15F(cpu: &CPU, memory: &Memory) -> u32 { // 15F BIT 3,A
     let mut t: u16 = cpu.a & (1 << 3);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3865,7 +3865,7 @@ fn BIT_15F(cpu: &CPU, memory: &Memory) -> u32 { // 15F BIT 3,A
 fn BIT_160(cpu: &CPU, memory: &Memory) -> u32 { // 160 BIT 4,B
     let mut t: u16 = cpu.b & (1 << 4);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3876,7 +3876,7 @@ fn BIT_160(cpu: &CPU, memory: &Memory) -> u32 { // 160 BIT 4,B
 fn BIT_161(cpu: &CPU, memory: &Memory) -> u32 { // 161 BIT 4,C
     let mut t: u16 = cpu.c & (1 << 4);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3887,7 +3887,7 @@ fn BIT_161(cpu: &CPU, memory: &Memory) -> u32 { // 161 BIT 4,C
 fn BIT_162(cpu: &CPU, memory: &Memory) -> u32 { // 162 BIT 4,D
     let mut t: u16 = cpu.d & (1 << 4);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3898,7 +3898,7 @@ fn BIT_162(cpu: &CPU, memory: &Memory) -> u32 { // 162 BIT 4,D
 fn BIT_163(cpu: &CPU, memory: &Memory) -> u32 { // 163 BIT 4,E
     let mut t: u16 = cpu.e & (1 << 4);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3909,7 +3909,7 @@ fn BIT_163(cpu: &CPU, memory: &Memory) -> u32 { // 163 BIT 4,E
 fn BIT_164(cpu: &CPU, memory: &Memory) -> u32 { // 164 BIT 4,H
     let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 4);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3920,7 +3920,7 @@ fn BIT_164(cpu: &CPU, memory: &Memory) -> u32 { // 164 BIT 4,H
 fn BIT_165(cpu: &CPU, memory: &Memory) -> u32 { // 165 BIT 4,L
     let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 4);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3931,7 +3931,7 @@ fn BIT_165(cpu: &CPU, memory: &Memory) -> u32 { // 165 BIT 4,L
 fn BIT_166(cpu: &CPU, memory: &Memory) -> u32 { // 166 BIT 4,(HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 4);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3942,7 +3942,7 @@ fn BIT_166(cpu: &CPU, memory: &Memory) -> u32 { // 166 BIT 4,(HL)
 fn BIT_167(cpu: &CPU, memory: &Memory) -> u32 { // 167 BIT 4,A
     let mut t: u16 = cpu.a & (1 << 4);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3953,7 +3953,7 @@ fn BIT_167(cpu: &CPU, memory: &Memory) -> u32 { // 167 BIT 4,A
 fn BIT_168(cpu: &CPU, memory: &Memory) -> u32 { // 168 BIT 5,B
     let mut t: u16 = cpu.b & (1 << 5);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3964,7 +3964,7 @@ fn BIT_168(cpu: &CPU, memory: &Memory) -> u32 { // 168 BIT 5,B
 fn BIT_169(cpu: &CPU, memory: &Memory) -> u32 { // 169 BIT 5,C
     let mut t: u16 = cpu.c & (1 << 5);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3975,7 +3975,7 @@ fn BIT_169(cpu: &CPU, memory: &Memory) -> u32 { // 169 BIT 5,C
 fn BIT_16A(cpu: &CPU, memory: &Memory) -> u32 { // 16A BIT 5,D
     let mut t: u16 = cpu.d & (1 << 5);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3986,7 +3986,7 @@ fn BIT_16A(cpu: &CPU, memory: &Memory) -> u32 { // 16A BIT 5,D
 fn BIT_16B(cpu: &CPU, memory: &Memory) -> u32 { // 16B BIT 5,E
     let mut t: u16 = cpu.e & (1 << 5);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -3997,7 +3997,7 @@ fn BIT_16B(cpu: &CPU, memory: &Memory) -> u32 { // 16B BIT 5,E
 fn BIT_16C(cpu: &CPU, memory: &Memory) -> u32 { // 16C BIT 5,H
     let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 5);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4008,7 +4008,7 @@ fn BIT_16C(cpu: &CPU, memory: &Memory) -> u32 { // 16C BIT 5,H
 fn BIT_16D(cpu: &CPU, memory: &Memory) -> u32 { // 16D BIT 5,L
     let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 5);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4019,7 +4019,7 @@ fn BIT_16D(cpu: &CPU, memory: &Memory) -> u32 { // 16D BIT 5,L
 fn BIT_16E(cpu: &CPU, memory: &Memory) -> u32 { // 16E BIT 5,(HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 5);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4030,7 +4030,7 @@ fn BIT_16E(cpu: &CPU, memory: &Memory) -> u32 { // 16E BIT 5,(HL)
 fn BIT_16F(cpu: &CPU, memory: &Memory) -> u32 { // 16F BIT 5,A
     let mut t: u16 = cpu.a & (1 << 5);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4041,7 +4041,7 @@ fn BIT_16F(cpu: &CPU, memory: &Memory) -> u32 { // 16F BIT 5,A
 fn BIT_170(cpu: &CPU, memory: &Memory) -> u32 { // 170 BIT 6,B
     let mut t: u16 = cpu.b & (1 << 6);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4052,7 +4052,7 @@ fn BIT_170(cpu: &CPU, memory: &Memory) -> u32 { // 170 BIT 6,B
 fn BIT_171(cpu: &CPU, memory: &Memory) -> u32 { // 171 BIT 6,C
     let mut t: u16 = cpu.c & (1 << 6);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4063,7 +4063,7 @@ fn BIT_171(cpu: &CPU, memory: &Memory) -> u32 { // 171 BIT 6,C
 fn BIT_172(cpu: &CPU, memory: &Memory) -> u32 { // 172 BIT 6,D
     let mut t: u16 = cpu.d & (1 << 6);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4074,7 +4074,7 @@ fn BIT_172(cpu: &CPU, memory: &Memory) -> u32 { // 172 BIT 6,D
 fn BIT_173(cpu: &CPU, memory: &Memory) -> u32 { // 173 BIT 6,E
     let mut t: u16 = cpu.e & (1 << 6);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4085,7 +4085,7 @@ fn BIT_173(cpu: &CPU, memory: &Memory) -> u32 { // 173 BIT 6,E
 fn BIT_174(cpu: &CPU, memory: &Memory) -> u32 { // 174 BIT 6,H
     let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 6);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4096,7 +4096,7 @@ fn BIT_174(cpu: &CPU, memory: &Memory) -> u32 { // 174 BIT 6,H
 fn BIT_175(cpu: &CPU, memory: &Memory) -> u32 { // 175 BIT 6,L
     let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 6);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4107,7 +4107,7 @@ fn BIT_175(cpu: &CPU, memory: &Memory) -> u32 { // 175 BIT 6,L
 fn BIT_176(cpu: &CPU, memory: &Memory) -> u32 { // 176 BIT 6,(HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 6);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4118,7 +4118,7 @@ fn BIT_176(cpu: &CPU, memory: &Memory) -> u32 { // 176 BIT 6,(HL)
 fn BIT_177(cpu: &CPU, memory: &Memory) -> u32 { // 177 BIT 6,A
     let mut t: u16 = cpu.a & (1 << 6);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4129,7 +4129,7 @@ fn BIT_177(cpu: &CPU, memory: &Memory) -> u32 { // 177 BIT 6,A
 fn BIT_178(cpu: &CPU, memory: &Memory) -> u32 { // 178 BIT 7,B
     let mut t: u16 = cpu.b & (1 << 7);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4140,7 +4140,7 @@ fn BIT_178(cpu: &CPU, memory: &Memory) -> u32 { // 178 BIT 7,B
 fn BIT_179(cpu: &CPU, memory: &Memory) -> u32 { // 179 BIT 7,C
     let mut t: u16 = cpu.c & (1 << 7);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4151,7 +4151,7 @@ fn BIT_179(cpu: &CPU, memory: &Memory) -> u32 { // 179 BIT 7,C
 fn BIT_17A(cpu: &CPU, memory: &Memory) -> u32 { // 17A BIT 7,D
     let mut t: u16 = cpu.d & (1 << 7);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4162,7 +4162,7 @@ fn BIT_17A(cpu: &CPU, memory: &Memory) -> u32 { // 17A BIT 7,D
 fn BIT_17B(cpu: &CPU, memory: &Memory) -> u32 { // 17B BIT 7,E
     let mut t: u16 = cpu.e & (1 << 7);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4173,7 +4173,7 @@ fn BIT_17B(cpu: &CPU, memory: &Memory) -> u32 { // 17B BIT 7,E
 fn BIT_17C(cpu: &CPU, memory: &Memory) -> u32 { // 17C BIT 7,H
     let mut t: u16 = (cpu.get_hl() >> 8) & (1 << 7);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4184,7 +4184,7 @@ fn BIT_17C(cpu: &CPU, memory: &Memory) -> u32 { // 17C BIT 7,H
 fn BIT_17D(cpu: &CPU, memory: &Memory) -> u32 { // 17D BIT 7,L
     let mut t: u16 = (cpu.get_hl() & 0xFF) & (1 << 7);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4195,7 +4195,7 @@ fn BIT_17D(cpu: &CPU, memory: &Memory) -> u32 { // 17D BIT 7,L
 fn BIT_17E(cpu: &CPU, memory: &Memory) -> u32 { // 17E BIT 7,(HL)
     let mut t: u16 = memory.read8(cpu.get_hl()) & (1 << 7);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4206,7 +4206,7 @@ fn BIT_17E(cpu: &CPU, memory: &Memory) -> u32 { // 17E BIT 7,(HL)
 fn BIT_17F(cpu: &CPU, memory: &Memory) -> u32 { // 17F BIT 7,A
     let mut t: u16 = cpu.a & (1 << 7);
     let mut flag: u16 = 0b00100000;
-    flag += ((t & 0xFF) == 0) << FLAGZ;
+    flag += ((t & 0xFF) == 0).into() << FLAGZ;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     cpu.pc += 2;
@@ -4215,7 +4215,7 @@ fn BIT_17F(cpu: &CPU, memory: &Memory) -> u32 { // 17F BIT 7,A
 }
 
 fn RES_180(cpu: &CPU, memory: &Memory) -> u32 { // 180 RES 0,B
-    let mut t: u16 = cpu.b & !(1 << 0);
+    let mut t: u16 = cpu.b & !(1 << 0).into();
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4223,7 +4223,7 @@ fn RES_180(cpu: &CPU, memory: &Memory) -> u32 { // 180 RES 0,B
 }
 
 fn RES_181(cpu: &CPU, memory: &Memory) -> u32 { // 181 RES 0,C
-    let mut t: u16 = cpu.c & !(1 << 0);
+    let mut t: u16 = cpu.c & !(1 << 0).into();
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4231,7 +4231,7 @@ fn RES_181(cpu: &CPU, memory: &Memory) -> u32 { // 181 RES 0,C
 }
 
 fn RES_182(cpu: &CPU, memory: &Memory) -> u32 { // 182 RES 0,D
-    let mut t: u16 = cpu.d & !(1 << 0);
+    let mut t: u16 = cpu.d & !(1 << 0).into();
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4239,7 +4239,7 @@ fn RES_182(cpu: &CPU, memory: &Memory) -> u32 { // 182 RES 0,D
 }
 
 fn RES_183(cpu: &CPU, memory: &Memory) -> u32 { // 183 RES 0,E
-    let mut t: u16 = cpu.e & !(1 << 0);
+    let mut t: u16 = cpu.e & !(1 << 0).into();
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4247,7 +4247,7 @@ fn RES_183(cpu: &CPU, memory: &Memory) -> u32 { // 183 RES 0,E
 }
 
 fn RES_184(cpu: &CPU, memory: &Memory) -> u32 { // 184 RES 0,H
-    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 0);
+    let mut t: u16 = (cpu.get_hl() >> 8) & !(1 << 0).into();
     cpu.set_hl() =(cpu.get_hl() & 0x00FF) | (t << 8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4255,7 +4255,7 @@ fn RES_184(cpu: &CPU, memory: &Memory) -> u32 { // 184 RES 0,H
 }
 
 fn RES_185(cpu: &CPU, memory: &Memory) -> u32 { // 185 RES 0,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 0);
+    let mut t: u16 = (cpu.get_hl() & 0xFF) & !(1 << 0).into();
     cpu.set_hl() =(cpu.get_hl() & 0xFF00) | (t & 0xFF);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4263,7 +4263,7 @@ fn RES_185(cpu: &CPU, memory: &Memory) -> u32 { // 185 RES 0,L
 }
 
 fn RES_186(cpu: &CPU, memory: &Memory) -> u32 { // 186 RES 0,(HL)
-    let mut t: u16 = memory.read8(cpu.get_hl()) & !(1 << 0);
+    let mut t: u16 = memory.read8(cpu.get_hl()) & !(1 << 0).into();
     memory.write8(cpu.get_hl(), t);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4271,7 +4271,7 @@ fn RES_186(cpu: &CPU, memory: &Memory) -> u32 { // 186 RES 0,(HL)
 }
 
 fn RES_187(cpu: &CPU, memory: &Memory) -> u32 { // 187 RES 0,A
-    let mut t: u16 = cpu.a & !(1 << 0);
+    let mut t: u16 = cpu.a & !(1 << 0).into();
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4727,7 +4727,7 @@ fn RES_1BF(cpu: &CPU, memory: &Memory) -> u32 { // 1BF RES 7,A
 }
 
 fn SET_1C0(cpu: &CPU, memory: &Memory) -> u32 { // 1C0 SET 0,B
-    let mut t: u16 = cpu.b | (1 << 0);
+    let mut t: u16 = cpu.b | (1 << 0).into();
     cpu.b = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4735,7 +4735,7 @@ fn SET_1C0(cpu: &CPU, memory: &Memory) -> u32 { // 1C0 SET 0,B
 }
 
 fn SET_1C1(cpu: &CPU, memory: &Memory) -> u32 { // 1C1 SET 0,C
-    let mut t: u16 = cpu.c | (1 << 0);
+    let mut t: u16 = cpu.c | (1 << 0).into();
     cpu.c = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4743,7 +4743,7 @@ fn SET_1C1(cpu: &CPU, memory: &Memory) -> u32 { // 1C1 SET 0,C
 }
 
 fn SET_1C2(cpu: &CPU, memory: &Memory) -> u32 { // 1C2 SET 0,D
-    let mut t: u16 = cpu.d | (1 << 0);
+    let mut t: u16 = cpu.d | (1 << 0).into();
     cpu.d = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4751,7 +4751,7 @@ fn SET_1C2(cpu: &CPU, memory: &Memory) -> u32 { // 1C2 SET 0,D
 }
 
 fn SET_1C3(cpu: &CPU, memory: &Memory) -> u32 { // 1C3 SET 0,E
-    let mut t: u16 = cpu.e | (1 << 0);
+    let mut t: u16 = cpu.e | (1 << 0).into();
     cpu.e = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4759,7 +4759,7 @@ fn SET_1C3(cpu: &CPU, memory: &Memory) -> u32 { // 1C3 SET 0,E
 }
 
 fn SET_1C4(cpu: &CPU, memory: &Memory) -> u32 { // 1C4 SET 0,H
-    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 0);
+    let mut t: u16 = (cpu.get_hl() >> 8) | (1 << 0).into();
     cpu.set_hl() =(cpu.get_hl() & 0x00FF) | (t << 8);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4767,7 +4767,7 @@ fn SET_1C4(cpu: &CPU, memory: &Memory) -> u32 { // 1C4 SET 0,H
 }
 
 fn SET_1C5(cpu: &CPU, memory: &Memory) -> u32 { // 1C5 SET 0,L
-    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 0);
+    let mut t: u16 = (cpu.get_hl() & 0xFF) | (1 << 0).into();
     cpu.set_hl() =(cpu.get_hl() & 0xFF00) | (t & 0xFF);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4775,7 +4775,7 @@ fn SET_1C5(cpu: &CPU, memory: &Memory) -> u32 { // 1C5 SET 0,L
 }
 
 fn SET_1C6(cpu: &CPU, memory: &Memory) -> u32 { // 1C6 SET 0,(HL)
-    let mut t: u16 = memory.read8(cpu.get_hl()) | (1 << 0);
+    let mut t: u16 = memory.read8(cpu.get_hl()) | (1 << 0).into();
     memory.write8(cpu.get_hl(), t);
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
@@ -4783,7 +4783,7 @@ fn SET_1C6(cpu: &CPU, memory: &Memory) -> u32 { // 1C6 SET 0,(HL)
 }
 
 fn SET_1C7(cpu: &CPU, memory: &Memory) -> u32 { // 1C7 SET 0,A
-    let mut t: u16 = cpu.a | (1 << 0);
+    let mut t: u16 = cpu.a | (1 << 0).into();
     cpu.a = t;
     cpu.pc += 2;
     cpu.pc &= 0xFFFF;
