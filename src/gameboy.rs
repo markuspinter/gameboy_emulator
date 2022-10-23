@@ -76,11 +76,16 @@ pub struct Gameboy {
 }
 
 impl Gameboy {
+    const TILE_DATA_ROWS: usize = 192;
+    const TILE_DATA_COLUMNS: usize = 128;
+    const TILE_MAP_ROWS: usize = 256;
+    const TILE_MAP_COLUMNS: usize = 256;
+
     pub fn new(bootrom_path: String, rom_path: String) -> Self {
         Self {
             cpu: CPU::new(),
             ppu: PPU::new(),
-            screen: Screen::new(192, 128, 1, 1, minifb::Scale::X4),
+            screen: Screen::new(Self::TILE_MAP_ROWS, Self::TILE_MAP_COLUMNS, 1, 1, minifb::Scale::X4),
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
         }
@@ -125,8 +130,8 @@ impl Gameboy {
         while self.running {
             self.cpu.tick(&mut self.memory)?;
             self.ppu.tick(&mut self.memory)?;
-            self.screen
-                .set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
+            self.screen.set_frame_buffer(&self.ppu.get_tile_map_frame_buffer());
+            // self.screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
             self.running = self.screen.update();
             let diff = SystemTime::now()
                 .duration_since(prev)

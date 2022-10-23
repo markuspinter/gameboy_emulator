@@ -6,12 +6,18 @@ mod stat;
 use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
 
-use super::{memory::Memory, GameboyModule};
+use self::lcdc::LCDControl;
+
+use super::{
+    memory::{Memory, MemoryRange},
+    GameboyModule, MemoryInterface,
+};
 
 pub struct PPU {
     frame_buffer: [u32; Self::ROWS * Self::COLUMNS],
     vram: [u8; memory::ppu::VRAM.size],
     tiles: [[[u8; Self::TILE_SIZE]; Self::TILE_SIZE]; Self::TILES],
+    lcdc: lcdc::LCDControl,
 }
 
 impl GameboyModule for PPU {
@@ -25,13 +31,13 @@ impl GameboyModule for PPU {
 impl super::MemoryInterface for PPU {
     fn read8(&self, addr: u16) -> super::MemoryResult<u8> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
-            return Ok(self.vram[usize::from(addr)]);
+            return Ok(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
         }
         return Err(super::MemoryError::UnknownAddress);
     }
 
     fn write8(&mut self, addr: u16, value: u8) -> super::MemoryResult<()> {
-        self.vram[usize::from(addr)] = value;
+        self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
         Ok(())
     }
 }
@@ -43,6 +49,26 @@ impl PPU {
     const TILE_SIZE: usize = 8; //this is one line i.e. size*size=total pixels
     const BYTES_PER_TILE: usize = 16;
     const TILE_MAP_SIZE: usize = 32; //this is one line of tiles i.e. size*size=total tiles
+    const TILE_MAP_AREA_9800: MemoryRange = MemoryRange {
+        begin: 0x9800,
+        end: 0x9BFF,
+        size: 0x400,
+    };
+    const TILE_MAP_AREA_9C00: MemoryRange = MemoryRange {
+        begin: 0x9C00,
+        end: 0x9FFF,
+        size: 0x400,
+    };
+    const TILE_MAP_AREA_9800_VRAM: MemoryRange = MemoryRange {
+        begin: 0x1800,
+        end: 0x1BFF,
+        size: 0x400,
+    };
+    const TILE_MAP_AREA_9C00_VRAM: MemoryRange = MemoryRange {
+        begin: 0x1C00,
+        end: 0x1FFF,
+        size: 0x400,
+    };
 
     pub fn new() -> Self {
         let vram: [u8; memory::ppu::VRAM.size] = [0; memory::ppu::VRAM.size];
@@ -50,6 +76,7 @@ impl PPU {
             frame_buffer: [0; Self::ROWS * Self::COLUMNS],
             vram: vram,
             tiles: [[[0; Self::TILE_SIZE]; Self::TILE_SIZE]; Self::TILES],
+            lcdc: lcdc::LCDControl::from(0),
         };
 
         ppu
@@ -112,6 +139,51 @@ impl PPU {
         frame_buffer
     }
 
+    pub fn get_tile_map_frame_buffer(
+        &self,
+    ) -> [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] {
+        let mut frame_buffer: [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] =
+            [0; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)];
+
+        // let restructured_tiles = [self.tiles[384 - 128..], self.tiles[384 - 256..384 - 128]].concat();
+        let mut map_tiles: [&[[u8; 8]; 8]; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE] =
+            [&[[0; 8]; 8]; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE];
+
+        let tile_map_start = Self::TILE_MAP_AREA_9800.begin;
+        for addr in tile_map_start..tile_map_start + 0x0400 {
+            let mut tile_id = self.read8(addr).unwrap();
+            if self.lcdc.bg_and_window_tile_data_area {
+                tile_id = tile_id.wrapping_sub(128);
+            }
+
+            map_tiles[addr as usize - tile_map_start as usize] = &self.tiles[tile_id as usize];
+        }
+
+        for row in 0..(Self::TILE_MAP_SIZE * Self::TILE_SIZE) {
+            let curr_tile_start: usize = (row / Self::TILE_SIZE) * Self::TILE_MAP_SIZE;
+            for tile_index in curr_tile_start..curr_tile_start + Self::TILE_MAP_SIZE {
+                let tile_line: [u32; Self::TILE_SIZE] = (map_tiles[tile_index][row % Self::TILE_SIZE])
+                    .iter()
+                    .map(|pixel| match pixel {
+                        0 => MonochromeColor::White as u32,
+                        1 => MonochromeColor::LightGray as u32,
+                        2 => MonochromeColor::DarkGray as u32,
+                        3 => MonochromeColor::Black as u32,
+                        _ => MonochromeColor::Off as u32,
+                    })
+                    .collect::<Vec<u32>>()
+                    .try_into()
+                    .unwrap();
+
+                let fb_start = (tile_index % Self::TILE_MAP_SIZE) * Self::TILE_SIZE
+                    + (row * Self::TILE_MAP_SIZE * Self::TILE_SIZE);
+                frame_buffer[fb_start..fb_start + Self::TILE_SIZE].copy_from_slice(tile_line.as_slice());
+            }
+        }
+
+        frame_buffer
+    }
+
     pub fn get_frame_buffer(&mut self) -> &[u32] {
         &self.frame_buffer
     }
@@ -119,6 +191,8 @@ impl PPU {
     pub fn test_load_vram(&mut self, mem: &[u8]) {
         self.vram[..memory::ppu::VRAM.size]
             .clone_from_slice(mem[memory::ppu::VRAM.begin as usize..=memory::ppu::VRAM.end as usize].into());
+
+        self.lcdc = LCDControl::from(mem[memory::ppu::LCDC as usize]);
     }
 
     pub fn print_vram(&self) {

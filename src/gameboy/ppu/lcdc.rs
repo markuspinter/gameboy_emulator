@@ -16,16 +16,16 @@ Bit | Name                           | Usage notes
  0  | BG and Window enable/priority  | 0=Off, 1=On
   */
 #[derive(Debug)]
-struct LCDControl {
-    lcd_ppu_enable: bool,
-    window_tile_map_area: bool,
-    window_enable: bool,
-    bg_and_window_tile_data_area: bool,
-    bg_tile_map_area: bool,
-    obj_size: bool,
-    obj_enable: bool,
+pub struct LCDControl {
+    pub lcd_ppu_enable: bool,
+    pub window_tile_map_area: bool,
+    pub window_enable: bool,
+    pub bg_and_window_tile_data_area: bool,
+    pub bg_tile_map_area: bool,
+    pub obj_size: bool,
+    pub obj_enable: bool,
     //TODO: special meaning for CGB
-    bg_and_window_enable: bool,
+    pub bg_and_window_enable: bool,
 }
 
 impl std::convert::From<LCDControl> for u8 {
