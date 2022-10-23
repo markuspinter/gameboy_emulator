@@ -58,7 +58,7 @@ impl Screen {
         self.buffer = frame_buffer.to_vec();
     }
 
-    pub fn update(&mut self) -> bool {
+    pub fn update(&mut self) -> (bool, bool) {
         // let offset: u128 = self
         //     .prev
         //     .duration_since(SystemTime::UNIX_EPOCH)
@@ -91,6 +91,9 @@ impl Screen {
 
         self.prev = now;
 
-        self.window.is_open() && !self.window.is_key_down(Key::Escape)
+        (
+            self.window.is_open() && !self.window.is_key_down(Key::Escape),
+            self.window.is_key_down(Key::C),
+        )
     }
 }

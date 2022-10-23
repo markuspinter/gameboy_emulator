@@ -46,22 +46,32 @@ trait MemoryInterface {
 }
 
 trait GameboyModule {
-    fn tick(&mut self, memory: &mut Memory) -> Result<u32, Error>;
+    unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, Error>;
 }
 
 impl MemoryInterface for Gameboy {
     fn read8(&self, addr: u16) -> MemoryResult<u8> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            log::trace!("reading from vram {:#06X}", addr);
+            self.ppu.read8(addr)
+        } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
+            log::trace!("reading from oam {:#06X}", addr);
             self.ppu.read8(addr)
         } else {
+            log::trace!("reading to memory {:#06X}", addr);
             self.memory.read8(addr)
         }
     }
 
     fn write8(&mut self, addr: u16, value: u8) -> MemoryResult<()> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            log::trace!("writing to vram {:#06X}: {:#04X}", addr, value);
+            self.ppu.write8(addr, value)
+        } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
+            log::trace!("writing to oam {:#06X}: {:#04X}", addr, value);
             self.ppu.write8(addr, value)
         } else {
+            log::trace!("writing to memory {:#06X}: {:#04X}", addr, value);
             self.memory.write8(addr, value)
         }
     }
@@ -73,6 +83,7 @@ pub struct Gameboy {
     screen: Screen,
     memory: Memory,
     running: bool,
+    cgb_mode: bool,
 }
 
 impl Gameboy {
@@ -88,50 +99,54 @@ impl Gameboy {
             screen: Screen::new(Self::TILE_MAP_ROWS, Self::TILE_MAP_COLUMNS, 1, 1, minifb::Scale::X4),
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
+            cgb_mode: false,
         }
     }
 
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub unsafe fn run(&mut self) -> Result<(), Error> {
         let mut prev = SystemTime::now();
-        // let mem = utils::load_bytes("roms/mem_dump".into());
-        // self.ppu.test_load_vram(mem.as_slice());
+        let mut shall_print_status: bool;
+
+        let self_ptr = self as *mut Self;
+
         while self.running {
-            self.cpu.tick(&mut self.memory)?;
+            self.cpu.tick(self_ptr)?;
 
             let diff = SystemTime::now()
                 .duration_since(prev)
                 .expect("system time failed")
                 .as_micros();
-            if diff > 16742 {
-                self.running = self.screen.update();
-                // self.ppu.tick(&mut self.memory)?;
-                log::info!(
-                    "{:.2} fps",
-                    1e6 / SystemTime::now()
-                        .duration_since(prev)
-                        .expect("system time failed")
-                        .as_micros() as f32
-                );
+            if diff > 200000 {
+                //16742 {
+                //59.720 fps = 16742 us {
+                self.ppu.tick(self_ptr)?;
+                self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                (self.running, shall_print_status) = self.screen.update();
+                if shall_print_status {
+                    println!("{:?}", self.cpu);
+                }
                 prev = SystemTime::now();
             }
         }
         Ok(())
     }
 
-    pub fn test_run(&mut self) -> Result<(), Error> {
+    pub unsafe fn test_run(&mut self) -> Result<(), Error> {
         let mut prev = SystemTime::now();
 
         let mem = utils::load_bytes("roms/mem_dump".into());
         self.ppu.test_load_memory(mem.as_slice());
 
-        self.ppu.tick(&mut self.memory)?;
+        let self_ptr = self as *mut Self;
+        self.ppu.tick(self_ptr)?;
+
         self.ppu.print_tiles(0x10);
 
         let mut draw_bg: bool = true;
 
         while self.running {
-            self.cpu.tick(&mut self.memory)?;
-            self.ppu.tick(&mut self.memory)?;
+            self.cpu.tick(self_ptr)?;
+            self.ppu.tick(self_ptr)?;
             if draw_bg {
                 self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
             } else {
@@ -139,7 +154,7 @@ impl Gameboy {
                 self.screen.set_frame_buffer(&self.ppu.get_objects_frame_buffer());
             }
             // self.screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
-            self.running = self.screen.update();
+            self.running = self.screen.update().1;
             let diff = SystemTime::now()
                 .duration_since(prev)
                 .expect("system time failed")
@@ -158,5 +173,9 @@ impl Gameboy {
             }
         }
         Ok(())
+    }
+
+    pub fn switch_speed(&self) {
+        panic!("switch speed not implemented");
     }
 }

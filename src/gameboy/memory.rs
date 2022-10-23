@@ -6,7 +6,6 @@ use crate::utils;
 use super::MemoryInterface;
 pub struct Memory {
     rom: Vec<u8>,
-    pub cgb_mode: bool,
     ram: [u8; 0x10000],
 }
 
@@ -25,7 +24,6 @@ impl Memory {
     pub fn new(bootrom_path: String, rom_path: String) -> Self {
         let mut mem = Memory {
             rom: Self::load_rom(bootrom_path, rom_path),
-            cgb_mode: false,
             ram: [0; 0x10000],
         };
         mem.ram[0..0x8000].clone_from_slice(mem.rom[0..0x8000].into());
@@ -58,10 +56,6 @@ impl Memory {
         utils::print_memory(&buffer, "bootrom");
         println!("\n\n");
         buffer
-    }
-
-    pub fn switch_speed(&self) {
-        panic!("switch speed not implemented");
     }
 }
 

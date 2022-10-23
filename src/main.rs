@@ -19,5 +19,13 @@ fn main() {
 
     let mut gb = gameboy::Gameboy::new(args[1].clone(), args[2].clone());
 
-    gb.test_run().unwrap();
+    unsafe {
+        if args.len() >= 3 {
+            if args[2] == "--test" {
+                gb.test_run().unwrap();
+            } else {
+                gb.run().unwrap();
+            }
+        }
+    }
 }

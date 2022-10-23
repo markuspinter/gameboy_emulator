@@ -1,6 +1,6 @@
 use std::fmt::Error;
 
-use super::{memory::Memory, GameboyModule, MemoryInterface};
+use super::{memory::Memory, Gameboy, GameboyModule, MemoryInterface};
 
 #[allow(non_snake_case)]
 mod instructions;
@@ -57,27 +57,27 @@ pub struct CPU {
 }
 
 impl GameboyModule for CPU {
-    fn tick(&mut self, memory: &mut Memory) -> Result<u32, std::fmt::Error> {
-        let ret = self.decode_execute(memory);
-        log::debug!("{:?}", self);
+    unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, std::fmt::Error> {
+        let gb = &mut *gb_ptr;
+        let ret = self.decode_execute(gb);
         ret
     }
 }
 
 impl CPU {
-    fn decode_execute(&mut self, memory: &mut Memory) -> Result<u32, std::fmt::Error> {
-        let mut opcode: u16 = match memory.read8(self.pc) {
+    fn decode_execute(&mut self, gb: &mut Gameboy) -> Result<u32, std::fmt::Error> {
+        let mut opcode: u16 = match gb.read8(self.pc) {
             Ok(num) => u16::from(num),
             Err(_) => return Err(Error),
         };
         if opcode == 0xCB {
-            opcode = match memory.read8(self.pc + 1) {
+            opcode = match gb.read8(self.pc + 1) {
                 Ok(num) => u16::from(num),
                 Err(_) => return Err(Error),
             };
             opcode += 0x100;
         }
-        Ok(instructions::execute_opcode(opcode, self, memory))
+        Ok(instructions::execute_opcode(opcode, self, gb))
     }
     pub fn new() -> Self {
         Self {
@@ -89,7 +89,7 @@ impl CPU {
             f: 0x00,
             h: 0x00,
             l: 0x00,
-            pc: 0x0000,
+            pc: 0x0100,
             sp: 0x0000,
 
             halted: false,

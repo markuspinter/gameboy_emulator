@@ -8,10 +8,7 @@ use colored::Colorize;
 
 use self::lcdc::LCDControl;
 
-use super::{
-    memory::{Memory, MemoryRange},
-    GameboyModule, MemoryInterface,
-};
+use super::{memory::MemoryRange, Gameboy, GameboyModule, MemoryInterface};
 
 pub struct PPU {
     frame_buffer: [u32; Self::ROWS * Self::COLUMNS],
@@ -22,7 +19,7 @@ pub struct PPU {
 }
 
 impl GameboyModule for PPU {
-    fn tick(&mut self, memory: &mut Memory) -> Result<u32, std::fmt::Error> {
+    unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, std::fmt::Error> {
         self.process_tile_data();
         // self.print_tiles(10);
         Ok((0))
@@ -40,8 +37,14 @@ impl super::MemoryInterface for PPU {
     }
 
     fn write8(&mut self, addr: u16, value: u8) -> super::MemoryResult<()> {
-        self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
-        Ok(())
+        if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
+        } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
+            self.oam[usize::from(addr - memory::ppu::OAM.begin)] = value;
+        } else {
+            return Err(super::MemoryError::UnknownAddress);
+        }
+        return Ok(());
     }
 }
 
