@@ -59,7 +59,7 @@ pub struct CPU {
 impl GameboyModule for CPU {
     fn tick(&mut self, memory: &mut Memory) -> Result<u32, std::fmt::Error> {
         let ret = self.decode_execute(memory);
-        println!("{:?}", self);
+        log::debug!("{:?}", self);
         ret
     }
 }

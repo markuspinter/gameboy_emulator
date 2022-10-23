@@ -7,6 +7,8 @@ pub mod utils;
 use std::process::Command;
 
 fn main() {
+    env_logger::init();
+
     println!("Hello, world!");
     let args: Vec<String> = env::args().collect();
     // println!("{:?}", args);

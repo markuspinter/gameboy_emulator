@@ -91,15 +91,21 @@ impl Gameboy {
         // let mem = utils::load_bytes("roms/mem_dump".into());
         // self.ppu.test_load_vram(mem.as_slice());
         while self.running {
-            // self.cpu.tick(&mut self.memory)?;
-            self.running = self.screen.update();
-            if SystemTime::now()
+            self.cpu.tick(&mut self.memory)?;
+            let diff = SystemTime::now()
                 .duration_since(prev)
                 .expect("system time failed")
-                .as_millis()
-                > 1000
-            {
-                self.ppu.tick(&mut self.memory)?;
+                .as_micros();
+            if diff > 16742 {
+                self.running = self.screen.update();
+                // self.ppu.tick(&mut self.memory)?;
+                log::info!(
+                    "{:.2} fps",
+                    1e6 / SystemTime::now()
+                        .duration_since(prev)
+                        .expect("system time failed")
+                        .as_micros() as f32
+                );
                 prev = SystemTime::now();
             }
         }

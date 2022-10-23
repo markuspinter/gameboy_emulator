@@ -84,7 +84,7 @@ impl Screen {
             .expect("elapsed clock operation failed");
         if diff_time.as_micros() > 1e5 as u128 {
             self.window
-                .set_title(format!("{:.2} fps", 1e6 as u128 / diff.as_micros()).as_str());
+                .set_title(format!("{:.2} fps", 1e6 / diff.as_micros() as f32).as_str());
             self.title_time = now;
         }
 

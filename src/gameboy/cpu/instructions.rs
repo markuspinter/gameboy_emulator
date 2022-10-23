@@ -18,22 +18,30 @@ pub fn execute_opcode(opcode: u16, cpu: &mut CPU, memory: &mut Memory) -> u32 {
     if oplen == 2 {
         // 8-bit immediate
         v = memory.read8(pc + 1).unwrap() as u16;
-        println!(
+        log::debug!(
             "executing opcode: {:#06X} |\t{:#06X}: {}  8 bit value {:#04X}",
-            opcode, pc, _CPU_COMMANDS[opcode as usize], v
+            opcode,
+            pc,
+            _CPU_COMMANDS[opcode as usize],
+            v
         );
     } else if oplen == 3 {
         // 16-bit immediate
         // Flips order of values due to big-endian
         v = memory.read16(pc + 1).unwrap();
-        println!(
+        log::debug!(
             "executing opcode: {:#06X} |\t{:#06X}: {} 16 bit value {:#06X}",
-            opcode, pc, _CPU_COMMANDS[opcode as usize], v
+            opcode,
+            pc,
+            _CPU_COMMANDS[opcode as usize],
+            v
         );
     } else {
-        println!(
+        log::debug!(
             "executing opcode: {:#06X} |\t{:#06X}: {}",
-            opcode, pc, _CPU_COMMANDS[opcode as usize]
+            opcode,
+            pc,
+            _CPU_COMMANDS[opcode as usize]
         );
     }
     if opcode == 0x00 {
