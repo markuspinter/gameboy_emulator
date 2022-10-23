@@ -116,7 +116,7 @@ impl Gameboy {
                 .duration_since(prev)
                 .expect("system time failed")
                 .as_micros();
-            if diff > 200000 {
+            if diff > 33333 {
                 //16742 {
                 //59.720 fps = 16742 us {
                 self.ppu.tick(self_ptr)?;

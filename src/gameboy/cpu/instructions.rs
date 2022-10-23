@@ -2694,7 +2694,7 @@ fn SUB_96(cpu: &mut CPU, gb: &mut Gameboy) -> u32 {
     let mut t: i16 = cpu.a as i16 - gb.read8(cpu.get_hl()).unwrap() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from((cpu.a & 0xF) - ((gb.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0) << FLAGH;
+    flag += u16::from((cpu.a & 0xF).wrapping_sub((gb.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3282,7 +3282,7 @@ fn CP_BE(cpu: &mut CPU, gb: &mut Gameboy) -> u32 {
     let t: i16 = cpu.a as i16 - gb.read8(cpu.get_hl()).unwrap() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from((cpu.a & 0xF) - ((gb.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0) << FLAGH;
+    flag += u16::from((cpu.a & 0xF).wrapping_sub((gb.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3745,16 +3745,14 @@ fn RST_E7(cpu: &mut CPU, gb: &mut Gameboy) -> u32 {
 
 fn ADD_E8(cpu: &mut CPU, _gb: &mut Gameboy, v: u16) -> u32 {
     // E8 ADD SP,r8
-    let mut t: u32 = cpu
-        .sp
-        .wrapping_add(((u8::try_from(v).unwrap() ^ 0x80).wrapping_sub(0x80)) as u16) as u32;
+    let mut t: u16 = cpu.sp.wrapping_add((v as i32 ^ 0x80).wrapping_sub(0x80) as u16);
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.sp & 0xF) + (v & 0xF)) > 0xF) << FLAGH;
     flag += u16::from(((cpu.sp & 0xFF) + (v & 0xFF)) > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
     t &= 0xFFFF;
-    cpu.sp = t as u16;
+    cpu.sp = t;
     cpu.pc = cpu.pc.wrapping_add(2);
     cpu.pc &= 0xFFFF;
     return 16;
