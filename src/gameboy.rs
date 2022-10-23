@@ -80,7 +80,7 @@ impl Gameboy {
         Self {
             cpu: CPU::new(),
             ppu: PPU::new(),
-            screen: Screen::new(144, 160, 1, 1, minifb::Scale::X4),
+            screen: Screen::new(192, 128, 1, 1, minifb::Scale::X4),
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
         }
@@ -92,6 +92,7 @@ impl Gameboy {
         // self.ppu.test_load_vram(mem.as_slice());
         while self.running {
             self.cpu.tick(&mut self.memory)?;
+
             let diff = SystemTime::now()
                 .duration_since(prev)
                 .expect("system time failed")
@@ -99,6 +100,39 @@ impl Gameboy {
             if diff > 16742 {
                 self.running = self.screen.update();
                 // self.ppu.tick(&mut self.memory)?;
+                log::info!(
+                    "{:.2} fps",
+                    1e6 / SystemTime::now()
+                        .duration_since(prev)
+                        .expect("system time failed")
+                        .as_micros() as f32
+                );
+                prev = SystemTime::now();
+            }
+        }
+        Ok(())
+    }
+
+    pub fn test_run(&mut self) -> Result<(), Error> {
+        let mut prev = SystemTime::now();
+
+        let mem = utils::load_bytes("roms/mem_dump".into());
+        self.ppu.test_load_vram(mem.as_slice());
+
+        self.ppu.tick(&mut self.memory)?;
+        self.ppu.print_tiles(0x10);
+
+        while self.running {
+            self.cpu.tick(&mut self.memory)?;
+            self.ppu.tick(&mut self.memory)?;
+            self.screen
+                .set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
+            self.running = self.screen.update();
+            let diff = SystemTime::now()
+                .duration_since(prev)
+                .expect("system time failed")
+                .as_micros();
+            if diff > 16742 {
                 log::info!(
                     "{:.2} fps",
                     1e6 / SystemTime::now()

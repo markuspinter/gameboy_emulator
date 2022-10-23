@@ -2,7 +2,7 @@ extern crate minifb;
 use rand::rngs::ThreadRng;
 use std::time::SystemTime;
 
-use minifb::{Key, ScaleMode, Window, WindowOptions};
+use minifb::{Key, Window, WindowOptions};
 
 pub enum MonochromeColor {
     Off = 0x00CADC9F,
@@ -40,10 +40,9 @@ impl Screen {
             width: width,
             height: height,
             buffer: vec![0; width * height],
-            window: Window::new("Test - ESC to exit", width, height, window_options)
-                .unwrap_or_else(|e| {
-                    panic!("{}", e);
-                }),
+            window: Window::new("Test - ESC to exit", width, height, window_options).unwrap_or_else(|e| {
+                panic!("{}", e);
+            }),
             rng: rand::thread_rng(),
             prev: SystemTime::now(),
             pixel_width,
@@ -55,19 +54,23 @@ impl Screen {
         ppu
     }
 
+    pub fn set_frame_buffer(&mut self, frame_buffer: &[u32]) {
+        self.buffer = frame_buffer.to_vec();
+    }
+
     pub fn update(&mut self) -> bool {
-        let offset: u128 = self
-            .prev
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("asdf")
-            .as_millis()
-            % u32::MAX as u128;
-        for (i, item) in self.buffer.iter_mut().enumerate() {
-            if i % 3 == 0 {
-                // break;
-                *item = (offset as u32).wrapping_add(i as u32 + 0xA00);
-            }
-        }
+        // let offset: u128 = self
+        //     .prev
+        //     .duration_since(SystemTime::UNIX_EPOCH)
+        //     .expect("asdf")
+        //     .as_millis()
+        //     % u32::MAX as u128;
+        // for (i, item) in self.buffer.iter_mut().enumerate() {
+        //     if i % 3 == 0 {
+        //         // break;
+        //         *item = (offset as u32).wrapping_add(i as u32 + 0xA00);
+        //     }
+        // }
 
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         self.window
@@ -75,9 +78,7 @@ impl Screen {
             .unwrap();
 
         let now = SystemTime::now();
-        let diff = now
-            .duration_since(self.prev)
-            .expect("elapsed clock operation failed");
+        let diff = now.duration_since(self.prev).expect("elapsed clock operation failed");
 
         let diff_time = now
             .duration_since(self.title_time)

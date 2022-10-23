@@ -1346,10 +1346,7 @@ fn RLA_17(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn JR_18(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 18 JR r8
-    cpu.pc = cpu
-        .pc
-        .wrapping_add(2)
-        .wrapping_add((v ^ 0x80).wrapping_sub(0x80));
+    cpu.pc = cpu.pc.wrapping_add(2).wrapping_add((v ^ 0x80).wrapping_sub(0x80));
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -1444,9 +1441,7 @@ fn JR_20(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 20 JR NZ,r8
     cpu.pc = cpu.pc.wrapping_add(2);
     if cpu.f_nz() {
-        cpu.pc = cpu
-            .pc
-            .wrapping_add(((v ^ 0x80) as i16 - 0x80 as i16) as u16);
+        cpu.pc = cpu.pc.wrapping_add(((v ^ 0x80) as i16 - 0x80 as i16) as u16);
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1692,8 +1687,7 @@ fn INC_34(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     let mut t: u16 = memory.read8(cpu.get_hl()).unwrap() as u16 + 1;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from((((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) + (1 & 0xF)) > 0xF)
-        << FLAGH;
+    flag += u16::from((((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) + (1 & 0xF)) > 0xF) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -1708,8 +1702,7 @@ fn DEC_35(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     let mut t: u16 = memory.read8(cpu.get_hl()).unwrap() as u16 - 1;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag +=
-        u16::from((((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) - (1 & 0xF)) > 0) << FLAGH;
+    flag += u16::from((((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) - (1 & 0xF)) > 0) << FLAGH;
     cpu.f &= 0b00010000;
     cpu.f |= flag;
     t &= 0xFF;
@@ -2252,9 +2245,7 @@ fn LD_73(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 
 fn LD_74(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 74 LD (HL),H
-    memory
-        .write8(cpu.get_hl(), (cpu.get_hl() >> 8) as u8)
-        .unwrap();
+    memory.write8(cpu.get_hl(), (cpu.get_hl() >> 8) as u8).unwrap();
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
@@ -2262,9 +2253,7 @@ fn LD_74(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 
 fn LD_75(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 75 LD (HL),L
-    memory
-        .write8(cpu.get_hl(), (cpu.get_hl() & 0xFF) as u8)
-        .unwrap();
+    memory.write8(cpu.get_hl(), (cpu.get_hl() & 0xFF) as u8).unwrap();
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
     return 8;
@@ -2449,8 +2438,7 @@ fn ADD_86(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.a + memory.read8(cpu.get_hl()).unwrap() as u16;
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from((cpu.a & 0xF) + ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0xF)
-        << FLAGH;
+    flag += u16::from((cpu.a & 0xF) + ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0xF) << FLAGH;
     flag += u16::from(t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2546,8 +2534,7 @@ fn ADC_8C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.a + (cpu.get_hl() >> 8) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) + ((cpu.get_hl() >> 8) & 0xF) + u16::from(cpu.f_c())) > 0xF)
-        << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) + ((cpu.get_hl() >> 8) & 0xF) + u16::from(cpu.f_c())) > 0xF) << FLAGH;
     flag += u16::from(t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2563,8 +2550,7 @@ fn ADC_8D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.a + (cpu.get_hl() & 0xFF) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(((cpu.a & 0xF) + ((cpu.get_hl() & 0xFF) & 0xF) + u16::from(cpu.f_c())) > 0xF)
-        << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) + ((cpu.get_hl() & 0xFF) & 0xF) + u16::from(cpu.f_c())) > 0xF) << FLAGH;
     flag += u16::from(t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2580,11 +2566,9 @@ fn ADC_8E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     let mut t: u16 = cpu.a + (memory.read8(cpu.get_hl()).unwrap() as u16) + u16::from(cpu.f_c());
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(
-        (cpu.a & 0xF)
-            + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) + u16::from(cpu.f_c()))
-            > 0xF,
-    ) << FLAGH;
+    flag +=
+        u16::from((cpu.a & 0xF) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) + u16::from(cpu.f_c())) > 0xF)
+            << FLAGH;
     flag += u16::from(t > 0xFF) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2712,8 +2696,7 @@ fn SUB_96(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     let mut t: i16 = cpu.a as i16 - memory.read8(cpu.get_hl()).unwrap() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from((cpu.a & 0xF) - ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0)
-        << FLAGH;
+    flag += u16::from((cpu.a & 0xF) - ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2745,8 +2728,7 @@ fn SBC_98(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: i16 = cpu.a as i16 - cpu.b as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag +=
-        u16::from(((cpu.a & 0xF) as i32 - (cpu.b & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.b & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2762,8 +2744,7 @@ fn SBC_99(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: i16 = cpu.a as i16 - cpu.c as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag +=
-        u16::from(((cpu.a & 0xF) as i32 - (cpu.c & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.c & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2779,8 +2760,7 @@ fn SBC_9A(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: i16 = cpu.a as i16 - cpu.d as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag +=
-        u16::from(((cpu.a & 0xF) as i32 - (cpu.d & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.d & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2796,8 +2776,7 @@ fn SBC_9B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: i16 = cpu.a as i16 - cpu.e as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag +=
-        u16::from(((cpu.a & 0xF) as i32 - (cpu.e & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.e & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2813,9 +2792,7 @@ fn SBC_9C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: i16 = cpu.a as i16 - (cpu.get_hl() >> 8) as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(
-        ((cpu.a & 0xF) as i32 - ((cpu.get_hl() >> 8) & 0xF) as i32 - cpu.f_c() as i32) < 0,
-    ) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - ((cpu.get_hl() >> 8) & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2831,9 +2808,7 @@ fn SBC_9D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: i16 = cpu.a as i16 - (cpu.get_hl() & 0xFF) as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from(
-        ((cpu.a & 0xF) as i32 - ((cpu.get_hl() & 0xFF) & 0xF) as i32 - cpu.f_c() as i32) < 0,
-    ) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - ((cpu.get_hl() & 0xFF) & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -2850,9 +2825,7 @@ fn SBC_9E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(
-        (cpu.a & 0xF) as i32
-            - (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) as i32 - cpu.f_c() as i32)
-            > 0,
+        (cpu.a & 0xF) as i32 - (((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) as i32 - cpu.f_c() as i32) > 0,
     ) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
@@ -2869,8 +2842,7 @@ fn SBC_9F(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     let mut t: i16 = cpu.a as i16 - cpu.a as i16 - cpu.f_c() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag +=
-        u16::from(((cpu.a & 0xF) as i32 - (cpu.a & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
+    flag += u16::from(((cpu.a & 0xF) as i32 - (cpu.a & 0xF) as i32 - cpu.f_c() as i32) < 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3312,8 +3284,7 @@ fn CP_BE(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     let t: i16 = cpu.a as i16 - memory.read8(cpu.get_hl()).unwrap() as i16;
     let mut flag: u16 = 0b01000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
-    flag += u16::from((cpu.a & 0xF) - ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0)
-        << FLAGH;
+    flag += u16::from((cpu.a & 0xF) - ((memory.read8(cpu.get_hl()).unwrap() as u16) & 0xF) > 0) << FLAGH;
     flag += u16::from(t < 0) << FLAGC;
     cpu.f &= 0b00000000;
     cpu.f |= flag;
@@ -3387,12 +3358,8 @@ fn CALL_C4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     if cpu.f_nz() {
-        memory
-            .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-            .unwrap(); // High;
-        memory
-            .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-            .unwrap(); // Low;
+        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3433,12 +3400,8 @@ fn RST_C7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // C7 RST 00H
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 0;
@@ -3494,12 +3457,8 @@ fn CALL_CC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     if cpu.f_z() {
-        memory
-            .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-            .unwrap(); // High;
-        memory
-            .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-            .unwrap(); // Low;
+        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3513,12 +3472,8 @@ fn CALL_CD(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     // CD CALL a16
     cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = v;
@@ -3545,12 +3500,8 @@ fn RST_CF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // CF RST 08H
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 8;
@@ -3600,12 +3551,8 @@ fn CALL_D4(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     if cpu.f_nc() {
-        memory
-            .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-            .unwrap(); // High;
-        memory
-            .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-            .unwrap(); // Low;
+        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3646,12 +3593,8 @@ fn RST_D7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // D7 RST 10H
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 16;
@@ -3700,12 +3643,8 @@ fn CALL_DC(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
     cpu.pc = cpu.pc.wrapping_add(3);
     cpu.pc &= 0xFFFF;
     if cpu.f_c() {
-        memory
-            .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-            .unwrap(); // High;
-        memory
-            .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-            .unwrap(); // Low;
+        memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+        memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
         cpu.sp -= 2;
         cpu.sp &= 0xFFFF;
         cpu.pc = v;
@@ -3735,12 +3674,8 @@ fn RST_DF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // DF RST 18H
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 24;
@@ -3757,10 +3692,7 @@ fn LDH_E0(cpu: &mut CPU, memory: &mut Memory, v: u16) -> u32 {
 
 fn POP_E1(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // E1 POP HL
-    cpu.set_hl(
-        ((memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8)
-            + memory.read8(cpu.sp).unwrap() as u16,
-    ); // High);
+    cpu.set_hl(((memory.read8((cpu.sp + 1) & 0xFFFF).unwrap() as u16) << 8) + memory.read8(cpu.sp).unwrap() as u16); // High);
     cpu.sp += 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = cpu.pc.wrapping_add(1);
@@ -3778,9 +3710,7 @@ fn LD_E2(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 
 fn PUSH_E5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // E5 PUSH HL
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.get_hl() >> 8) as u8)
-        .unwrap(); // High;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.get_hl() >> 8) as u8).unwrap(); // High;
     memory
         .write8((cpu.sp - 2) & 0xFFFF, (cpu.get_hl() & 0xFF) as u8)
         .unwrap(); // Low;
@@ -3809,12 +3739,8 @@ fn RST_E7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // E7 RST 20H
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 32;
@@ -3868,12 +3794,8 @@ fn RST_EF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // EF RST 28H
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 40;
@@ -3918,9 +3840,7 @@ fn DI_F3(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 fn PUSH_F5(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // F5 PUSH AF
     memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.a) as u8).unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.f & 0xF0) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.f & 0xF0) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = cpu.pc.wrapping_add(1);
@@ -3946,12 +3866,8 @@ fn RST_F7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // F7 RST 30H
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 48;
@@ -4016,12 +3932,8 @@ fn RST_FF(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // FF RST 38H
     cpu.pc = cpu.pc.wrapping_add(1);
     cpu.pc &= 0xFFFF;
-    memory
-        .write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8)
-        .unwrap(); // High;
-    memory
-        .write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8)
-        .unwrap(); // Low;
+    memory.write8((cpu.sp - 1) & 0xFFFF, (cpu.pc >> 8) as u8).unwrap(); // High;
+    memory.write8((cpu.sp - 2) & 0xFFFF, (cpu.pc & 0xFF) as u8).unwrap(); // Low;
     cpu.sp -= 2;
     cpu.sp &= 0xFFFF;
     cpu.pc = 56;
@@ -4120,8 +4032,8 @@ fn RLC_105(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn RLC_106(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 106 RLC (HL)
-    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) << 1)
-        + ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 7);
+    let mut t: u16 =
+        ((memory.read8(cpu.get_hl()).unwrap() as u16) << 1) + ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 7);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4211,9 +4123,7 @@ fn RRC_10B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn RRC_10C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 10C RRC H
-    let mut t: u16 = ((cpu.get_hl() >> 8) >> 1)
-        + (((cpu.get_hl() >> 8) & 1) << 7)
-        + (((cpu.get_hl() >> 8) & 1) << 8);
+    let mut t: u16 = ((cpu.get_hl() >> 8) >> 1) + (((cpu.get_hl() >> 8) & 1) << 7) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4228,9 +4138,8 @@ fn RRC_10C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn RRC_10D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 10D RRC L
-    let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1)
-        + (((cpu.get_hl() & 0xFF) & 1) << 7)
-        + (((cpu.get_hl() & 0xFF) & 1) << 8);
+    let mut t: u16 =
+        ((cpu.get_hl() & 0xFF) >> 1) + (((cpu.get_hl() & 0xFF) & 1) << 7) + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4457,8 +4366,7 @@ fn RR_11B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn RR_11C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 11C RR H
-    let mut t: u16 =
-        ((cpu.get_hl() >> 8) >> 1) + ((cpu.f_c() as u16) << 7) + (((cpu.get_hl() >> 8) & 1) << 8);
+    let mut t: u16 = ((cpu.get_hl() >> 8) >> 1) + ((cpu.f_c() as u16) << 7) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4473,9 +4381,7 @@ fn RR_11C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn RR_11D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 11D RR L
-    let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1)
-        + ((cpu.f_c() as u16) << 7)
-        + (((cpu.get_hl() & 0xFF) & 1) << 8);
+    let mut t: u16 = ((cpu.get_hl() & 0xFF) >> 1) + ((cpu.f_c() as u16) << 7) + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4702,8 +4608,7 @@ fn SRA_12B(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn SRA_12C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 12C SRA H
-    let mut t: u16 = (((cpu.get_hl() >> 8) >> 1) | ((cpu.get_hl() >> 8) & 0x80))
-        + (((cpu.get_hl() >> 8) & 1) << 8);
+    let mut t: u16 = (((cpu.get_hl() >> 8) >> 1) | ((cpu.get_hl() >> 8) & 0x80)) + (((cpu.get_hl() >> 8) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4718,8 +4623,8 @@ fn SRA_12C(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn SRA_12D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
     // 12D SRA L
-    let mut t: u16 = (((cpu.get_hl() & 0xFF) >> 1) | ((cpu.get_hl() & 0xFF) & 0x80))
-        + (((cpu.get_hl() & 0xFF) & 1) << 8);
+    let mut t: u16 =
+        (((cpu.get_hl() & 0xFF) >> 1) | ((cpu.get_hl() & 0xFF) & 0x80)) + (((cpu.get_hl() & 0xFF) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -4969,8 +4874,8 @@ fn SRL_13D(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn SRL_13E(cpu: &mut CPU, memory: &mut Memory) -> u32 {
     // 13E SRL (HL)
-    let mut t: u16 = ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1)
-        + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
+    let mut t: u16 =
+        ((memory.read8(cpu.get_hl()).unwrap() as u16) >> 1) + (((memory.read8(cpu.get_hl()).unwrap() as u16) & 1) << 8);
     let mut flag: u16 = 0b00000000;
     flag += u16::from((t & 0xFF) == 0) << FLAGZ;
     flag += u16::from(t > 0xFF) << FLAGC;
@@ -6919,22 +6824,20 @@ fn SET_1FF(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 }
 
 const OPCODE_LENGTHS: [u8; 512] = [
-    1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,
-    2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 3, 3, 3, 1, 2, 1, 1, 1, 3, 1, 3, 3, 2, 1, 1, 1, 3, 0, 3, 1, 2, 1, 1, 1, 3, 0, 3, 0, 2, 1,
-    2, 1, 1, 0, 0, 1, 2, 1, 2, 1, 3, 0, 0, 0, 2, 1, 2, 1, 1, 1, 0, 1, 2, 1, 2, 1, 3, 1, 0, 0, 2, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1,
+    2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 3, 3, 3, 1, 2, 1, 1, 1, 3, 1, 3, 3, 2, 1, 1, 1, 3, 0, 3, 1, 2, 1, 1, 1, 3, 0, 3, 0, 2, 1, 2, 1, 1, 0,
+    0, 1, 2, 1, 2, 1, 3, 0, 0, 0, 2, 1, 2, 1, 1, 1, 0, 1, 2, 1, 2, 1, 3, 1, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 ];
 
 const _CPU_COMMANDS: [&str; 512] = [
