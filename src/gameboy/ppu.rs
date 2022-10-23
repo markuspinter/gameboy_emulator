@@ -149,7 +149,11 @@ impl PPU {
         let mut map_tiles: [&[[u8; 8]; 8]; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE] =
             [&[[0; 8]; 8]; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE];
 
-        let tile_map_start = Self::TILE_MAP_AREA_9800.begin;
+        let tile_map_start = if self.lcdc.bg_tile_map_area {
+            Self::TILE_MAP_AREA_9C00.begin
+        } else {
+            Self::TILE_MAP_AREA_9800.begin
+        };
         for addr in tile_map_start..tile_map_start + 0x0400 {
             let mut tile_id = self.read8(addr).unwrap();
             if self.lcdc.bg_and_window_tile_data_area {
