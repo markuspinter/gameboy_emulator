@@ -15,13 +15,13 @@ use crate::{bit, gameboy::memory};
 
 //TODO: support cgb mode
 #[derive(Debug)]
-struct SpriteAttributes {
-    bg_window_override: bool,
-    y_flip: bool,
-    x_flip: bool,
-    palette_number: u8,
-    tile_vram_bank_cgb: u8, //CGB Only
-    palette_number_cgb: u8, //CGB Only
+pub struct SpriteAttributes {
+    pub bg_window_override: bool,
+    pub y_flip: bool,
+    pub x_flip: bool,
+    pub palette_number: u8,
+    pub tile_vram_bank_cgb: u8, //CGB Only
+    pub palette_number_cgb: u8, //CGB Only
 }
 
 impl std::convert::From<SpriteAttributes> for u8 {
@@ -51,11 +51,11 @@ impl std::convert::From<u8> for SpriteAttributes {
 }
 
 #[derive(Debug)]
-struct OAMTableEntry {
-    x_pos: i16,
-    y_pos: i16,
-    tile_index: u8,
-    attributes: SpriteAttributes,
+pub struct OAMTableEntry {
+    pub x_pos: i16,
+    pub y_pos: i16,
+    pub tile_index: u8,
+    pub attributes: SpriteAttributes,
 }
 
 impl OAMTableEntry {

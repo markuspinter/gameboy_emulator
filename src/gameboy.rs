@@ -122,22 +122,30 @@ impl Gameboy {
         let mut prev = SystemTime::now();
 
         let mem = utils::load_bytes("roms/mem_dump".into());
-        self.ppu.test_load_vram(mem.as_slice());
+        self.ppu.test_load_memory(mem.as_slice());
 
         self.ppu.tick(&mut self.memory)?;
         self.ppu.print_tiles(0x10);
 
+        let mut draw_bg: bool = true;
+
         while self.running {
             self.cpu.tick(&mut self.memory)?;
             self.ppu.tick(&mut self.memory)?;
-            self.screen.set_frame_buffer(&self.ppu.get_tile_map_frame_buffer());
+            if draw_bg {
+                self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+            } else {
+                // self.screen.set_frame_buffer(&self.ppu.get_window_frame_buffer());
+                self.screen.set_frame_buffer(&self.ppu.get_objects_frame_buffer());
+            }
             // self.screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
             self.running = self.screen.update();
             let diff = SystemTime::now()
                 .duration_since(prev)
                 .expect("system time failed")
                 .as_micros();
-            if diff > 16742 {
+            if diff > 1e6 as u128 {
+                //59.720 fps = 16742 us {
                 log::info!(
                     "{:.2} fps",
                     1e6 / SystemTime::now()
@@ -146,6 +154,7 @@ impl Gameboy {
                         .as_micros() as f32
                 );
                 prev = SystemTime::now();
+                draw_bg = !draw_bg;
             }
         }
         Ok(())
