@@ -1,3 +1,8 @@
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+};
+
 pub fn print_memory(mem: &[u8], name: &str) {
     print_memory_bytes(mem, name, mem.len());
 }
@@ -23,6 +28,17 @@ pub fn print_memory_bytes(mem: &[u8], name: &str, bytes: usize) {
         };
     }
     println!("\n\n");
+}
+
+pub fn load_bytes(path: String) -> Vec<u8> {
+    let f = File::open(path).unwrap();
+    let mut reader = BufReader::new(f);
+    let mut buffer = Vec::new();
+
+    // Read file into vector.
+    reader.read_to_end(&mut buffer).unwrap();
+
+    buffer
 }
 
 #[macro_export]

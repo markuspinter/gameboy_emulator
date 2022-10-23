@@ -38,6 +38,7 @@ pub enum Flag {
     C = 4,
 }
 
+#[derive(Debug)]
 pub struct CPU {
     pub a: u16,
     pub b: u16,
@@ -57,7 +58,9 @@ pub struct CPU {
 
 impl GameboyModule for CPU {
     fn tick(&mut self, memory: &mut Memory) -> Result<u32, std::fmt::Error> {
-        self.decode_execute(memory)
+        let ret = self.decode_execute(memory);
+        println!("{:?}", self);
+        ret
     }
 }
 

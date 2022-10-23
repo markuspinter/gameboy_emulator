@@ -47,6 +47,21 @@ impl std::convert::From<u8> for PaletteData {
     }
 }
 
+pub enum MonochromeColor {
+    Off = 0x00CADC9F,
+    White = 0x009BBC0F,
+    LightGray = 0x008BAC0F,
+    DarkGray = 0x00306230,
+    Black = 0x000F380F,
+}
+
+pub enum MonochromeColorID {
+    White = 0,
+    LightGray = 1,
+    DarkGray = 2,
+    Black = 3,
+}
+
 #[test]
 fn lcdc_test() {
     let mut a: u8 = 0xA1;

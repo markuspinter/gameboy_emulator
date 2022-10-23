@@ -12,17 +12,29 @@ fn opcode_length(opcode: u16) -> u8 {
 }
 
 pub fn execute_opcode(opcode: u16, cpu: &mut CPU, memory: &mut Memory) -> u32 {
-    // println!("executing opcode: {:#06X}", opcode);
     let oplen = opcode_length(opcode);
     let mut v: u16 = 0;
     let pc = cpu.pc;
     if oplen == 2 {
         // 8-bit immediate
         v = memory.read8(pc + 1).unwrap() as u16;
+        println!(
+            "executing opcode: {:#06X} |\t{:#06X}: {}  8 bit value {:#04X}",
+            opcode, pc, _CPU_COMMANDS[opcode as usize], v
+        );
     } else if oplen == 3 {
         // 16-bit immediate
         // Flips order of values due to big-endian
         v = memory.read16(pc + 1).unwrap();
+        println!(
+            "executing opcode: {:#06X} |\t{:#06X}: {} 16 bit value {:#06X}",
+            opcode, pc, _CPU_COMMANDS[opcode as usize], v
+        );
+    } else {
+        println!(
+            "executing opcode: {:#06X} |\t{:#06X}: {}",
+            opcode, pc, _CPU_COMMANDS[opcode as usize]
+        );
     }
     if opcode == 0x00 {
         return NOP_00(cpu, memory);
@@ -1326,7 +1338,10 @@ fn RLA_17(cpu: &mut CPU, _memory: &mut Memory) -> u32 {
 
 fn JR_18(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 18 JR r8
-    cpu.pc = cpu.pc.wrapping_add(2 + ((v ^ 0x80) - 0x80));
+    cpu.pc = cpu
+        .pc
+        .wrapping_add(2)
+        .wrapping_add((v ^ 0x80).wrapping_sub(0x80));
     cpu.pc &= 0xFFFF;
     return 12;
 }
@@ -1528,7 +1543,7 @@ fn JR_28(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 28 JR Z,r8
     cpu.pc = cpu.pc.wrapping_add(2);
     if cpu.f_z() {
-        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80) - 0x80);
+        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80).wrapping_sub(0x80));
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1626,7 +1641,7 @@ fn JR_30(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 30 JR NC,r8
     cpu.pc = cpu.pc.wrapping_add(2);
     if cpu.f_nc() {
-        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80) - 0x80);
+        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80).wrapping_sub(0x80));
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -1718,7 +1733,7 @@ fn JR_38(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // 38 JR C,r8
     cpu.pc = cpu.pc.wrapping_add(2);
     if cpu.f_c() {
-        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80) - 0x80);
+        cpu.pc = cpu.pc.wrapping_add((v ^ 0x80).wrapping_sub(0x80));
         cpu.pc &= 0xFFFF;
         return 12;
     } else {
@@ -3937,7 +3952,7 @@ fn RST_F7(cpu: &mut CPU, memory: &mut Memory) -> u32 {
 
 fn LD_F8(cpu: &mut CPU, _memory: &mut Memory, v: u16) -> u32 {
     // F8 LD HL,SP+r8
-    cpu.set_hl(cpu.sp + ((v ^ 0x80) - 0x80));
+    cpu.set_hl(cpu.sp.wrapping_add((v ^ 0x80).wrapping_sub(0x80)));
     let _t: u16 = cpu.get_hl();
     let mut flag: u16 = 0b00000000;
     flag += u16::from(((cpu.sp & 0xF) + (v & 0xF)) > 0xF) << FLAGH;

@@ -94,9 +94,19 @@ pub mod ppu {
         end: 0x97FF,
         size: 0x1800,
     };
+    pub const TILE_DATA_VRAM: MemoryRange = MemoryRange {
+        begin: 0x0000,
+        end: 0x17FF,
+        size: 0x1800,
+    };
     pub const TILE_MAP: MemoryRange = MemoryRange {
         begin: 0x9800,
         end: 0x9FFF,
+        size: 0x0800,
+    };
+    pub const TILE_MAP_VRAM: MemoryRange = MemoryRange {
+        begin: 0x1800,
+        end: 0x1FFF,
         size: 0x0800,
     };
     pub const LCDC: u16 = 0xFF40;
