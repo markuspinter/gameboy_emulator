@@ -1,4 +1,4 @@
-use std::fmt::Error;
+use std::fmt::{self, Error};
 
 use super::{memory::Memory, Gameboy, GameboyModule, MemoryInterface};
 
@@ -60,7 +60,23 @@ impl GameboyModule for CPU {
     unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, std::fmt::Error> {
         let gb = &mut *gb_ptr;
         let ret = self.decode_execute(gb);
+        log::debug!("{}", self);
         ret
+    }
+}
+
+impl fmt::Display for CPU {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Write strictly the first element into the supplied output
+        // stream: `f`. Returns `fmt::Result` which indicates whether the
+        // operation succeeded or failed. Note that `write!` uses syntax which
+        // is very similar to `println!`.
+        write!(
+            f,
+            "CPU Status: {{\n\ta: {:#04X}\n\tb: {:#04X}\n\tc: {:#04X}\n\td: {:#04X}\n\te: {:#04X}\n\tf: {:#04X}\n\th: {:#04X}\n\tl: {:#04X}\n\tpc: {:#06X}\n\tsp: {:#06X}\n}}",
+            self.a, self.b, self.c, self.d, self.e, self.f, self.h, self.l, self.pc, self.sp
+        )
     }
 }
 
@@ -179,13 +195,5 @@ impl CPU {
 
     fn f_z(&self) -> bool {
         (self.f & (1 << FLAGZ)) != 0
-    }
-
-    fn f_nc(&self) -> bool {
-        (self.f & (1 << FLAGC)) == 0
-    }
-
-    fn f_nz(&self) -> bool {
-        (self.f & (1 << FLAGZ)) == 0
     }
 }
