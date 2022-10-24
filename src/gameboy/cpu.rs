@@ -40,14 +40,14 @@ pub enum Flag {
 
 #[derive(Debug)]
 pub struct CPU {
-    pub a: u16,
-    pub b: u16,
-    pub c: u16,
-    pub d: u16,
-    pub e: u16,
-    pub f: u16,
-    pub h: u16,
-    pub l: u16,
+    pub a: u8,
+    pub b: u8,
+    pub c: u8,
+    pub d: u8,
+    pub e: u8,
+    pub f: u8,
+    pub h: u8,
+    pub l: u8,
 
     pub pc: u16,
     pub sp: u16,
@@ -70,14 +70,14 @@ impl CPU {
             Ok(num) => u16::from(num),
             Err(_) => return Err(Error),
         };
+        let cycles;
         if opcode == 0xCB {
-            opcode = match gb.read8(self.pc + 1) {
-                Ok(num) => u16::from(num),
-                Err(_) => return Err(Error),
-            };
-            opcode += 0x100;
+            (self.pc, cycles) = instructions::execute_instruction_extension(self, gb);
+            Ok(cycles as u32)
+        } else {
+            (self.pc, cycles) = instructions::execute_instruction(self, gb);
+            Ok(cycles as u32)
         }
-        Ok(instructions::execute_opcode(opcode, self, gb))
     }
     pub fn new() -> Self {
         Self {
@@ -97,99 +97,72 @@ impl CPU {
         }
     }
 
-    fn _get_reg8(&self, reg: Register8) -> u16 {
-        match reg {
-            Register8::A => self.a,
-            Register8::B => self.b,
-            Register8::C => self.c,
-            Register8::D => self.d,
-            Register8::E => self.e,
-            Register8::F => self.f,
-            Register8::H => self.h,
-            Register8::L => self.l,
-        }
+    // fn _get_reg8(&self, reg: Register8) -> u16 {
+    //     match reg {
+    //         Register8::A => self.a,
+    //         Register8::B => self.b,
+    //         Register8::C => self.c,
+    //         Register8::D => self.d,
+    //         Register8::E => self.e,
+    //         Register8::F => self.f,
+    //         Register8::H => self.h,
+    //         Register8::L => self.l,
+    //     }
+    // }
+
+    // fn _get_reg16(&self, reg: Register16) -> u16 {
+    //     match reg {
+    //         Register16::PC => self.pc,
+    //         Register16::SP => self.sp,
+    //         Register16::AF => (self.a as u16) << 8 | self.f as u16,
+    //         Register16::BC => (self.b as u16) << 8 | self.c as u16,
+    //         Register16::DE => (self.d as u16) << 8 | self.e as u16,
+    //         Register16::HL => (self.h as u16) << 8 | self.l as u16,
+    //     }
+    // }
+
+    // fn _set_reg8(&mut self, reg: Register8, value: u16) {
+    //     match reg {
+    //         Register8::A => self.a = value,
+    //         Register8::B => self.b = value,
+    //         Register8::C => self.c = value,
+    //         Register8::D => self.d = value,
+    //         Register8::E => self.e = value,
+    //         Register8::F => self.f = value,
+    //         Register8::H => self.h = value,
+    //         Register8::L => self.l = value,
+    //     }
+    // }
+
+    // fn _set_reg16(&mut self, reg: Register16, value: u16) {
+    //     match reg {
+    //         Register16::PC => self.pc = value,
+    //         Register16::SP => self.sp = value,
+    //         Register16::AF => {
+    //             self.a = value >> 8;
+    //             self.f = value;
+    //         }
+    //         Register16::BC => {
+    //             self.b = value >> 8;
+    //             self.c = value;
+    //         }
+    //         Register16::DE => {
+    //             self.d = value >> 8;
+    //             self.e = value;
+    //         }
+    //         Register16::HL => {
+    //             self.h = value >> 8;
+    //             self.l = value;
+    //         }
+    //     }
+    // }
+
+    fn _get_flag(&self, flag: Flag) -> u8 {
+        (self.f >> (flag as u8)) & 1
     }
 
-    fn _get_reg16(&self, reg: Register16) -> u16 {
-        match reg {
-            Register16::PC => self.pc,
-            Register16::SP => self.sp,
-            Register16::AF => (self.a as u16) << 8 | self.f as u16,
-            Register16::BC => (self.b as u16) << 8 | self.c as u16,
-            Register16::DE => (self.d as u16) << 8 | self.e as u16,
-            Register16::HL => (self.h as u16) << 8 | self.l as u16,
-        }
-    }
-
-    fn _set_reg8(&mut self, reg: Register8, value: u16) {
-        match reg {
-            Register8::A => self.a = value,
-            Register8::B => self.b = value,
-            Register8::C => self.c = value,
-            Register8::D => self.d = value,
-            Register8::E => self.e = value,
-            Register8::F => self.f = value,
-            Register8::H => self.h = value,
-            Register8::L => self.l = value,
-        }
-    }
-
-    fn _set_reg16(&mut self, reg: Register16, value: u16) {
-        match reg {
-            Register16::PC => self.pc = value,
-            Register16::SP => self.sp = value,
-            Register16::AF => {
-                self.a = value >> 8;
-                self.f = value;
-            }
-            Register16::BC => {
-                self.b = value >> 8;
-                self.c = value;
-            }
-            Register16::DE => {
-                self.d = value >> 8;
-                self.e = value;
-            }
-            Register16::HL => {
-                self.h = value >> 8;
-                self.l = value;
-            }
-        }
-    }
-
-    fn _get_flag(&self, flag: Flag) -> u16 {
-        (self.f >> (flag as u16)) & 1
-    }
-
-    fn _set_flag(&mut self, flag: Flag, value: bool) {
-        self.f = (self.f & !1 << (flag as u16)) | ((value as u16) << (flag as u16))
-    }
-
-    fn get_hl(&self) -> u16 {
-        self.h << 8 | self.l
-    }
-
-    fn set_hl(&mut self, value: u16) {
-        self.h = (value & 0xFF00) >> 8;
-        self.l = value & 0x00FF;
-    }
-
-    fn _get_bc(&self) -> u16 {
-        self.b << 8 | self.c
-    }
-
-    fn set_bc(&mut self, value: u16) {
-        self.b = (value & 0xFF00) >> 8;
-        self.c = value & 0x00FF;
-    }
-
-    fn _get_de(&self) -> u16 {
-        self.d << 8 | self.e
-    }
-
-    fn set_de(&mut self, value: u16) {
-        self.d = (value & 0xFF00) >> 8;
-        self.e = value & 0x00FF;
+    fn set_flag(&mut self, flag: Flag, value: bool) {
+        self.f = (self.f & !(1 << (flag as u8))) | ((value as u8) << (flag as u8))
     }
 
     fn f_c(&self) -> bool {
