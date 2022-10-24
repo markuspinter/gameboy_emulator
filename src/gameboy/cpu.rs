@@ -1,5 +1,7 @@
 use std::fmt::{self, Error};
 
+use self::instructions::InterruptRegister;
+
 use super::{memory::Memory, Gameboy, GameboyModule, MemoryInterface};
 
 #[allow(non_snake_case)]
@@ -52,8 +54,12 @@ pub struct CPU {
     pub pc: u16,
     pub sp: u16,
 
+    pub ie_register: InterruptRegister,
+    pub if_register: InterruptRegister,
+
     pub halted: bool,
     pub interrupt_master_enable: bool,
+    interrupt_active: bool,
 }
 
 impl GameboyModule for CPU {
@@ -82,19 +88,26 @@ impl fmt::Display for CPU {
 
 impl CPU {
     fn decode_execute(&mut self, gb: &mut Gameboy) -> Result<u32, std::fmt::Error> {
-        let mut opcode: u16 = match gb.read8(self.pc) {
-            Ok(num) => u16::from(num),
-            Err(_) => return Err(Error),
-        };
+        let ime_before: bool = self.interrupt_master_enable;
         let cycles;
-        if opcode == 0xCB {
+        instructions::handle_int(self, gb);
+
+        if gb.read8(self.pc).unwrap() == 0xCB {
             (self.pc, cycles) = instructions::execute_instruction_extension(self, gb);
-            Ok(cycles as u32)
         } else {
             (self.pc, cycles) = instructions::execute_instruction(self, gb);
-            Ok(cycles as u32)
         }
+        // if ime_before != self.interrupt_master_enable {
+        //     self.interrupt_active = self.interrupt_master_enable;
+        // } else {
+        //     if self.interrupt_active {
+        //         instructions::handle_int(self, gb);
+        //     }
+        // }
+
+        Ok(cycles as u32)
     }
+
     pub fn new() -> Self {
         Self {
             a: 0x00,
@@ -108,8 +121,12 @@ impl CPU {
             pc: 0x0100,
             sp: 0x0000,
 
+            ie_register: InterruptRegister::from(0_u8),
+            if_register: InterruptRegister::from(0_u8),
+
             halted: false,
             interrupt_master_enable: false,
+            interrupt_active: false,
         }
     }
 

@@ -1,4 +1,7 @@
-use crate::gameboy::{cpu::Flag, Gameboy, MemoryInterface};
+use crate::{
+    bit,
+    gameboy::{cpu::Flag, Gameboy, MemoryInterface},
+};
 
 use super::CPU;
 
@@ -152,6 +155,85 @@ fn reg_dec8(cpu: &mut CPU, reg: &Reg8) {
     let val = reg_get8(cpu, reg);
     let val = val.wrapping_sub(1);
     reg_set8(cpu, reg, val);
+}
+
+#[derive(Debug)]
+pub enum Interrupt {
+    VBLANK,
+    LCD_STAT,
+    TIMER,
+    SERIAL,
+    JOYPAD,
+}
+
+#[derive(Debug)]
+pub struct InterruptRegister {
+    vblank: bool,
+    lcd_stat: bool,
+    timer: bool,
+    serial: bool,
+    joypad: bool,
+}
+
+impl std::convert::From<InterruptRegister> for u8 {
+    fn from(ir: InterruptRegister) -> u8 {
+        let mut byte: u8 = 0x00;
+        byte |= (ir.joypad as u8) << 4;
+        byte |= (ir.serial as u8) << 3;
+        byte |= (ir.timer as u8) << 2;
+        byte |= (ir.lcd_stat as u8) << 1;
+        byte |= (ir.vblank as u8);
+        byte
+    }
+}
+
+impl std::convert::From<u8> for InterruptRegister {
+    fn from(byte: u8) -> Self {
+        Self {
+            vblank: bit!(byte, 0) != 0,
+            lcd_stat: bit!(byte, 1) != 0,
+            timer: bit!(byte, 2) != 0,
+            serial: bit!(byte, 3) != 0,
+            joypad: bit!(byte, 4) != 0,
+        }
+    }
+}
+
+pub fn set_int(cpu: &mut CPU, int: Interrupt) {
+    match int {
+        Interrupt::VBLANK => cpu.if_register.vblank = true,
+        Interrupt::LCD_STAT => cpu.if_register.lcd_stat = true,
+        Interrupt::TIMER => cpu.if_register.timer = true,
+        Interrupt::SERIAL => cpu.if_register.serial = true,
+        Interrupt::JOYPAD => cpu.if_register.joypad = true,
+    }
+}
+
+pub fn handle_int(cpu: &mut CPU, gb: &mut Gameboy) {
+    if cpu.interrupt_master_enable {
+        if cpu.ie_register.vblank && cpu.if_register.vblank {
+            cpu.if_register.vblank = false;
+            execute_int(cpu, 0x40, gb);
+        } else if cpu.ie_register.lcd_stat && cpu.if_register.lcd_stat {
+            cpu.if_register.lcd_stat = false;
+            execute_int(cpu, 0x48, gb);
+        } else if cpu.ie_register.timer && cpu.if_register.timer {
+            cpu.if_register.timer = false;
+            execute_int(cpu, 0x50, gb);
+        } else if cpu.ie_register.serial && cpu.if_register.serial {
+            cpu.if_register.serial = false;
+            execute_int(cpu, 0x58, gb);
+        } else if cpu.ie_register.joypad && cpu.if_register.joypad {
+            cpu.if_register.joypad = false;
+            execute_int(cpu, 0x60, gb);
+        }
+    }
+}
+
+fn execute_int(cpu: &mut CPU, address: u16, gb: &mut Gameboy) {
+    cpu.interrupt_master_enable = false;
+    _push(cpu, cpu.pc, gb);
+    cpu.pc = address;
 }
 
 pub fn execute_instruction_extension(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {
