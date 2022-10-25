@@ -168,11 +168,11 @@ pub enum Interrupt {
 
 #[derive(Debug)]
 pub struct InterruptRegister {
-    vblank: bool,
-    lcd_stat: bool,
-    timer: bool,
-    serial: bool,
-    joypad: bool,
+    pub vblank: bool,
+    pub lcd_stat: bool,
+    pub timer: bool,
+    pub serial: bool,
+    pub joypad: bool,
 }
 
 impl std::convert::From<InterruptRegister> for u8 {

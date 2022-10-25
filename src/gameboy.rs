@@ -10,9 +10,12 @@ pub mod timer;
 
 use cpu::CPU;
 use memory::Memory;
+use minifb::Key;
 use ppu::PPU;
 
 use crate::{screen::Screen, utils};
+
+use self::joypad::Joypad;
 
 type MemoryResult<T> = Result<T, MemoryError>;
 
@@ -82,6 +85,7 @@ pub struct Gameboy {
     ppu: PPU,
     screen: Screen,
     memory: Memory,
+    joypad: Joypad,
     running: bool,
     cgb_mode: bool,
 }
@@ -96,6 +100,7 @@ impl Gameboy {
         Self {
             cpu: CPU::new(),
             ppu: PPU::new(),
+            joypad: Joypad::new(),
             screen: Screen::new(Self::TILE_MAP_ROWS, Self::TILE_MAP_COLUMNS, 1, 1, minifb::Scale::X4),
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
@@ -111,6 +116,7 @@ impl Gameboy {
 
         while self.running {
             self.cpu.tick(self_ptr)?;
+            self.joypad.tick(self_ptr)?;
 
             let diff = SystemTime::now()
                 .duration_since(prev)
@@ -177,5 +183,9 @@ impl Gameboy {
 
     pub fn switch_speed(&self) {
         panic!("switch speed not implemented");
+    }
+
+    pub fn get_keys(&self) -> Vec<Key> {
+        self.screen.get_keys()
     }
 }

@@ -96,4 +96,8 @@ impl Screen {
             self.window.is_key_down(Key::C),
         )
     }
+
+    pub fn get_keys(&self) -> Vec<Key> {
+        self.window.get_keys()
+    }
 }
