@@ -166,7 +166,7 @@ pub enum Interrupt {
     JOYPAD,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct InterruptRegister {
     pub vblank: bool,
     pub lcd_stat: bool,
@@ -237,7 +237,7 @@ fn execute_int(cpu: &mut CPU, address: u16, gb: &mut Gameboy) {
 }
 
 pub fn execute_instruction_extension(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {
-    let instr = gb.read8(cpu.pc.wrapping_add(1)).unwrap();
+    let instr = gb.read8(cpu.pc.wrapping_add(1));
 
     log::debug!(
         "{:#06X}: 0xCB opcode {:#04X} | {}",
@@ -532,7 +532,7 @@ pub fn execute_instruction_extension(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u
 
 pub fn execute_instruction(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {
     let pc = cpu.pc;
-    let instr = gb.read8(pc).unwrap();
+    let instr = gb.read8(pc);
 
     log::debug!(
         "{:#06X}: opcode {:#04X} | {}",
@@ -833,8 +833,8 @@ pub fn execute_instruction(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {
 }
 
 fn get_imm16(cpu: &CPU, gb: &Gameboy) -> u16 {
-    let low = gb.read8(cpu.pc.wrapping_add(1)).unwrap();
-    let high = gb.read8(cpu.pc.wrapping_add(2)).unwrap();
+    let low = gb.read8(cpu.pc.wrapping_add(1));
+    let high = gb.read8(cpu.pc.wrapping_add(2));
     ((high as u16) << 8) | low as u16
 }
 
@@ -845,33 +845,33 @@ fn ldi16(cpu: &mut CPU, dst: &Reg16, gb: &Gameboy) -> (u16, u16) {
 }
 
 fn ldi8(cpu: &mut CPU, dst: &Reg8, gb: &Gameboy) -> (u16, u16) {
-    let val = gb.read8(cpu.pc.wrapping_add(1)).unwrap();
+    let val = gb.read8(cpu.pc.wrapping_add(1));
     reg_set8(cpu, &dst, val);
     (cpu.pc.wrapping_add(2), 8)
 }
 
 fn ldhigh8(cpu: &mut CPU, dst: &Reg8, offset: u8, gb: &Gameboy) -> (u16, u16) {
     let address = 0xFF00 + offset as u16;
-    let val = gb.read8(address).unwrap();
+    let val = gb.read8(address);
     reg_set8(cpu, &dst, val);
     (cpu.pc.wrapping_add(1), 8)
 }
 
 fn ldihigh8(cpu: &mut CPU, dst: &Reg8, gb: &Gameboy) -> (u16, u16) {
-    let imm = gb.read8(cpu.pc.wrapping_add(1)).unwrap();
+    let imm = gb.read8(cpu.pc.wrapping_add(1));
     ldhigh8(cpu, &dst, imm, gb);
     (cpu.pc.wrapping_add(2), 12)
 }
 
 fn ldiabs8(cpu: &mut CPU, dst: &Reg8, gb: &Gameboy) -> (u16, u16) {
     let imm = get_imm16(cpu, gb);
-    let val = gb.read8(imm).unwrap();
+    let val = gb.read8(imm);
     reg_set8(cpu, &dst, val);
     (cpu.pc.wrapping_add(3), 16)
 }
 
 fn ld8(cpu: &mut CPU, dst: &Reg8, src: &Reg16, gb: &Gameboy) -> (u16, u16) {
-    reg_set8(cpu, dst, gb.read8(reg_get16(cpu, src)).unwrap());
+    reg_set8(cpu, dst, gb.read8(reg_get16(cpu, src)));
     (cpu.pc.wrapping_add(1), 8)
 }
 
@@ -894,7 +894,7 @@ fn sd8(cpu: &mut CPU, dst: &Reg16, src: &Reg8, gb: &mut Gameboy) -> (u16, u16) {
 
 fn sdi8(cpu: &mut CPU, src: &Reg16, gb: &mut Gameboy) -> (u16, u16) {
     let address = reg_get16(cpu, src);
-    let val = gb.read8(cpu.pc.wrapping_add(1)).unwrap();
+    let val = gb.read8(cpu.pc.wrapping_add(1));
     gb.write8(address, val);
     (cpu.pc.wrapping_add(2), 12)
 }
@@ -907,7 +907,7 @@ fn sdhigh8(cpu: &mut CPU, src: &Reg8, offset: u8, gb: &mut Gameboy) -> (u16, u16
 }
 
 fn sdihigh8(cpu: &mut CPU, src: &Reg8, gb: &mut Gameboy) -> (u16, u16) {
-    let imm = gb.read8(cpu.pc.wrapping_add(1)).unwrap();
+    let imm = gb.read8(cpu.pc.wrapping_add(1));
     sdhigh8(cpu, &src, imm, gb);
     (cpu.pc.wrapping_add(2), 12)
 }
@@ -963,7 +963,7 @@ fn mov16(cpu: &mut CPU, dst: &Reg16, src: &Reg16) -> (u16, u16) {
 }
 
 fn movoff16(cpu: &mut CPU, dst: &Reg16, src: &Reg16, gb: &Gameboy) -> (u16, u16) {
-    let imm = gb.read8(cpu.pc.wrapping_add(1)).unwrap() as i8;
+    let imm = gb.read8(cpu.pc.wrapping_add(1)) as i8;
     let sv = reg_get16(cpu, &src);
     let val = _addi16(cpu, sv, imm);
     reg_set16(cpu, &dst, val);
@@ -1105,7 +1105,7 @@ fn opf18(cpu: &mut CPU, f1: &Func1, reg: &Reg8) -> (u16, u16) {
 
 fn opf1m8(cpu: &mut CPU, f1: &Func1, reg: &Reg16, gb: &mut Gameboy) -> (u16, u16) {
     let address = reg_get16(cpu, &reg);
-    let val = exec_opf18(cpu, &f1, gb.read8(address).unwrap());
+    let val = exec_opf18(cpu, &f1, gb.read8(address));
     gb.write8(address, val);
     (cpu.pc.wrapping_add(1), 12)
 }
@@ -1228,7 +1228,7 @@ fn opf28(cpu: &mut CPU, f2: &Func2, dst: &Reg8, src: &Reg8) -> (u16, u16) {
 }
 
 fn opf2m8(cpu: &mut CPU, f2: &Func2, dst: &Reg8, src: &Reg16, gb: &Gameboy) -> (u16, u16) {
-    let val = exec_opf28(cpu, &f2, reg_get8(cpu, &dst), gb.read8(reg_get16(cpu, &src)).unwrap());
+    let val = exec_opf28(cpu, &f2, reg_get8(cpu, &dst), gb.read8(reg_get16(cpu, &src)));
     let writeback = !matches!(f2, Func2::CP) && !matches!(f2, Func2::BIT);
     if writeback {
         reg_set8(cpu, &dst, val);
@@ -1238,7 +1238,7 @@ fn opf2m8(cpu: &mut CPU, f2: &Func2, dst: &Reg8, src: &Reg16, gb: &Gameboy) -> (
 
 fn opf2mh8(cpu: &mut CPU, f2: &Func2, dst: &Reg16, src: u8, gb: &mut Gameboy) -> (u16, u16) {
     let address = reg_get16(cpu, &dst);
-    let val = exec_opf28(cpu, &f2, gb.read8(address).unwrap(), src);
+    let val = exec_opf28(cpu, &f2, gb.read8(address), src);
     let writeback = !matches!(f2, Func2::CP) && !matches!(f2, Func2::BIT);
     if writeback {
         gb.write8(address, val);
@@ -1247,7 +1247,7 @@ fn opf2mh8(cpu: &mut CPU, f2: &Func2, dst: &Reg16, src: u8, gb: &mut Gameboy) ->
 }
 
 fn opf2i8(cpu: &mut CPU, f2: &Func2, dst: &Reg8, gb: &Gameboy) -> (u16, u16) {
-    let imm = gb.read8(cpu.pc.wrapping_add(1)).unwrap();
+    let imm = gb.read8(cpu.pc.wrapping_add(1));
 
     let val = exec_opf28(cpu, &f2, reg_get8(cpu, &dst), imm);
     let writeback = !matches!(f2, Func2::CP) && !matches!(f2, Func2::BIT);
@@ -1260,8 +1260,8 @@ fn opf2i8(cpu: &mut CPU, f2: &Func2, dst: &Reg8, gb: &Gameboy) -> (u16, u16) {
 
 fn _pop(cpu: &mut CPU, gb: &Gameboy) -> u16 {
     let sp = reg_get16(cpu, &Reg16::SP);
-    let low = gb.read8(sp).unwrap();
-    let high = gb.read8(sp.wrapping_add(1)).unwrap();
+    let low = gb.read8(sp);
+    let high = gb.read8(sp.wrapping_add(1));
     let val = ((high as u16) << 8) | low as u16;
     reg_set16(cpu, &Reg16::SP, sp.wrapping_add(2));
     val
@@ -1316,7 +1316,7 @@ fn _addi16(cpu: &mut CPU, dst: u16, src: i8) -> u16 {
 }
 
 fn addi16(cpu: &mut CPU, dst: &Reg16, gb: &Gameboy) -> (u16, u16) {
-    let imm = gb.read8(cpu.pc.wrapping_add(1)).unwrap() as i8;
+    let imm = gb.read8(cpu.pc.wrapping_add(1)) as i8;
     let dv = reg_get16(cpu, &dst);
     let res = _addi16(cpu, dv, imm);
     reg_set16(cpu, &dst, res);
@@ -1357,7 +1357,7 @@ fn jp_reg(cpu: &mut CPU, reg: &Reg16) -> (u16, u16) {
 }
 
 fn jr(cpu: &mut CPU, gb: &Gameboy) -> (u16, u16) {
-    let imm = gb.read8(cpu.pc.wrapping_add(1)).unwrap();
+    let imm = gb.read8(cpu.pc.wrapping_add(1));
     (cpu.pc.wrapping_add(((imm as i8) as i16) as u16).wrapping_add(2), 12)
 }
 

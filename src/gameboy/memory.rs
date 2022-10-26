@@ -10,13 +10,13 @@ pub struct Memory {
 }
 
 impl MemoryInterface for Memory {
-    fn read8(&self, addr: u16) -> super::MemoryResult<u8> {
-        Ok(self.ram[usize::from(addr)])
+    fn read8(&self, addr: u16) -> Option<u8> {
+        Some(self.ram[usize::from(addr)])
     }
 
-    fn write8(&mut self, addr: u16, value: u8) -> super::MemoryResult<()> {
+    fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         self.ram[usize::from(addr)] = value;
-        Ok(())
+        Some(())
     }
 }
 

@@ -64,28 +64,28 @@ pub struct Joypad {
 }
 
 impl super::MemoryInterface for Joypad {
-    fn read8(&self, addr: u16) -> super::MemoryResult<u8> {
+    fn read8(&self, addr: u16) -> Option<u8> {
         if addr == memory::joypad::JOYP {
-            return Ok(u8::from(self.clone()));
+            return Some(u8::from(self.clone()));
         }
-        return Err(super::MemoryError::UnknownAddress);
+        return None;
     }
 
-    fn write8(&mut self, addr: u16, value: u8) -> super::MemoryResult<()> {
+    fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr == memory::joypad::JOYP {
             self.unused_7th_bit = bit!(value, 7) != 0;
             self.unused_6th_bit = bit!(value, 6) != 0;
             self.action_buttons_select = bit!(value, 5) != 0;
             self.direction_buttons_select = bit!(value, 4) != 0;
             if value & 0x0F != 0 {
-                log::debug!(
+                log::info!(
                     "attempting to write to read only section of JOYP {} register",
                     memory::joypad::JOYP
                 );
             }
-            return Ok(());
+            return Some(());
         }
-        return Err(super::MemoryError::UnknownAddress);
+        return None;
     }
 }
 
@@ -128,11 +128,30 @@ impl Joypad {
     }
 
     fn handle_keys(&mut self, keys: Vec<Key>) {
+        self.a = false;
+        self.b = false;
+        self.select = false;
+        self.start = false;
+        self.right = false;
+        self.left = false;
+        self.up = false;
+        self.down = false;
         for key in keys {
             let key_string = format!("{:?}", key);
             if self.key_map.contains_key(&key_string) {
-                println!("{:?}", self.key_map[&key_string]);
+                let button = &self.key_map[&key_string];
+                println!("{:?}", button);
                 self.key_pressed = true;
+                match button {
+                    Button::A => self.a = true,
+                    Button::B => self.b = true,
+                    Button::SELECT => self.select = true,
+                    Button::START => self.start = true,
+                    Button::RIGHT => self.right = true,
+                    Button::LEFT => self.left = true,
+                    Button::UP => self.up = true,
+                    Button::DOWN => self.down = true,
+                }
             }
         }
     }

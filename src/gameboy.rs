@@ -36,15 +36,25 @@ impl std::fmt::Display for MemoryError {
 }
 
 trait MemoryInterface {
-    fn read8(&self, addr: u16) -> MemoryResult<u8>;
-    fn write8(&mut self, addr: u16, value: u8) -> MemoryResult<()>;
-    fn read16(&self, addr: u16) -> MemoryResult<u16> {
-        Ok(self.read8(addr)? as u16 + ((self.read8(addr + 1)? as u16) << 8))
+    fn read8(&self, addr: u16) -> Option<u8>;
+    fn write8(&mut self, addr: u16, value: u8) -> Option<()>;
+    fn read16(&self, addr: u16) -> Option<u16> {
+        let high_opt = (self.read8(addr + 1));
+        let low_opt = self.read8(addr);
+        if let (Some(high), Some(low)) = (high_opt, low_opt) {
+            Some((high as u16) << 8 | low as u16)
+        } else {
+            None
+        }
     }
-    fn write16(&mut self, addr: u16, value: u16) -> MemoryResult<()> {
-        self.write8(addr, value as u8)?;
-        self.write8(addr + 1, (value >> 8) as u8)?;
-        Ok(())
+    fn write16(&mut self, addr: u16, value: u16) -> Option<()> {
+        let high_opt = self.write8(addr + 1, (value >> 8) as u8);
+        let low_opt = self.write8(addr, value as u8);
+        if let (Some(high), Some(low)) = (high_opt, low_opt) {
+            Some(())
+        } else {
+            None
+        }
     }
 }
 
@@ -52,31 +62,49 @@ trait GameboyModule {
     unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, Error>;
 }
 
-impl MemoryInterface for Gameboy {
-    fn read8(&self, addr: u16) -> MemoryResult<u8> {
-        if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
-            log::trace!("reading from vram {:#06X}", addr);
-            self.ppu.read8(addr)
-        } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
-            log::trace!("reading from oam {:#06X}", addr);
-            self.ppu.read8(addr)
-        } else {
-            log::trace!("reading to memory {:#06X}", addr);
-            self.memory.read8(addr)
+impl Gameboy {
+    fn read8(&self, addr: u16) -> u8 {
+        let mut res: Option<u8>;
+        if let Some(res) = self.ppu.read8(addr) {
+            return res;
         }
+        if let Some(res) = self.cpu.read8(addr) {
+            return res;
+        }
+        if let Some(res) = self.joypad.read8(addr) {
+            return res;
+        }
+        if let Some(res) = self.memory.read8(addr) {
+            return res;
+        }
+        panic!("read8 address {:#06X} not found", addr);
     }
 
-    fn write8(&mut self, addr: u16, value: u8) -> MemoryResult<()> {
-        if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
-            log::trace!("writing to vram {:#06X}: {:#04X}", addr, value);
-            self.ppu.write8(addr, value)
-        } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
-            log::trace!("writing to oam {:#06X}: {:#04X}", addr, value);
-            self.ppu.write8(addr, value)
-        } else {
-            log::trace!("writing to memory {:#06X}: {:#04X}", addr, value);
-            self.memory.write8(addr, value)
+    fn write8(&mut self, addr: u16, value: u8) {
+        let mut res: Option<u8>;
+        if let Some(res) = self.ppu.write8(addr, value) {
+            return;
         }
+        if let Some(res) = self.cpu.write8(addr, value) {
+            return;
+        }
+        if let Some(res) = self.joypad.write8(addr, value) {
+            return;
+        }
+        if let Some(res) = self.memory.write8(addr, value) {
+            return;
+        }
+        panic!("write8 address {:#06X} not found", addr);
+    }
+
+    fn read16(&self, addr: u16) -> u16 {
+        let high = (self.read8(addr + 1));
+        let low = self.read8(addr);
+        (high as u16) << 8 | low as u16
+    }
+    fn write16(&mut self, addr: u16, value: u16) {
+        self.write8(addr + 1, (value >> 8) as u8);
+        self.write8(addr, value as u8);
     }
 }
 

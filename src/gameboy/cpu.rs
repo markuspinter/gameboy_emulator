@@ -2,7 +2,10 @@ use std::fmt::{self, Error};
 
 use self::instructions::InterruptRegister;
 
-use super::{memory::Memory, Gameboy, GameboyModule, MemoryInterface};
+use super::{
+    memory::{self, Memory},
+    Gameboy, GameboyModule, MemoryInterface,
+};
 
 #[allow(non_snake_case)]
 mod instructions;
@@ -86,13 +89,35 @@ impl fmt::Display for CPU {
     }
 }
 
+impl super::MemoryInterface for CPU {
+    fn read8(&self, addr: u16) -> Option<u8> {
+        if addr == memory::interrupt::IE {
+            return Some(u8::from((self.ie_register.clone())));
+        } else if addr == memory::interrupt::IF {
+            return Some(u8::from(self.if_register.clone()));
+        }
+        return None;
+    }
+
+    fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
+        if addr == memory::interrupt::IE {
+            self.ie_register = value.into();
+            return Some(());
+        } else if addr == memory::interrupt::IF {
+            self.if_register = value.into();
+            return Some(());
+        }
+        return None;
+    }
+}
+
 impl CPU {
     fn decode_execute(&mut self, gb: &mut Gameboy) -> Result<u32, std::fmt::Error> {
         let ime_before: bool = self.interrupt_master_enable;
         let cycles;
         instructions::handle_int(self, gb);
 
-        if gb.read8(self.pc).unwrap() == 0xCB {
+        if gb.read8(self.pc) == 0xCB {
             (self.pc, cycles) = instructions::execute_instruction_extension(self, gb);
         } else {
             (self.pc, cycles) = instructions::execute_instruction(self, gb);

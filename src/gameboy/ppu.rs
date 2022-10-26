@@ -27,24 +27,24 @@ impl GameboyModule for PPU {
 }
 
 impl super::MemoryInterface for PPU {
-    fn read8(&self, addr: u16) -> super::MemoryResult<u8> {
+    fn read8(&self, addr: u16) -> Option<u8> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
-            return Ok(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
+            return Some(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
-            return Ok(self.oam[usize::from(addr - memory::ppu::OAM.begin)]);
+            return Some(self.oam[usize::from(addr - memory::ppu::OAM.begin)]);
         }
-        return Err(super::MemoryError::UnknownAddress);
+        return None;
     }
 
-    fn write8(&mut self, addr: u16, value: u8) -> super::MemoryResult<()> {
+    fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
             self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
             self.oam[usize::from(addr - memory::ppu::OAM.begin)] = value;
         } else {
-            return Err(super::MemoryError::UnknownAddress);
+            return None;
         }
-        return Ok(());
+        return Some(());
     }
 }
 
