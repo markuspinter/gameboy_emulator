@@ -5,6 +5,7 @@ mod stat;
 
 use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
+use log::warn;
 
 use self::lcdc::LCDControl;
 
@@ -16,6 +17,17 @@ pub struct PPU {
     oam: [u8; memory::ppu::OAM.size],
     tiles: [[[u8; Self::TILE_SIZE]; Self::TILE_SIZE]; Self::TILES],
     lcdc: lcdc::LCDControl,
+    stat: stat::LCDStatus,
+    scy: u8,
+    scx: u8,
+    ly: u8,
+    lyc: u8,
+    dma: u8,
+    bgp: palette::PaletteData,
+    obp0: palette::PaletteData,
+    obp1: palette::PaletteData,
+    wy: u8,
+    wx: u8,
 }
 
 impl GameboyModule for PPU {
@@ -32,6 +44,30 @@ impl super::MemoryInterface for PPU {
             return Some(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
             return Some(self.oam[usize::from(addr - memory::ppu::OAM.begin)]);
+        } else if addr == memory::ppu::LCDC {
+            return Some(self.lcdc.clone().into());
+        } else if addr == memory::ppu::STAT {
+            return Some(self.stat.clone().into());
+        } else if addr == memory::ppu::SCY {
+            return Some(self.scy);
+        } else if addr == memory::ppu::SCX {
+            return Some(self.scx);
+        } else if addr == memory::ppu::LY {
+            return Some(self.ly);
+        } else if addr == memory::ppu::LYC {
+            return Some(self.lyc);
+        } else if addr == memory::ppu::DMA {
+            return Some(self.dma);
+        } else if addr == memory::ppu::BGP {
+            return Some(self.bgp.clone().into());
+        } else if addr == memory::ppu::OBP0 {
+            return Some(self.obp0.clone().into());
+        } else if addr == memory::ppu::OBP1 {
+            return Some(self.obp1.clone().into());
+        } else if addr == memory::ppu::WY {
+            return Some(self.wy);
+        } else if addr == memory::ppu::WX {
+            return Some(self.wx + 7);
         }
         return None;
     }
@@ -41,6 +77,31 @@ impl super::MemoryInterface for PPU {
             self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
             self.oam[usize::from(addr - memory::ppu::OAM.begin)] = value;
+        } else if addr == memory::ppu::LCDC {
+            self.lcdc = value.into();
+        } else if addr == memory::ppu::STAT {
+            self.stat = value.into();
+        } else if addr == memory::ppu::SCY {
+            self.scy = value;
+        } else if addr == memory::ppu::SCX {
+            self.scx = value;
+        } else if addr == memory::ppu::LY {
+            warn!("LY is read only at address {:#06x}, ignoring write", addr);
+        } else if addr == memory::ppu::LYC {
+            self.lyc = value;
+        } else if addr == memory::ppu::DMA {
+            self.dma = value;
+            //TODO: start dma routine and prohibit memory access execept for hram
+        } else if addr == memory::ppu::BGP {
+            self.bgp = value.into();
+        } else if addr == memory::ppu::OBP0 {
+            self.obp0 = value.into();
+        } else if addr == memory::ppu::OBP1 {
+            self.obp1 = value.into();
+        } else if addr == memory::ppu::WY {
+            self.wy = value;
+        } else if addr == memory::ppu::WX {
+            self.wx = value - 7;
         } else {
             return None;
         }
@@ -83,6 +144,17 @@ impl PPU {
             oam: [0; memory::ppu::OAM.size],
             tiles: [[[0; Self::TILE_SIZE]; Self::TILE_SIZE]; Self::TILES],
             lcdc: lcdc::LCDControl::from(0),
+            stat: stat::LCDStatus::from(0),
+            scy: 0,
+            scx: 0,
+            ly: 0,
+            lyc: 0,
+            dma: 0,
+            bgp: palette::PaletteData::from(0),
+            obp0: palette::PaletteData::from(0),
+            obp1: palette::PaletteData::from(0),
+            wy: 0,
+            wx: 0,
         };
 
         ppu

@@ -14,15 +14,15 @@ Bit 1-0 - Mode Flag                          (Mode 0-3, see below) (Read Only)
           3: Transferring Data to LCD Controller
 ```
 */
-#[derive(Debug)]
-struct LCDStatus {
-    unused_7th_bit: bool,
-    lyc_interrupt_enable: bool,
-    mode2_oam_interrupt_enable: bool,
-    mode1_vblank_interrupt_enable: bool,
-    mode0_hblank_interrupt_enable: bool,
-    lyc_flag: bool,
-    mode_flag: LCDModeFlag,
+#[derive(Clone, Debug)]
+pub struct LCDStatus {
+    pub unused_7th_bit: bool,
+    pub lyc_interrupt_enable: bool,
+    pub mode2_oam_interrupt_enable: bool,
+    pub mode1_vblank_interrupt_enable: bool,
+    pub mode0_hblank_interrupt_enable: bool,
+    pub lyc_flag: bool,
+    pub mode_flag: LCDModeFlag,
 }
 
 impl std::convert::From<LCDStatus> for u8 {
@@ -60,7 +60,7 @@ impl std::convert::From<u8> for LCDStatus {
 }
 #[derive(Debug)]
 #[repr(u8)]
-enum LCDModeFlag {
+pub enum LCDModeFlag {
     HBLANK = 0x0,
     VBLANK = 0x1,
     SEARCHING_OAM = 0x2,

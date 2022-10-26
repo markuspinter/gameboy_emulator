@@ -15,7 +15,7 @@ Bit | Name                           | Usage notes
  1  | OBJ enable                     | 0=Off, 1=On
  0  | BG and Window enable/priority  | 0=Off, 1=On
   */
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LCDControl {
     pub lcd_ppu_enable: bool,
     pub window_tile_map_area: bool,

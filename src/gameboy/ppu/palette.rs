@@ -20,8 +20,8 @@ Value | Color
   2   | Dark gray
   3   | Black
 */
-#[derive(Debug)]
-struct PaletteData {
+#[derive(Clone, Debug)]
+pub struct PaletteData {
     color_map: [u8; 4],
 }
 
