@@ -7,7 +7,7 @@ use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
 use log::warn;
 
-use self::{lcdc::LCDControl, palette::PaletteData};
+use self::{lcdc::LCDControl, palette::PaletteData, stat::LCDStatus};
 
 use super::{memory::MemoryRange, Gameboy, GameboyModule, MemoryInterface};
 
@@ -27,7 +27,7 @@ pub struct PPU {
     obp0: palette::PaletteData,
     obp1: palette::PaletteData,
     wy: u8,
-    wx: u8,
+    wx: i8,
 }
 
 impl GameboyModule for PPU {
@@ -67,7 +67,7 @@ impl super::MemoryInterface for PPU {
         } else if addr == memory::ppu::WY {
             return Some(self.wy);
         } else if addr == memory::ppu::WX {
-            return Some(self.wx + 7);
+            return Some((self.wx + 7) as u8);
         }
         return None;
     }
@@ -101,7 +101,7 @@ impl super::MemoryInterface for PPU {
         } else if addr == memory::ppu::WY {
             self.wy = value;
         } else if addr == memory::ppu::WX {
-            self.wx = value - 7;
+            self.wx = value as i8 - 7;
         } else {
             return None;
         }
@@ -307,8 +307,15 @@ impl PPU {
             } else {
                 for row in entry.y_pos as usize..entry.y_pos as usize + Self::TILE_SIZE {
                     for col in entry.x_pos as usize..entry.x_pos as usize + Self::TILE_SIZE {
+                        let palette_id = curr_tile[row - entry.y_pos as usize][col - entry.x_pos as usize];
+                        let palette: &PaletteData;
+                        if entry.attributes.palette_number == 0 {
+                            palette = &self.obp0;
+                        } else {
+                            palette = &self.obp1;
+                        }
                         frame_buffer[row * Self::TILE_MAP_SIZE * Self::TILE_SIZE + col] =
-                            match curr_tile[row - entry.y_pos as usize][col - entry.x_pos as usize] {
+                            match palette.color_map[palette_id as usize] {
                                 0 => MonochromeColor::White as u32,
                                 1 => MonochromeColor::LightGray as u32,
                                 2 => MonochromeColor::DarkGray as u32,
@@ -333,6 +340,17 @@ impl PPU {
             .clone_from_slice(mem[memory::ppu::OAM.begin as usize..=memory::ppu::OAM.end as usize].into());
 
         self.lcdc = LCDControl::from(mem[memory::ppu::LCDC as usize]);
+        self.stat = LCDStatus::from(mem[memory::ppu::STAT as usize]);
+        self.scy = mem[memory::ppu::SCY as usize];
+        self.scx = mem[memory::ppu::SCX as usize];
+        self.ly = mem[memory::ppu::LY as usize];
+        self.lyc = mem[memory::ppu::LYC as usize];
+        self.dma = mem[memory::ppu::DMA as usize];
+        self.bgp = PaletteData::from(mem[memory::ppu::BGP as usize]);
+        self.obp0 = PaletteData::from(mem[memory::ppu::OBP0 as usize]);
+        self.obp1 = PaletteData::from(mem[memory::ppu::OBP1 as usize]);
+        self.wy = mem[memory::ppu::WY as usize];
+        self.wx = mem[memory::ppu::WX as usize] as i8 - 7;
     }
 
     pub fn print_vram(&self) {

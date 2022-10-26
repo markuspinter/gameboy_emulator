@@ -175,23 +175,27 @@ impl Gameboy {
         self.ppu.print_tiles(0x10);
 
         let mut draw_bg: bool = true;
+        let mut shall_print_status: bool;
 
         while self.running {
-            self.cpu.tick(self_ptr)?;
-            self.ppu.tick(self_ptr)?;
-            if draw_bg {
-                self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
-            } else {
-                // self.screen.set_frame_buffer(&self.ppu.get_window_frame_buffer());
-                self.screen.set_frame_buffer(&self.ppu.get_objects_frame_buffer());
-            }
+            // self.cpu.tick(self_ptr)?;
+
             // self.screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
-            self.running = self.screen.update().1;
+
             let diff = SystemTime::now()
                 .duration_since(prev)
                 .expect("system time failed")
                 .as_micros();
-            if diff > 1e6 as u128 {
+            if diff > 33333 {
+                self.ppu.tick(self_ptr)?;
+                self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                // if draw_bg {
+                //     self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                // } else {
+                //     // self.screen.set_frame_buffer(&self.ppu.get_window_frame_buffer());
+                //     self.screen.set_frame_buffer(&self.ppu.get_objects_frame_buffer());
+                // }
+                (self.running, shall_print_status) = self.screen.update();
                 //59.720 fps = 16742 us {
                 log::info!(
                     "{:.2} fps",
@@ -201,7 +205,7 @@ impl Gameboy {
                         .as_micros() as f32
                 );
                 prev = SystemTime::now();
-                draw_bg = !draw_bg;
+                // draw_bg = !draw_bg;
             }
         }
         Ok(())

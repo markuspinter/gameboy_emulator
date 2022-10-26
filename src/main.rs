@@ -20,12 +20,15 @@ fn main() {
     let mut gb = gameboy::Gameboy::new(args[1].clone(), args[2].clone());
 
     unsafe {
-        if args.len() >= 3 {
-            if args[2] == "--test" {
+        if args.len() >= 4 {
+            if args[3] == "--test" {
+                println!("test run");
                 gb.test_run().unwrap();
             } else {
                 gb.run().unwrap();
             }
+        } else {
+            gb.run().unwrap();
         }
     }
 }
