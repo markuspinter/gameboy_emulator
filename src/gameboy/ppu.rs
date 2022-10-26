@@ -7,7 +7,11 @@ use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
 use log::warn;
 
-use self::{lcdc::LCDControl, palette::PaletteData, stat::LCDStatus};
+use self::{
+    lcdc::LCDControl,
+    palette::PaletteData,
+    stat::{LCDModeFlag, LCDStatus},
+};
 
 use super::{memory::MemoryRange, Gameboy, GameboyModule, MemoryInterface};
 
@@ -41,8 +45,25 @@ impl GameboyModule for PPU {
 impl super::MemoryInterface for PPU {
     fn read8(&self, addr: u16) -> Option<u8> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            if matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD) {
+                warn!(
+                    "VRAM is inaccessible during mode 3; address {:#06x}, returning garbage (0xFF)",
+                    addr
+                );
+                return Some(0xFF);
+            }
             return Some(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
+            if matches!(self.stat.mode_flag, LCDModeFlag::SEARCHING_OAM)
+                || matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD)
+            {
+                warn!(
+                    "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, returning garbage (0xFF)",
+                    self.stat.mode_flag as u8,
+                    addr
+                );
+                return Some(0xFF);
+            }
             return Some(self.oam[usize::from(addr - memory::ppu::OAM.begin)]);
         } else if addr == memory::ppu::LCDC {
             return Some(self.lcdc.clone().into());
@@ -74,8 +95,24 @@ impl super::MemoryInterface for PPU {
 
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            if matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD) {
+                warn!(
+                    "VRAM is inaccessible during mode 3; address {:#06x}, ignoring write",
+                    addr
+                );
+                return Some(());
+            }
             self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
+            if matches!(self.stat.mode_flag, LCDModeFlag::SEARCHING_OAM)
+                || matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD)
+            {
+                warn!(
+                    "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, ignoring write",
+                    self.stat.mode_flag as u8, addr
+                );
+                return Some(());
+            }
             self.oam[usize::from(addr - memory::ppu::OAM.begin)] = value;
         } else if addr == memory::ppu::LCDC {
             self.lcdc = value.into();
