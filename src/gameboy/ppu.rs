@@ -45,10 +45,12 @@ pub struct PPU {
 
 impl GameboyModule for PPU {
     unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, std::fmt::Error> {
+        let gb = &mut *gb_ptr;
+        self.handle_int(gb);
         // self.process_tile_data();
         // self.print_tiles(10);
         self.fetcher.tick(gb_ptr)?;
-        self.pop_fifo();
+        self.fifo.tick(gb_ptr)?;
         Ok((0))
     }
 }
@@ -190,6 +192,15 @@ impl PPU {
         };
 
         ppu
+    }
+
+    fn handle_int(&mut self, gb: &mut Gameboy) {
+        if gb.cpu.interrupt_master_enable {
+            if self.ly == self.lyc {
+                self.stat.lyc_flag = true;
+                gb.cpu.if_register.lcd_stat = true;
+            }
+        }
     }
 
     fn process_tile_data(&mut self) {
@@ -417,16 +428,13 @@ impl PPU {
         }
     }
 
-    pub fn pop_fifo(&mut self) {
-        if let Some(pixel) = self.fifo.pop() {
-            self.back_buffer[self.back_buffer_index] = pixel;
-            self.back_buffer_index += 1;
-            if self.back_buffer_index >= self.back_buffer.len() {
-                info!("frame finished");
-                self.frame_buffer = self.back_buffer.clone();
-                self.back_buffer = [0; Self::ROWS * Self::COLUMNS];
-                self.back_buffer_index = 0;
-            }
+    pub fn push_into_frame_buffer(&mut self, pixel: u32) {
+        self.back_buffer[self.back_buffer_index] = pixel;
+        self.back_buffer_index += 1;
+        if self.back_buffer_index >= self.back_buffer.len() {
+            self.frame_buffer = self.back_buffer.clone();
+            self.back_buffer = [0; Self::ROWS * Self::COLUMNS];
+            self.back_buffer_index = 0;
         }
     }
 }

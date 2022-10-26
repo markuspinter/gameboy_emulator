@@ -24,20 +24,20 @@ impl std::convert::From<Joypad> for u8 {
         let mut byte: u8 = 0x00;
         byte |= (jp.unused_7th_bit as u8) << 7;
         byte |= (jp.unused_6th_bit as u8) << 6;
-        byte |= (jp.action_buttons_select as u8) << 5;
-        byte |= (jp.direction_buttons_select as u8) << 4;
+        byte |= (!jp.action_buttons_select as u8) << 5;
+        byte |= (!jp.direction_buttons_select as u8) << 4;
         if jp.direction_buttons_select {
-            byte |= (jp.down as u8) << 3;
-            byte |= (jp.up as u8) << 2;
-            byte |= (jp.left as u8) << 1;
-            byte |= (jp.right as u8);
+            byte |= (!jp.down as u8) << 3;
+            byte |= (!jp.up as u8) << 2;
+            byte |= (!jp.left as u8) << 1;
+            byte |= (!jp.right as u8);
         } else if jp.action_buttons_select {
-            byte |= (jp.start as u8) << 3;
-            byte |= (jp.select as u8) << 2;
-            byte |= (jp.b as u8) << 1;
-            byte |= (jp.a as u8);
+            byte |= (!jp.start as u8) << 3;
+            byte |= (!jp.select as u8) << 2;
+            byte |= (!jp.b as u8) << 1;
+            byte |= (!jp.a as u8);
         } else {
-            panic!("selecting both action and direction buttons at the same time is not intended");
+            log::warn!("selecting both action and direction buttons at the same time is not intended");
         }
         byte
     }
@@ -75,8 +75,8 @@ impl super::MemoryInterface for Joypad {
         if addr == memory::joypad::JOYP {
             self.unused_7th_bit = bit!(value, 7) != 0;
             self.unused_6th_bit = bit!(value, 6) != 0;
-            self.action_buttons_select = bit!(value, 5) != 0;
-            self.direction_buttons_select = bit!(value, 4) != 0;
+            self.action_buttons_select = bit!(value, 5) == 0;
+            self.direction_buttons_select = bit!(value, 4) == 0;
             if value & 0x0F != 0 {
                 log::info!(
                     "attempting to write to read only section of JOYP {} register",
