@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::debug;
+use log::{debug, info};
 use minifb::Key;
 
 use crate::bit;
@@ -45,7 +45,7 @@ impl std::convert::From<Joypad> for u8 {
 
 #[derive(Clone, Debug)]
 pub struct Joypad {
-    key_map: HashMap<String, Button>,
+    key_map: HashMap<Key, Button>,
 
     pub unused_7th_bit: bool,
     pub unused_6th_bit: bool,
@@ -102,14 +102,14 @@ impl Joypad {
     pub fn new() -> Self {
         Self {
             key_map: HashMap::from([
-                ("K".to_owned(), Button::A),
-                ("L".to_owned(), Button::B),
-                ("F".to_owned(), Button::SELECT),
-                ("J".to_owned(), Button::START),
-                ("W".to_owned(), Button::UP),
-                ("S".to_owned(), Button::DOWN),
-                ("A".to_owned(), Button::LEFT),
-                ("D".to_owned(), Button::RIGHT),
+                (Key::K, Button::A),
+                (Key::L, Button::B),
+                (Key::F, Button::SELECT),
+                (Key::J, Button::START),
+                (Key::W, Button::UP),
+                (Key::S, Button::DOWN),
+                (Key::A, Button::LEFT),
+                (Key::D, Button::RIGHT),
             ]),
             unused_7th_bit: false,
             unused_6th_bit: false,
@@ -127,7 +127,7 @@ impl Joypad {
         }
     }
 
-    fn handle_keys(&mut self, keys: Vec<Key>) {
+    fn handle_keys(&mut self, keys: &Vec<Key>) {
         self.a = false;
         self.b = false;
         self.select = false;
@@ -137,21 +137,22 @@ impl Joypad {
         self.up = false;
         self.down = false;
         for key in keys {
-            let key_string = format!("{:?}", key);
-            if self.key_map.contains_key(&key_string) {
-                let button = &self.key_map[&key_string];
-                println!("{:?}", button);
-                self.key_pressed = true;
-                match button {
-                    Button::A => self.a = true,
-                    Button::B => self.b = true,
-                    Button::SELECT => self.select = true,
-                    Button::START => self.start = true,
-                    Button::RIGHT => self.right = true,
-                    Button::LEFT => self.left = true,
-                    Button::UP => self.up = true,
-                    Button::DOWN => self.down = true,
+            match self.key_map.get(key) {
+                Some(value) => {
+                    match value {
+                        Button::A => self.a = true,
+                        Button::B => self.b = true,
+                        Button::SELECT => self.select = true,
+                        Button::START => self.start = true,
+                        Button::RIGHT => self.right = true,
+                        Button::LEFT => self.left = true,
+                        Button::UP => self.up = true,
+                        Button::DOWN => self.down = true,
+                    };
+                    self.key_pressed = true;
+                    info!("Button pressed: {:?}", value)
                 }
+                None => continue,
             }
         }
     }

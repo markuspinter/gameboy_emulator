@@ -64,7 +64,6 @@ trait GameboyModule {
 
 impl Gameboy {
     fn read8(&self, addr: u16) -> u8 {
-        let mut res: Option<u8>;
         if let Some(res) = self.ppu.read8(addr) {
             return res;
         }
@@ -81,17 +80,16 @@ impl Gameboy {
     }
 
     fn write8(&mut self, addr: u16, value: u8) {
-        let mut res: Option<u8>;
-        if let Some(res) = self.ppu.write8(addr, value) {
+        if let Some(()) = self.ppu.write8(addr, value) {
             return;
         }
-        if let Some(res) = self.cpu.write8(addr, value) {
+        if let Some(()) = self.cpu.write8(addr, value) {
             return;
         }
-        if let Some(res) = self.joypad.write8(addr, value) {
+        if let Some(()) = self.joypad.write8(addr, value) {
             return;
         }
-        if let Some(res) = self.memory.write8(addr, value) {
+        if let Some(()) = self.memory.write8(addr, value) {
             return;
         }
         panic!("write8 address {:#06X} not found", addr);
@@ -144,7 +142,6 @@ impl Gameboy {
 
         while self.running {
             self.cpu.tick(self_ptr)?;
-            self.joypad.tick(self_ptr)?;
 
             let diff = SystemTime::now()
                 .duration_since(prev)
@@ -156,6 +153,7 @@ impl Gameboy {
                 self.ppu.tick(self_ptr)?;
                 self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
                 (self.running, shall_print_status) = self.screen.update();
+                self.joypad.tick(self_ptr)?;
                 if shall_print_status {
                     println!("{:?}", self.cpu);
                 }
@@ -213,7 +211,7 @@ impl Gameboy {
         panic!("switch speed not implemented");
     }
 
-    pub fn get_keys(&self) -> Vec<Key> {
-        self.screen.get_keys()
+    pub fn get_keys(&mut self) -> &Vec<Key> {
+        &self.screen.get_keys()
     }
 }

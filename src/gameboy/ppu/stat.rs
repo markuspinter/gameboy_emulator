@@ -58,7 +58,7 @@ impl std::convert::From<u8> for LCDStatus {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[repr(u8)]
 pub enum LCDModeFlag {
     HBLANK = 0x0,

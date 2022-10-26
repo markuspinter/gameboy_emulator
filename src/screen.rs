@@ -22,6 +22,7 @@ pub struct Screen {
     width: usize,
     height: usize,
     title_time: SystemTime,
+    key_buffer: Vec<Key>,
 }
 
 impl Screen {
@@ -48,6 +49,7 @@ impl Screen {
             pixel_width,
             pixel_height,
             title_time: SystemTime::now(),
+            key_buffer: Vec::new(),
         };
         // ppu.window
         //     .limit_update_rate(Some(std::time::Duration::from_micros(16600)));
@@ -91,13 +93,17 @@ impl Screen {
 
         self.prev = now;
 
+        //update keys
+        self.key_buffer = self.window.get_keys();
+
         (
             self.window.is_open() && !self.window.is_key_down(Key::Escape),
             self.window.is_key_down(Key::C),
         )
     }
 
-    pub fn get_keys(&self) -> Vec<Key> {
-        self.window.get_keys()
+    pub fn get_keys(&mut self) -> &Vec<Key> {
+        // self.key_buffer = self.window.get_keys();
+        &self.key_buffer
     }
 }
