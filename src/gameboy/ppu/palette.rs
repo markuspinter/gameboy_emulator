@@ -22,7 +22,7 @@ Value | Color
 */
 #[derive(Clone, Debug)]
 pub struct PaletteData {
-    color_map: [u8; 4],
+    pub color_map: [u8; 4],
 }
 
 impl std::convert::From<PaletteData> for u8 {

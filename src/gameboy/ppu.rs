@@ -7,7 +7,7 @@ use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
 use log::warn;
 
-use self::lcdc::LCDControl;
+use self::{lcdc::LCDControl, palette::PaletteData};
 
 use super::{memory::MemoryRange, Gameboy, GameboyModule, MemoryInterface};
 
@@ -271,7 +271,7 @@ impl PPU {
             for tile_index in curr_tile_start..curr_tile_start + Self::TILE_MAP_SIZE {
                 let tile_line: [u32; Self::TILE_SIZE] = (map_tiles[tile_index][row % Self::TILE_SIZE])
                     .iter()
-                    .map(|pixel| match pixel {
+                    .map(|pixel| match self.bgp.color_map[*pixel as usize] {
                         0 => MonochromeColor::White as u32,
                         1 => MonochromeColor::LightGray as u32,
                         2 => MonochromeColor::DarkGray as u32,
