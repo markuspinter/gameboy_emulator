@@ -103,6 +103,36 @@ pub mod ppu {
         end: 0x1FFF,
         size: 0x0800,
     };
+    pub const TILE_MAP_AREA_9800: MemoryRange = MemoryRange {
+        begin: 0x9800,
+        end: 0x9BFF,
+        size: 0x400,
+    };
+    pub const TILE_MAP_AREA_9C00: MemoryRange = MemoryRange {
+        begin: 0x9C00,
+        end: 0x9FFF,
+        size: 0x400,
+    };
+    pub const TILE_MAP_AREA_9800_VRAM: MemoryRange = MemoryRange {
+        begin: 0x1800,
+        end: 0x1BFF,
+        size: 0x400,
+    };
+    pub const TILE_MAP_AREA_9C00_VRAM: MemoryRange = MemoryRange {
+        begin: 0x1C00,
+        end: 0x1FFF,
+        size: 0x400,
+    };
+    pub const TILE_DATA_AREA_8000: MemoryRange = MemoryRange {
+        begin: 0x8000,
+        end: 0x8FFF,
+        size: 0x1000,
+    };
+    pub const TILE_DATA_AREA_8800: MemoryRange = MemoryRange {
+        begin: 0x8800,
+        end: 0x97FF,
+        size: 0x1000,
+    };
     pub const LCDC: u16 = 0xFF40;
     pub const STAT: u16 = 0xFF41;
     pub const SCY: u16 = 0xFF42;

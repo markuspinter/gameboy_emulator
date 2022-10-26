@@ -119,6 +119,8 @@ pub struct Gameboy {
 impl Gameboy {
     const TILE_DATA_ROWS: usize = 192;
     const TILE_DATA_COLUMNS: usize = 128;
+    const SCREEN_ROWS: usize = 144;
+    const SCREEN_COLUMNS: usize = 160;
     const TILE_MAP_ROWS: usize = 256;
     const TILE_MAP_COLUMNS: usize = 256;
 
@@ -127,7 +129,7 @@ impl Gameboy {
             cpu: CPU::new(),
             ppu: PPU::new(),
             joypad: Joypad::new(),
-            screen: Screen::new(Self::TILE_MAP_ROWS, Self::TILE_MAP_COLUMNS, 1, 1, minifb::Scale::X4),
+            screen: Screen::new(Self::SCREEN_ROWS, Self::SCREEN_COLUMNS, 1, 1, minifb::Scale::X4),
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
             cgb_mode: false,
@@ -142,6 +144,7 @@ impl Gameboy {
 
         while self.running {
             self.cpu.tick(self_ptr)?;
+            self.ppu.tick(self_ptr)?;
 
             let diff = SystemTime::now()
                 .duration_since(prev)
@@ -150,8 +153,8 @@ impl Gameboy {
             if diff > 33333 {
                 //16742 {
                 //59.720 fps = 16742 us {
-                self.ppu.tick(self_ptr)?;
-                self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+
+                self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
                 (self.running, shall_print_status) = self.screen.update();
                 self.joypad.tick(self_ptr)?;
                 if shall_print_status {
@@ -178,7 +181,8 @@ impl Gameboy {
         let mut shall_print_status: bool;
 
         while self.running {
-            // self.cpu.tick(self_ptr)?;
+            self.cpu.tick(self_ptr)?;
+            self.ppu.tick(self_ptr)?;
 
             // self.screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
 
@@ -187,8 +191,8 @@ impl Gameboy {
                 .expect("system time failed")
                 .as_micros();
             if diff > 33333 {
-                self.ppu.tick(self_ptr)?;
-                self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                // self.ppu.tick(self_ptr)?;
+                self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
                 // if draw_bg {
                 //     self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
                 // } else {

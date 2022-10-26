@@ -1,3 +1,5 @@
+mod fetcher;
+mod fifo;
 mod lcdc;
 mod palette;
 mod sprite;
@@ -5,9 +7,11 @@ mod stat;
 
 use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
-use log::warn;
+use log::{info, warn};
 
 use self::{
+    fetcher::Fetcher,
+    fifo::Fifo,
     lcdc::LCDControl,
     palette::PaletteData,
     stat::{LCDModeFlag, LCDStatus},
@@ -17,6 +21,8 @@ use super::{memory::MemoryRange, Gameboy, GameboyModule, MemoryInterface};
 
 pub struct PPU {
     frame_buffer: [u32; Self::ROWS * Self::COLUMNS],
+    back_buffer: [u32; Self::ROWS * Self::COLUMNS],
+    back_buffer_index: usize,
     vram: [u8; memory::ppu::VRAM.size],
     oam: [u8; memory::ppu::OAM.size],
     tiles: [[[u8; Self::TILE_SIZE]; Self::TILE_SIZE]; Self::TILES],
@@ -31,13 +37,18 @@ pub struct PPU {
     obp0: palette::PaletteData,
     obp1: palette::PaletteData,
     wy: u8,
-    wx: i8,
+    wx: u8,
+
+    fetcher: Fetcher,
+    fifo: Fifo,
 }
 
 impl GameboyModule for PPU {
     unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, std::fmt::Error> {
-        self.process_tile_data();
+        // self.process_tile_data();
         // self.print_tiles(10);
+        self.fetcher.tick(gb_ptr)?;
+        self.pop_fifo();
         Ok((0))
     }
 }
@@ -88,7 +99,7 @@ impl super::MemoryInterface for PPU {
         } else if addr == memory::ppu::WY {
             return Some(self.wy);
         } else if addr == memory::ppu::WX {
-            return Some((self.wx + 7) as u8);
+            return Some(self.wx);
         }
         return None;
     }
@@ -138,7 +149,7 @@ impl super::MemoryInterface for PPU {
         } else if addr == memory::ppu::WY {
             self.wy = value;
         } else if addr == memory::ppu::WX {
-            self.wx = value as i8 - 7;
+            self.wx = value;
         } else {
             return None;
         }
@@ -147,36 +158,18 @@ impl super::MemoryInterface for PPU {
 }
 
 impl PPU {
-    const ROWS: usize = 160;
-    const COLUMNS: usize = 144;
+    const ROWS: usize = 144;
+    const COLUMNS: usize = 160;
     const TILES: usize = 0x180; //sanity check: 0x97FF+1 - 0x8000 / 16
     const TILE_SIZE: usize = 8; //this is one line i.e. size*size=total pixels
     const BYTES_PER_TILE: usize = 16;
     const TILE_MAP_SIZE: usize = 32; //this is one line of tiles i.e. size*size=total tiles
-    const TILE_MAP_AREA_9800: MemoryRange = MemoryRange {
-        begin: 0x9800,
-        end: 0x9BFF,
-        size: 0x400,
-    };
-    const TILE_MAP_AREA_9C00: MemoryRange = MemoryRange {
-        begin: 0x9C00,
-        end: 0x9FFF,
-        size: 0x400,
-    };
-    const TILE_MAP_AREA_9800_VRAM: MemoryRange = MemoryRange {
-        begin: 0x1800,
-        end: 0x1BFF,
-        size: 0x400,
-    };
-    const TILE_MAP_AREA_9C00_VRAM: MemoryRange = MemoryRange {
-        begin: 0x1C00,
-        end: 0x1FFF,
-        size: 0x400,
-    };
 
     pub fn new() -> Self {
         let ppu = Self {
             frame_buffer: [0; Self::ROWS * Self::COLUMNS],
+            back_buffer: [0; Self::ROWS * Self::COLUMNS],
+            back_buffer_index: 0,
             vram: [0; memory::ppu::VRAM.size],
             oam: [0; memory::ppu::OAM.size],
             tiles: [[[0; Self::TILE_SIZE]; Self::TILE_SIZE]; Self::TILES],
@@ -192,6 +185,8 @@ impl PPU {
             obp1: palette::PaletteData::from(0),
             wy: 0,
             wx: 0,
+            fetcher: Fetcher::new(),
+            fifo: Fifo::new(),
         };
 
         ppu
@@ -204,13 +199,13 @@ impl PPU {
             let tile_id: usize = addr / (Self::BYTES_PER_TILE);
             let mut tile: [[u8; 8]; 8] = [[0; Self::TILE_SIZE]; Self::TILE_SIZE];
             for line in (0..Self::BYTES_PER_TILE).step_by(2) {
-                let byte1: u8 = tile_data[addr + line];
-                let byte2: u8 = tile_data[addr + line + 1];
+                let low: u8 = tile_data[addr + line];
+                let high: u8 = tile_data[addr + line + 1];
 
                 //pixel conversion
                 let mut line_pixels: [u8; Self::TILE_SIZE] = [0; Self::TILE_SIZE];
                 for i in (0..=7).rev() {
-                    line_pixels[7 - i] = bit!(byte2, i) << 1 | bit!(byte1, i);
+                    line_pixels[7 - i] = bit!(high, i) << 1 | bit!(low, i);
                 }
 
                 // println!("{:?}", line_pixels);
@@ -276,9 +271,9 @@ impl PPU {
         &self,
     ) -> [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] {
         let tile_map_start = if self.lcdc.bg_tile_map_area {
-            Self::TILE_MAP_AREA_9C00.begin
+            memory::ppu::TILE_MAP_AREA_9C00.begin
         } else {
-            Self::TILE_MAP_AREA_9800.begin
+            memory::ppu::TILE_MAP_AREA_9800.begin
         };
 
         self.get_tile_map_frame_buffer(self.get_tiles_from_tile_map(tile_map_start))
@@ -288,9 +283,9 @@ impl PPU {
         &self,
     ) -> [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] {
         let tile_map_start = if self.lcdc.window_tile_map_area {
-            Self::TILE_MAP_AREA_9C00.begin
+            memory::ppu::TILE_MAP_AREA_9C00.begin
         } else {
-            Self::TILE_MAP_AREA_9800.begin
+            memory::ppu::TILE_MAP_AREA_9800.begin
         };
 
         self.get_tile_map_frame_buffer(self.get_tiles_from_tile_map(tile_map_start))
@@ -380,14 +375,15 @@ impl PPU {
         self.stat = LCDStatus::from(mem[memory::ppu::STAT as usize]);
         self.scy = mem[memory::ppu::SCY as usize];
         self.scx = mem[memory::ppu::SCX as usize];
-        self.ly = mem[memory::ppu::LY as usize];
+        // self.ly = mem[memory::ppu::LY as usize];
+        self.ly = 0;
         self.lyc = mem[memory::ppu::LYC as usize];
         self.dma = mem[memory::ppu::DMA as usize];
         self.bgp = PaletteData::from(mem[memory::ppu::BGP as usize]);
         self.obp0 = PaletteData::from(mem[memory::ppu::OBP0 as usize]);
         self.obp1 = PaletteData::from(mem[memory::ppu::OBP1 as usize]);
         self.wy = mem[memory::ppu::WY as usize];
-        self.wx = mem[memory::ppu::WX as usize] as i8 - 7;
+        self.wx = mem[memory::ppu::WX as usize];
     }
 
     pub fn print_vram(&self) {
@@ -417,6 +413,19 @@ impl PPU {
             println!();
             if i >= count {
                 break;
+            }
+        }
+    }
+
+    pub fn pop_fifo(&mut self) {
+        if let Some(pixel) = self.fifo.pop() {
+            self.back_buffer[self.back_buffer_index] = pixel;
+            self.back_buffer_index += 1;
+            if self.back_buffer_index >= self.back_buffer.len() {
+                info!("frame finished");
+                self.frame_buffer = self.back_buffer.clone();
+                self.back_buffer = [0; Self::ROWS * Self::COLUMNS];
+                self.back_buffer_index = 0;
             }
         }
     }
