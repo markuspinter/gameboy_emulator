@@ -15,7 +15,7 @@ use ppu::PPU;
 
 use crate::{screen::Screen, utils};
 
-use self::joypad::Joypad;
+use self::{joypad::Joypad, timer::Timer};
 
 type MemoryResult<T> = Result<T, MemoryError>;
 
@@ -112,6 +112,8 @@ pub struct Gameboy {
     screen: Screen,
     memory: Memory,
     joypad: Joypad,
+    timer: Timer,
+
     running: bool,
     cgb_mode: bool,
 }
@@ -129,6 +131,7 @@ impl Gameboy {
             cpu: CPU::new(),
             ppu: PPU::new(),
             joypad: Joypad::new(),
+            timer: Timer::new(),
             screen: Screen::new(Self::SCREEN_ROWS, Self::SCREEN_COLUMNS, 1, 1, minifb::Scale::X4),
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
@@ -147,6 +150,7 @@ impl Gameboy {
             if !paused {
                 self.cpu.tick(self_ptr)?;
                 self.ppu.tick(self_ptr)?;
+                self.timer.tick(self_ptr)?;
             }
 
             let diff = SystemTime::now()
@@ -188,6 +192,7 @@ impl Gameboy {
             if !shall_pause {
                 self.cpu.tick(self_ptr)?;
                 self.ppu.tick(self_ptr)?;
+                self.timer.tick(self_ptr)?;
             }
 
             // self.screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));

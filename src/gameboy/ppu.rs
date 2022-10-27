@@ -53,7 +53,7 @@ impl GameboyModule for PPU {
         match self.stat.mode_flag {
             LCDModeFlag::HBLANK => {
                 if self.dots == 0 {
-                    println!("hblank fifo {}", self.fifo.bg_fifo.len());
+                    log::debug!("hblank fifo {}", self.fifo.bg_fifo.len());
                     if self.back_buffer_index == 0 {
                         self.stat.mode_flag = LCDModeFlag::VBLANK;
                         self.dots = 4560;
@@ -61,13 +61,12 @@ impl GameboyModule for PPU {
                         self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
                         self.dots = 80;
                     }
-                    // self.fifo.clear();
                     self.ly += 1;
                 }
             }
             LCDModeFlag::VBLANK => {
                 if self.dots == 0 {
-                    println!("---vblank fifo {}", self.fifo.bg_fifo.len());
+                    log::debug!("---vblank fifo {}", self.fifo.bg_fifo.len());
                     self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
                     self.dots = 80;
                     self.ly = 0;
@@ -82,20 +81,18 @@ impl GameboyModule for PPU {
             }
             LCDModeFlag::TRANSFERRING_DATA_TO_LCD => {
                 self.fetcher.tick(gb_ptr)?;
-                self.fifo.tick(gb_ptr)?;
+                let popped = self.fifo.tick(gb_ptr)?;
                 self.dots += 1;
-                if self.dots > 9 && self.back_buffer_index % Self::COLUMNS == 0 {
-                    println!("mode 3 done, dots taken {}", self.dots);
+                if popped == 0 && self.back_buffer_index % (Self::COLUMNS) == 0 {
+                    log::debug!(
+                        "mode 3 done, dots taken {}, {}, pushed {}",
+                        self.dots,
+                        self.back_buffer_index,
+                        self.fifo.pushed
+                    );
+                    // self.fifo.clear(); //doesnt work
                     self.stat.mode_flag = LCDModeFlag::HBLANK;
                     self.dots = 456 - 80 - 172; // last one needs to be modifyable
-                                                // for i in 0..8 {
-                                                //     self.fifo.push_into_bg_fifo(FifoElement {
-                                                //         color_id: 0,
-                                                //         palette_nummber: 0,
-                                                //         bg_priority: false,
-                                                //     });
-                                                //     self.fifo.tick(gb_ptr)?;
-                                                // }
                 }
             }
         }
