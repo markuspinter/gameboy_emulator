@@ -138,13 +138,16 @@ impl Gameboy {
 
     pub unsafe fn run(&mut self) -> Result<(), Error> {
         let mut prev = SystemTime::now();
-        let mut shall_print_status: bool;
+        let mut pause_pressed: bool;
+        let mut paused: bool = false;
 
         let self_ptr = self as *mut Self;
 
         while self.running {
-            self.cpu.tick(self_ptr)?;
-            self.ppu.tick(self_ptr)?;
+            if !paused {
+                self.cpu.tick(self_ptr)?;
+                self.ppu.tick(self_ptr)?;
+            }
 
             let diff = SystemTime::now()
                 .duration_since(prev)
@@ -155,10 +158,11 @@ impl Gameboy {
                 //59.720 fps = 16742 us {
 
                 self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
-                (self.running, shall_print_status) = self.screen.update();
+                (self.running, pause_pressed) = self.screen.update();
                 self.joypad.tick(self_ptr)?;
-                if shall_print_status {
-                    println!("{:?}", self.cpu);
+
+                if pause_pressed {
+                    paused = !paused;
                 }
                 prev = SystemTime::now();
             }
@@ -178,11 +182,13 @@ impl Gameboy {
         self.ppu.print_tiles(0x10);
 
         let mut draw_bg: bool = true;
-        let mut shall_print_status: bool;
+        let mut shall_pause: bool = false;
 
         while self.running {
-            self.cpu.tick(self_ptr)?;
-            self.ppu.tick(self_ptr)?;
+            if !shall_pause {
+                self.cpu.tick(self_ptr)?;
+                self.ppu.tick(self_ptr)?;
+            }
 
             // self.screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
 
@@ -199,7 +205,7 @@ impl Gameboy {
                 //     // self.screen.set_frame_buffer(&self.ppu.get_window_frame_buffer());
                 //     self.screen.set_frame_buffer(&self.ppu.get_objects_frame_buffer());
                 // }
-                (self.running, shall_print_status) = self.screen.update();
+                (self.running, shall_pause) = self.screen.update();
                 //59.720 fps = 16742 us {
                 log::info!(
                     "{:.2} fps",

@@ -11,7 +11,7 @@ use log::{info, warn};
 
 use self::{
     fetcher::Fetcher,
-    fifo::Fifo,
+    fifo::{Fifo, FifoElement},
     lcdc::LCDControl,
     palette::PaletteData,
     stat::{LCDModeFlag, LCDStatus},
@@ -53,6 +53,7 @@ impl GameboyModule for PPU {
         match self.stat.mode_flag {
             LCDModeFlag::HBLANK => {
                 if self.dots == 0 {
+                    println!("hblank fifo {}", self.fifo.bg_fifo.len());
                     if self.back_buffer_index == 0 {
                         self.stat.mode_flag = LCDModeFlag::VBLANK;
                         self.dots = 4560;
@@ -60,14 +61,18 @@ impl GameboyModule for PPU {
                         self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
                         self.dots = 80;
                     }
+                    // self.fifo.clear();
                     self.ly += 1;
                 }
             }
             LCDModeFlag::VBLANK => {
                 if self.dots == 0 {
+                    println!("---vblank fifo {}", self.fifo.bg_fifo.len());
                     self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
                     self.dots = 80;
                     self.ly = 0;
+                } else if self.dots % 456 == 0 {
+                    self.ly += 1;
                 }
             }
             LCDModeFlag::SEARCHING_OAM => {
@@ -78,13 +83,23 @@ impl GameboyModule for PPU {
             LCDModeFlag::TRANSFERRING_DATA_TO_LCD => {
                 self.fetcher.tick(gb_ptr)?;
                 self.fifo.tick(gb_ptr)?;
-                if self.back_buffer_index % Self::COLUMNS == 0 {
+                self.dots += 1;
+                if self.dots > 9 && self.back_buffer_index % Self::COLUMNS == 0 {
+                    println!("mode 3 done, dots taken {}", self.dots);
                     self.stat.mode_flag = LCDModeFlag::HBLANK;
-                    self.dots = 456 - 80 - 172 // last one needs to be modifyable
+                    self.dots = 456 - 80 - 172; // last one needs to be modifyable
+                                                // for i in 0..8 {
+                                                //     self.fifo.push_into_bg_fifo(FifoElement {
+                                                //         color_id: 0,
+                                                //         palette_nummber: 0,
+                                                //         bg_priority: false,
+                                                //     });
+                                                //     self.fifo.tick(gb_ptr)?;
+                                                // }
                 }
             }
         }
-        if self.dots > 0 {
+        if self.dots > 0 && !matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD) {
             self.dots -= 1;
         }
 
@@ -470,7 +485,7 @@ impl PPU {
         self.back_buffer[self.back_buffer_index] = pixel;
         self.back_buffer_index += 1;
         if self.back_buffer_index >= self.back_buffer.len() {
-            println!("frame finished");
+            log::debug!("frame finished");
             self.frame_buffer = self.back_buffer.clone();
             self.back_buffer = [0; Self::ROWS * Self::COLUMNS];
             self.back_buffer_index = 0;

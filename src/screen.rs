@@ -98,7 +98,7 @@ impl Screen {
 
         (
             self.window.is_open() && !self.window.is_key_down(Key::Escape),
-            self.window.is_key_down(Key::C),
+            self.window.is_key_pressed(Key::Space, minifb::KeyRepeat::No),
         )
     }
 
