@@ -41,6 +41,7 @@ pub struct PPU {
 
     fetcher: Fetcher,
     fifo: Fifo,
+    dots: u16,
 }
 
 impl GameboyModule for PPU {
@@ -49,8 +50,44 @@ impl GameboyModule for PPU {
         self.handle_int(gb);
         // self.process_tile_data();
         // self.print_tiles(10);
-        self.fetcher.tick(gb_ptr)?;
-        self.fifo.tick(gb_ptr)?;
+        match self.stat.mode_flag {
+            LCDModeFlag::HBLANK => {
+                if self.dots == 0 {
+                    if self.back_buffer_index == 0 {
+                        self.stat.mode_flag = LCDModeFlag::VBLANK;
+                        self.dots = 4560;
+                    } else {
+                        self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
+                        self.dots = 80;
+                    }
+                    self.ly += 1;
+                }
+            }
+            LCDModeFlag::VBLANK => {
+                if self.dots == 0 {
+                    self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
+                    self.dots = 80;
+                    self.ly = 0;
+                }
+            }
+            LCDModeFlag::SEARCHING_OAM => {
+                if self.dots == 0 {
+                    self.stat.mode_flag = LCDModeFlag::TRANSFERRING_DATA_TO_LCD;
+                }
+            }
+            LCDModeFlag::TRANSFERRING_DATA_TO_LCD => {
+                self.fetcher.tick(gb_ptr)?;
+                self.fifo.tick(gb_ptr)?;
+                if self.back_buffer_index % Self::COLUMNS == 0 {
+                    self.stat.mode_flag = LCDModeFlag::HBLANK;
+                    self.dots = 456 - 80 - 172 // last one needs to be modifyable
+                }
+            }
+        }
+        if self.dots > 0 {
+            self.dots -= 1;
+        }
+
         Ok((0))
     }
 }
@@ -59,23 +96,23 @@ impl super::MemoryInterface for PPU {
     fn read8(&self, addr: u16) -> Option<u8> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD) {
-                warn!(
-                    "VRAM is inaccessible during mode 3; address {:#06x}, returning garbage (0xFF)",
-                    addr
-                );
-                return Some(0xFF);
+                // warn!(
+                //     "VRAM is inaccessible during mode 3; address {:#06x}, returning garbage (0xFF)",
+                //     addr
+                // );
+                // return Some(0xFF);
             }
             return Some(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::SEARCHING_OAM)
                 || matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD)
             {
-                warn!(
-                    "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, returning garbage (0xFF)",
-                    self.stat.mode_flag as u8,
-                    addr
-                );
-                return Some(0xFF);
+                // warn!(
+                //     "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, returning garbage (0xFF)",
+                //     self.stat.mode_flag as u8,
+                //     addr
+                // );
+                // return Some(0xFF);
             }
             return Some(self.oam[usize::from(addr - memory::ppu::OAM.begin)]);
         } else if addr == memory::ppu::LCDC {
@@ -109,22 +146,22 @@ impl super::MemoryInterface for PPU {
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD) {
-                warn!(
-                    "VRAM is inaccessible during mode 3; address {:#06x}, ignoring write",
-                    addr
-                );
-                return Some(());
+                // warn!(
+                //     "VRAM is inaccessible during mode 3; address {:#06x}, ignoring write",
+                //     addr
+                // );
+                // return Some(());
             }
             self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::SEARCHING_OAM)
                 || matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD)
             {
-                warn!(
-                    "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, ignoring write",
-                    self.stat.mode_flag as u8, addr
-                );
-                return Some(());
+                // warn!(
+                //     "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, ignoring write",
+                //     self.stat.mode_flag as u8, addr
+                // );
+                // return Some(());
             }
             self.oam[usize::from(addr - memory::ppu::OAM.begin)] = value;
         } else if addr == memory::ppu::LCDC {
@@ -168,7 +205,7 @@ impl PPU {
     const TILE_MAP_SIZE: usize = 32; //this is one line of tiles i.e. size*size=total tiles
 
     pub fn new() -> Self {
-        let ppu = Self {
+        let mut ppu = Self {
             frame_buffer: [0; Self::ROWS * Self::COLUMNS],
             back_buffer: [0; Self::ROWS * Self::COLUMNS],
             back_buffer_index: 0,
@@ -189,8 +226,9 @@ impl PPU {
             wx: 0,
             fetcher: Fetcher::new(),
             fifo: Fifo::new(),
+            dots: 0,
         };
-
+        ppu.stat.mode_flag = LCDModeFlag::VBLANK;
         ppu
     }
 
@@ -432,6 +470,7 @@ impl PPU {
         self.back_buffer[self.back_buffer_index] = pixel;
         self.back_buffer_index += 1;
         if self.back_buffer_index >= self.back_buffer.len() {
+            println!("frame finished");
             self.frame_buffer = self.back_buffer.clone();
             self.back_buffer = [0; Self::ROWS * Self::COLUMNS];
             self.back_buffer_index = 0;

@@ -62,7 +62,7 @@ pub struct CPU {
 
     pub halted: bool,
     pub interrupt_master_enable: bool,
-    interrupt_active: bool,
+    t_cycles: u16,
 }
 
 impl GameboyModule for CPU {
@@ -114,23 +114,24 @@ impl super::MemoryInterface for CPU {
 impl CPU {
     fn decode_execute(&mut self, gb: &mut Gameboy) -> Result<u32, std::fmt::Error> {
         let ime_before: bool = self.interrupt_master_enable;
-        let cycles;
-        instructions::handle_int(self, gb);
+        if self.t_cycles == 0 {
+            instructions::handle_int(self, gb);
 
-        if gb.read8(self.pc) == 0xCB {
-            (self.pc, cycles) = instructions::execute_instruction_extension(self, gb);
-        } else {
-            (self.pc, cycles) = instructions::execute_instruction(self, gb);
+            if gb.read8(self.pc) == 0xCB {
+                (self.pc, self.t_cycles) = instructions::execute_instruction_extension(self, gb);
+            } else {
+                (self.pc, self.t_cycles) = instructions::execute_instruction(self, gb);
+            }
+            // if ime_before != self.interrupt_master_enable {
+            //     self.interrupt_active = self.interrupt_master_enable;
+            // } else {
+            //     if self.interrupt_active {
+            //         instructions::handle_int(self, gb);
+            //     }
+            // }
         }
-        // if ime_before != self.interrupt_master_enable {
-        //     self.interrupt_active = self.interrupt_master_enable;
-        // } else {
-        //     if self.interrupt_active {
-        //         instructions::handle_int(self, gb);
-        //     }
-        // }
-
-        Ok(cycles as u32)
+        self.t_cycles -= 1;
+        Ok(self.t_cycles as u32)
     }
 
     pub fn new() -> Self {
@@ -151,7 +152,7 @@ impl CPU {
 
             halted: false,
             interrupt_master_enable: false,
-            interrupt_active: false,
+            t_cycles: 0,
         }
     }
 
