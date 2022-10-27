@@ -33,6 +33,7 @@ pub struct PPU {
     ly: u8,
     lyc: u8,
     dma: u8,
+    dma_cycles: u8,
     bgp: palette::PaletteData,
     obp0: palette::PaletteData,
     obp1: palette::PaletteData,
@@ -48,6 +49,15 @@ impl GameboyModule for PPU {
     unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, std::fmt::Error> {
         let gb = &mut *gb_ptr;
         self.handle_int(gb);
+        if self.dma_cycles > 0 {
+            if self.dma_cycles < 160 {
+                let oam_addr = 0x009F - self.dma_cycles;
+                let src_addr = ((self.dma & 0xDF) as u16) << 8 | oam_addr as u16;
+                log::info!("dma oam addr: {:#06X}, src addr: {:#06X}", oam_addr, src_addr);
+                self.oam[oam_addr as usize] = gb.read8(src_addr);
+            }
+            self.dma_cycles -= 1;
+        }
         // self.process_tile_data();
         // self.print_tiles(10);
         match self.stat.mode_flag {
@@ -190,6 +200,7 @@ impl super::MemoryInterface for PPU {
             self.lyc = value;
         } else if addr == memory::ppu::DMA {
             self.dma = value;
+            self.dma_cycles = 160;
             //TODO: start dma routine and prohibit memory access execept for hram
         } else if addr == memory::ppu::BGP {
             self.bgp = value.into();
@@ -231,6 +242,7 @@ impl PPU {
             ly: 0,
             lyc: 0,
             dma: 0,
+            dma_cycles: 0,
             bgp: palette::PaletteData::from(0),
             obp0: palette::PaletteData::from(0),
             obp1: palette::PaletteData::from(0),
@@ -249,6 +261,9 @@ impl PPU {
             if self.ly == self.lyc {
                 self.stat.lyc_flag = true;
                 gb.cpu.if_register.lcd_stat = true;
+            }
+            if self.ly == 144 {
+                gb.cpu.if_register.vblank = true;
             }
         }
     }

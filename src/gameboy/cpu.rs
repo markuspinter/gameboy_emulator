@@ -102,6 +102,7 @@ impl super::MemoryInterface for CPU {
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr == memory::interrupt::IE {
             self.ie_register = value.into();
+            log::info!("enable interrupt {:#010b}", value);
             return Some(());
         } else if addr == memory::interrupt::IF {
             self.if_register = value.into();

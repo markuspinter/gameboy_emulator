@@ -232,6 +232,7 @@ pub fn handle_int(cpu: &mut CPU, gb: &mut Gameboy) {
 
 fn execute_int(cpu: &mut CPU, address: u16, gb: &mut Gameboy) {
     cpu.interrupt_master_enable = false;
+    log::debug!("handle interrupt addr {:#06X}", address);
     _push(cpu, cpu.pc, gb);
     cpu.pc = address;
 }
@@ -777,7 +778,10 @@ pub fn execute_instruction(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {
         0xD0 => ret_cond(cpu, !cpu.f_c(), gb),
         0xD1 => pop16(cpu, &Reg16::DE, gb),
         0xD2 => jp_cond(cpu, !cpu.f_c(), gb),
-        0xD3 => panic!("CPU: instruction 0xD3 does not exist!"),
+        0xD3 => {
+            log::error!("CPU: instruction 0xD3 does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
         0xD4 => call_cond(cpu, !cpu.f_c(), gb),
         0xD5 => push16(cpu, &Reg16::DE, gb),
         0xD6 => opf2i8(cpu, &Func2::SUB, &Reg8::A, gb),
@@ -785,26 +789,47 @@ pub fn execute_instruction(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {
         0xD8 => ret_cond(cpu, cpu.f_c(), gb),
         0xD9 => reti(cpu, gb),
         0xDA => jp_cond(cpu, cpu.f_c(), gb),
-        0xDB => panic!("CPU: instruction 0xDB does not exist!"),
+        0xDB => {
+            log::error!("CPU: instruction 0xDB does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
         0xDC => call_cond(cpu, cpu.f_c(), gb),
-        0xDD => panic!("CPU: instruction 0xDD does not exist!"),
+        0xDD => {
+            log::error!("CPU: instruction 0xDD does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
         0xDE => opf2i8(cpu, &Func2::SBC, &Reg8::A, gb),
         0xDF => rst(cpu, 0x18, gb),
 
         0xE0 => sdihigh8(cpu, &Reg8::A, gb),
         0xE1 => pop16(cpu, &Reg16::HL, gb),
         0xE2 => sdhigh8(cpu, &Reg8::A, reg_get8(cpu, &Reg8::C), gb),
-        0xE3 => panic!("CPU: instruction 0xE3 does not exist!"),
-        0xE4 => panic!("CPU: instruction 0xE4 does not exist!"),
+        0xE3 => {
+            log::error!("CPU: instruction 0xE3 does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
+        0xE4 => {
+            log::error!("CPU: instruction 0xE4 does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
         0xE5 => push16(cpu, &Reg16::HL, gb),
         0xE6 => opf2i8(cpu, &Func2::AND, &Reg8::A, gb),
         0xE7 => rst(cpu, 0x20, gb),
         0xE8 => addi16(cpu, &Reg16::SP, gb),
         0xE9 => jp_reg(cpu, &Reg16::HL),
         0xEA => sdiabs8(cpu, &Reg8::A, gb),
-        0xEB => panic!("CPU: instruction 0xEB does not exist!"),
-        0xEC => panic!("CPU: instruction 0xEC does not exist!"),
-        0xED => panic!("CPU: instruction 0xED does not exist!"),
+        0xEB => {
+            log::error!("CPU: instruction 0xEB does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
+        0xEC => {
+            log::error!("CPU: instruction 0xEC does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
+        0xED => {
+            log::error!("CPU: instruction 0xED does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
         0xEE => opf2i8(cpu, &Func2::XOR, &Reg8::A, gb),
         0xEF => rst(cpu, 0x28, gb),
 
@@ -812,7 +837,10 @@ pub fn execute_instruction(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {
         0xF1 => pop16(cpu, &Reg16::AF, gb),
         0xF2 => ldhigh8(cpu, &Reg8::A, reg_get8(cpu, &Reg8::C), gb),
         0xF3 => di(cpu),
-        0xF4 => panic!("CPU: instruction 0xF4 does not exist!"),
+        0xF4 => {
+            log::error!("CPU: instruction 0xF4 does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
         0xF5 => push16(cpu, &Reg16::AF, gb),
         0xF6 => opf2i8(cpu, &Func2::OR, &Reg8::A, gb),
         0xF7 => rst(cpu, 0x30, gb),
@@ -820,8 +848,14 @@ pub fn execute_instruction(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {
         0xF9 => mov16(cpu, &Reg16::SP, &Reg16::HL),
         0xFA => ldiabs8(cpu, &Reg8::A, gb),
         0xFB => ei(cpu),
-        0xFC => panic!("CPU: instruction 0xFC does not exist!"),
-        0xFD => panic!("CPU: instruction 0xFD does not exist!"),
+        0xFC => {
+            log::error!("CPU: instruction 0xFC does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
+        0xFD => {
+            log::error!("CPU: instruction 0xFD does not exist!");
+            (cpu.pc.wrapping_add(1), 4)
+        }
         0xFE => opf2i8(cpu, &Func2::CP, &Reg8::A, gb),
         0xFF => rst(cpu, 0x38, gb),
     };
@@ -1381,11 +1415,13 @@ fn call_cond(cpu: &mut CPU, cond: bool, gb: &mut Gameboy) -> (u16, u16) {
 }
 
 fn ei(cpu: &mut CPU) -> (u16, u16) {
+    log::info!("interrupt master enable");
     cpu.interrupt_master_enable = true;
     (cpu.pc.wrapping_add(1), 4)
 }
 
 fn di(cpu: &mut CPU) -> (u16, u16) {
+    log::info!("interrupt master disable");
     cpu.interrupt_master_enable = false;
     (cpu.pc.wrapping_add(1), 4)
 }
