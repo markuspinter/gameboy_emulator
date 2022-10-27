@@ -39,7 +39,7 @@ impl Memory {
         // Read file into vector.
         reader.read_to_end(&mut buffer).unwrap();
 
-        buffer.splice(..0x100, Self::load_boot_rom(bootrom_path));
+        // buffer.splice(..0x100, Self::load_boot_rom(bootrom_path));
 
         utils::print_memory_bytes(&buffer, "rom", 0x100);
         buffer

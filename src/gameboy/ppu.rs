@@ -479,7 +479,7 @@ impl PPU {
     }
 
     pub fn push_into_frame_buffer(&mut self, pixel: u32) {
-        self.back_buffer[self.back_buffer_index] = pixel;
+        self.back_buffer[self.back_buffer_index] = pixel; // cgb correction: pixel * 3 / 4 + 0x08;
         self.back_buffer_index += 1;
         if self.back_buffer_index >= self.back_buffer.len() {
             log::debug!("frame finished");
