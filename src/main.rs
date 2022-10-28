@@ -24,11 +24,13 @@ fn main() {
             if args[3] == "--test" {
                 println!("test run");
                 gb.test_run().unwrap();
+            } else if args[3] == "--debug" {
+                gb.run(true).unwrap();
             } else {
-                gb.run().unwrap();
+                gb.run(false).unwrap();
             }
         } else {
-            gb.run().unwrap();
+            gb.run(false).unwrap();
         }
     }
 }

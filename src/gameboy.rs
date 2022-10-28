@@ -139,12 +139,23 @@ impl Gameboy {
         }
     }
 
-    pub unsafe fn run(&mut self) -> Result<(), Error> {
+    pub unsafe fn run(&mut self, debug_windows: bool) -> Result<(), Error> {
         let mut prev = SystemTime::now();
         let mut pause_pressed: bool;
         let mut paused: bool = false;
 
         let self_ptr = self as *mut Self;
+
+        let mut tile_data_screen: Option<Screen> = None;
+        if debug_windows {
+            tile_data_screen = Some(Screen::new(
+                Self::TILE_DATA_ROWS,
+                Self::TILE_DATA_COLUMNS,
+                1,
+                1,
+                minifb::Scale::X4,
+            ));
+        }
 
         while self.running {
             if !paused {
@@ -157,9 +168,14 @@ impl Gameboy {
                 .duration_since(prev)
                 .expect("system time failed")
                 .as_micros();
-            if diff > 33333 {
+            if diff > 16742 {
                 //16742 {
                 //59.720 fps = 16742 us {
+                if let Some(ref mut screen) = tile_data_screen {
+                    self.ppu.process_tile_data();
+                    screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
+                    screen.update();
+                }
 
                 self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
                 (self.running, pause_pressed) = self.screen.update();

@@ -50,16 +50,13 @@ impl GameboyModule for PPU {
         let gb = &mut *gb_ptr;
         self.handle_int(gb);
         if self.dma_cycles > 0 {
-            if self.dma_cycles < 160 {
-                let oam_addr = 0x009F - self.dma_cycles;
-                let src_addr = ((self.dma & 0xDF) as u16) << 8 | oam_addr as u16;
-                log::info!("dma oam addr: {:#06X}, src addr: {:#06X}", oam_addr, src_addr);
-                self.oam[oam_addr as usize] = gb.read8(src_addr);
-            }
+            let oam_addr = 0x00A0 - self.dma_cycles;
+            let src_addr = ((self.dma & 0xDF) as u16) << 8 | oam_addr as u16;
+            log::info!("dma oam addr: {:#06X}, src addr: {:#06X}", oam_addr, src_addr);
+            self.oam[oam_addr as usize] = gb.read8(src_addr);
+
             self.dma_cycles -= 1;
         }
-        // self.process_tile_data();
-        // self.print_tiles(10);
         match self.stat.mode_flag {
             LCDModeFlag::HBLANK => {
                 if self.dots == 0 {
@@ -205,6 +202,7 @@ impl super::MemoryInterface for PPU {
             }
             self.oam[usize::from(addr - memory::ppu::OAM.begin)] = value;
         } else if addr == memory::ppu::LCDC {
+            log::info!("lcdc changed: {:#010b}", u8::from(value.clone()));
             self.lcdc = value.into();
         } else if addr == memory::ppu::STAT {
             self.stat = value.into();
@@ -286,7 +284,7 @@ impl PPU {
         }
     }
 
-    fn process_tile_data(&mut self) {
+    pub fn process_tile_data(&mut self) {
         let tile_data =
             &self.vram[memory::ppu::TILE_DATA_VRAM.begin as usize..=memory::ppu::TILE_DATA_VRAM.end as usize];
         for addr in (0..Self::TILES * Self::BYTES_PER_TILE).step_by(Self::BYTES_PER_TILE) {
