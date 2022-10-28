@@ -87,20 +87,38 @@ impl GameboyModule for PPU {
             LCDModeFlag::SEARCHING_OAM => {
                 if self.dots == 0 {
                     self.stat.mode_flag = LCDModeFlag::TRANSFERRING_DATA_TO_LCD;
+                } else if self.dots % 2 == 0 {
+                    //content takes 2 dots to complete
+                    let addr: usize = 40 - self.dots as usize / 2;
+                    let y_pos: u8 = self.oam[addr];
+                    let x_pos: u8 = self.oam[addr + 1];
+                    if x_pos != 0 && self.ly + 16 >= y_pos && self.ly + 16 < y_pos + Self::TILE_SIZE as u8 {
+                        self.fetcher
+                            .add_visible_object(addr as u16 + memory::ppu::OAM.begin, x_pos, y_pos);
+                    }
                 }
             }
             LCDModeFlag::TRANSFERRING_DATA_TO_LCD => {
                 self.fetcher.tick(gb_ptr)?;
                 let popped = self.fifo.tick(gb_ptr)?;
                 self.dots += 1;
+                if self.dots > 1000 {
+                    log::warn!(
+                        "mode 3 ongoing, dots taken {}, {}, pushed {}",
+                        self.dots,
+                        self.back_buffer_index,
+                        self.fifo.x
+                    );
+                }
                 if popped == 0 && self.back_buffer_index % (Self::COLUMNS) == 0 {
                     log::debug!(
                         "mode 3 done, dots taken {}, {}, pushed {}",
                         self.dots,
                         self.back_buffer_index,
-                        self.fifo.pushed
+                        self.fifo.x
                     );
-                    // self.fifo.clear(); //doesnt work
+                    self.fetcher.clear_visible_objects();
+                    self.fifo.reset(); //doesnt work
                     self.stat.mode_flag = LCDModeFlag::HBLANK;
                     self.dots = 456 - 80 - 172; // last one needs to be modifyable
                 }
