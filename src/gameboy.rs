@@ -116,6 +116,8 @@ pub struct Gameboy {
 
     running: bool,
     cgb_mode: bool,
+
+    vblank: bool,
 }
 
 impl Gameboy {
@@ -136,6 +138,7 @@ impl Gameboy {
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
             cgb_mode: false,
+            vblank: false,
         }
     }
 
@@ -147,6 +150,7 @@ impl Gameboy {
         let self_ptr = self as *mut Self;
 
         let mut tile_data_screen: Option<Screen> = None;
+        let mut tile_map_screen: Option<Screen> = None;
         if debug_windows {
             tile_data_screen = Some(Screen::new(
                 Self::TILE_DATA_ROWS,
@@ -155,6 +159,14 @@ impl Gameboy {
                 1,
                 minifb::Scale::X4,
             ));
+
+            // tile_map_screen = Some(Screen::new(
+            //     Self::TILE_MAP_ROWS,
+            //     Self::TILE_MAP_COLUMNS,
+            //     1,
+            //     1,
+            //     minifb::Scale::X4,
+            // ));
         }
 
         while self.running {
@@ -171,20 +183,29 @@ impl Gameboy {
             if diff > 16742 {
                 //16742 {
                 //59.720 fps = 16742 us {
-                if let Some(ref mut screen) = tile_data_screen {
+                if debug_windows {
                     self.ppu.process_tile_data();
+                }
+                if let Some(ref mut screen) = tile_data_screen {
                     screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
+                    screen.update();
+                }
+                if let Some(ref mut screen) = tile_map_screen {
+                    screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
                     screen.update();
                 }
 
                 self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
                 (self.running, pause_pressed) = self.screen.update();
+                self.vblank = true;
                 self.joypad.tick(self_ptr)?;
 
                 if pause_pressed {
                     paused = !paused;
                 }
                 prev = SystemTime::now();
+            } else {
+                self.vblank = false;
             }
         }
         Ok(())

@@ -52,7 +52,7 @@ impl GameboyModule for PPU {
         if self.dma_cycles > 0 {
             let oam_addr = 0x00A0 - self.dma_cycles;
             let src_addr = ((self.dma & 0xDF) as u16) << 8 | oam_addr as u16;
-            log::info!("dma oam addr: {:#06X}, src addr: {:#06X}", oam_addr, src_addr);
+            log::trace!("dma oam addr: {:#06X}, src addr: {:#06X}", oam_addr, src_addr);
             self.oam[oam_addr as usize] = gb.read8(src_addr);
 
             self.dma_cycles -= 1;
@@ -73,10 +73,16 @@ impl GameboyModule for PPU {
             }
             LCDModeFlag::VBLANK => {
                 if self.dots == 0 {
-                    log::debug!("---vblank fifo {}", self.fifo.bg_fifo.len());
-                    self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
-                    self.dots = 80;
-                    self.ly = 0;
+                    if gb.vblank {
+                        log::info!("---vblank fifo {}", self.fifo.bg_fifo.len());
+                        self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
+                        self.dots = 80;
+                        self.ly = 0;
+                        // for (i) in 0..4 {
+                        //     self.bgp.color_map[i] = self.bgp.color_map[(i + 1) % 4];
+                        // }
+                        // self.fifo.clear();
+                    }
                 } else if self.dots % 456 == 0 {
                     self.ly += 1;
                 }
@@ -108,7 +114,14 @@ impl GameboyModule for PPU {
                     );
                 }
                 if popped == 0 && self.back_buffer_index % (Self::COLUMNS) == 0 {
-                    log::debug!(
+                    if self.ly == 143 {
+                        self.fifo.flush = true;
+                        for i in 0..8 {
+                            self.fifo.tick(gb_ptr)?;
+                        }
+                        self.fifo.flush = false;
+                    }
+                    log::warn!(
                         "mode 3 done, dots taken {}, {}, pushed {}",
                         self.dots,
                         self.back_buffer_index,
@@ -335,7 +348,6 @@ impl PPU {
                 let fb_start = (tile_index % wrap_count) * Self::TILE_SIZE + (row * wrap_count * Self::TILE_SIZE);
                 frame_buffer[fb_start..fb_start + Self::TILE_SIZE].copy_from_slice(tile_line.as_slice());
             }
-            println!();
         }
 
         frame_buffer
@@ -350,11 +362,13 @@ impl PPU {
 
         for addr in tile_map_start..tile_map_start + 0x0400 {
             let mut tile_id = self.read8(addr).unwrap();
-            if self.lcdc.bg_and_window_tile_data_area {
+            let mut offset = 0;
+            if !self.lcdc.bg_and_window_tile_data_area {
                 tile_id = tile_id.wrapping_sub(128);
+                offset = 128;
             }
 
-            map_tiles[addr as usize - tile_map_start as usize] = &self.tiles[tile_id as usize];
+            map_tiles[addr as usize - tile_map_start as usize] = &self.tiles[tile_id as usize + offset as usize];
         }
         map_tiles
     }
@@ -427,7 +441,7 @@ impl PPU {
             let curr_tile = self.tiles[entry.tile_index as usize];
 
             if entry.x_pos <= 0 || entry.x_pos >= 168 || entry.y_pos <= 0 || entry.y_pos >= 160 {
-                log::info!("sprite is offscreen");
+                log::trace!("sprite is offscreen");
             } else {
                 for row in entry.y_pos as usize..entry.y_pos as usize + Self::TILE_SIZE {
                     for col in entry.x_pos as usize..entry.x_pos as usize + Self::TILE_SIZE {
