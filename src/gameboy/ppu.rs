@@ -61,6 +61,7 @@ impl GameboyModule for PPU {
             LCDModeFlag::HBLANK => {
                 if self.dots == 0 {
                     log::debug!("hblank fifo {}", self.fifo.bg_fifo.len());
+
                     if self.back_buffer_index == 0 {
                         self.stat.mode_flag = LCDModeFlag::VBLANK;
                         self.dots = 4560;
@@ -81,7 +82,6 @@ impl GameboyModule for PPU {
                         // for (i) in 0..4 {
                         //     self.bgp.color_map[i] = self.bgp.color_map[(i + 1) % 4];
                         // }
-                        // self.fifo.clear();
                     }
                 } else if self.dots % 456 == 0 {
                     self.ly += 1;
@@ -89,6 +89,15 @@ impl GameboyModule for PPU {
             }
             LCDModeFlag::SEARCHING_OAM => {
                 if self.dots == 0 {
+                    self.fifo.flush = true;
+                    for i in 0..8 {
+                        self.fifo.tick(gb_ptr)?;
+                    }
+                    self.fifo.flush = false;
+                    self.fetcher.x = 0;
+                    self.fetcher.reset();
+                    self.fifo.reset();
+                    self.fifo.clear();
                     self.stat.mode_flag = LCDModeFlag::TRANSFERRING_DATA_TO_LCD;
                 } else if self.dots % 2 == 0 {
                     //content takes 2 dots to complete
@@ -114,13 +123,6 @@ impl GameboyModule for PPU {
                     );
                 }
                 if popped == 0 && self.back_buffer_index % (Self::COLUMNS) == 0 {
-                    if self.ly == 143 {
-                        self.fifo.flush = true;
-                        for i in 0..8 {
-                            self.fifo.tick(gb_ptr)?;
-                        }
-                        self.fifo.flush = false;
-                    }
                     log::warn!(
                         "mode 3 done, dots taken {}, {}, pushed {}",
                         self.dots,
@@ -128,7 +130,7 @@ impl GameboyModule for PPU {
                         self.fifo.x
                     );
                     self.fetcher.clear_visible_objects();
-                    self.fifo.reset(); //doesnt work
+                    // self.fifo.reset(); //doesnt work
                     self.stat.mode_flag = LCDModeFlag::HBLANK;
                     self.dots = 456 - 80 - 172; // last one needs to be modifyable
                 }
@@ -532,5 +534,40 @@ impl PPU {
             self.back_buffer = [0; Self::ROWS * Self::COLUMNS];
             self.back_buffer_index = 0;
         }
+    }
+
+    pub fn print_state_machine(&self) {
+        self.fetcher.print_state_machine();
+        self.fifo.print_state_machine();
+        println!("PPU States:");
+        println!("\tLY: {}", self.ly);
+        println!("\tbuffer index: {}", self.back_buffer_index);
+        match self.stat.mode_flag {
+            LCDModeFlag::HBLANK => {
+                println!("\t\tSEARCHING_OAM");
+                println!("\t\tTRANSFERRING_DATA_TO_LCD");
+                println!("\t=>\tHBLANK");
+                println!("\t\tVBLANK");
+            }
+            LCDModeFlag::VBLANK => {
+                println!("\t\tSEARCHING_OAM");
+                println!("\t\tTRANSFERRING_DATA_TO_LCD");
+                println!("\t\tHBLANK");
+                println!("\t=>\tVBLANK");
+            }
+            LCDModeFlag::SEARCHING_OAM => {
+                println!("\t=>\tSEARCHING_OAM");
+                println!("\t\tTRANSFERRING_DATA_TO_LCD");
+                println!("\t\tHBLANK");
+                println!("\t\tVBLANK");
+            }
+            LCDModeFlag::TRANSFERRING_DATA_TO_LCD => {
+                println!("\t\tSEARCHING_OAM");
+                println!("\t=>\tTRANSFERRING_DATA_TO_LCD");
+                println!("\t\tHBLANK");
+                println!("\t\tVBLANK");
+            }
+        }
+        println!("--------");
     }
 }

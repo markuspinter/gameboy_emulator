@@ -170,7 +170,16 @@ impl Gameboy {
         }
 
         while self.running {
-            if !paused {
+            if debug_windows {
+                self.cpu.tick(self_ptr)?;
+                self.ppu.tick(self_ptr)?;
+                self.timer.tick(self_ptr)?;
+
+                if paused {
+                    std::process::Command::new("clear").status().unwrap();
+                    self.ppu.print_state_machine();
+                }
+            } else if !paused {
                 self.cpu.tick(self_ptr)?;
                 self.ppu.tick(self_ptr)?;
                 self.timer.tick(self_ptr)?;
