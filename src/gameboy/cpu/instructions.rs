@@ -232,7 +232,7 @@ pub fn handle_int(cpu: &mut CPU, gb: &mut Gameboy) {
 
 fn execute_int(cpu: &mut CPU, address: u16, gb: &mut Gameboy) {
     cpu.interrupt_master_enable = false;
-    log::debug!("handle interrupt addr {:#06X}", address);
+    log::info!("handle interrupt addr {:#06X}", address);
     _push(cpu, cpu.pc, gb);
     cpu.pc = address;
 }

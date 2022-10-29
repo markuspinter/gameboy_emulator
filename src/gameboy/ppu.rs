@@ -60,14 +60,24 @@ impl GameboyModule for PPU {
         match self.stat.mode_flag {
             LCDModeFlag::HBLANK => {
                 if self.dots == 0 {
-                    log::debug!("hblank fifo {}", self.fifo.bg_fifo.len());
+                    log::trace!("hblank fifo {}", self.fifo.bg_fifo.len());
 
                     if self.back_buffer_index == 0 {
                         self.stat.mode_flag = LCDModeFlag::VBLANK;
                         self.dots = 4560;
+                        if gb.cpu.interrupt_master_enable {
+                            if self.stat.mode1_vblank_interrupt_enable {
+                                gb.cpu.if_register.lcd_stat = true;
+                            }
+                        }
                     } else {
                         self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
                         self.dots = 80;
+                        if gb.cpu.interrupt_master_enable {
+                            if self.stat.mode2_oam_interrupt_enable {
+                                gb.cpu.if_register.lcd_stat = true;
+                            }
+                        }
                     }
                     self.ly += 1;
                 }
@@ -75,10 +85,15 @@ impl GameboyModule for PPU {
             LCDModeFlag::VBLANK => {
                 if self.dots == 0 {
                     if gb.vblank {
-                        log::info!("---vblank fifo {}", self.fifo.bg_fifo.len());
+                        log::trace!("---vblank fifo {}", self.fifo.bg_fifo.len());
                         self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
                         self.dots = 80;
                         self.ly = 0;
+                        if gb.cpu.interrupt_master_enable {
+                            if self.stat.mode2_oam_interrupt_enable {
+                                gb.cpu.if_register.lcd_stat = true;
+                            }
+                        }
                         // for (i) in 0..4 {
                         //     self.bgp.color_map[i] = self.bgp.color_map[(i + 1) % 4];
                         // }
@@ -89,22 +104,16 @@ impl GameboyModule for PPU {
             }
             LCDModeFlag::SEARCHING_OAM => {
                 if self.dots == 0 {
-                    self.fifo.flush = true;
-                    for i in 0..8 {
-                        self.fifo.tick(gb_ptr)?;
-                    }
-                    self.fifo.flush = false;
-                    self.fetcher.x = 0;
-                    self.fetcher.reset();
-                    self.fifo.reset();
-                    self.fifo.clear();
                     self.stat.mode_flag = LCDModeFlag::TRANSFERRING_DATA_TO_LCD;
                 } else if self.dots % 2 == 0 {
                     //content takes 2 dots to complete
-                    let addr: usize = 40 - self.dots as usize / 2;
+                    let addr: usize = (40 - (self.dots as usize / 2 + 1)) * 4;
                     let y_pos: u8 = self.oam[addr];
                     let x_pos: u8 = self.oam[addr + 1];
-                    if x_pos != 0 && self.ly + 16 >= y_pos && self.ly + 16 < y_pos + Self::TILE_SIZE as u8 {
+                    if (x_pos != 0)
+                        && ((self.ly + 16) >= y_pos)
+                        && ((self.ly + 16) < (y_pos.wrapping_add(Self::TILE_SIZE as u8)))
+                    {
                         self.fetcher
                             .add_visible_object(addr as u16 + memory::ppu::OAM.begin, x_pos, y_pos);
                     }
@@ -113,8 +122,8 @@ impl GameboyModule for PPU {
             LCDModeFlag::TRANSFERRING_DATA_TO_LCD => {
                 self.fetcher.tick(gb_ptr)?;
                 let popped = self.fifo.tick(gb_ptr)?;
-                self.dots += 1;
-                if self.dots > 1000 {
+                self.dots = self.dots.wrapping_add(1);
+                if self.dots > 4000 {
                     log::warn!(
                         "mode 3 ongoing, dots taken {}, {}, pushed {}",
                         self.dots,
@@ -123,15 +132,22 @@ impl GameboyModule for PPU {
                     );
                 }
                 if popped == 0 && self.back_buffer_index % (Self::COLUMNS) == 0 {
-                    log::warn!(
+                    log::trace!(
                         "mode 3 done, dots taken {}, {}, pushed {}",
                         self.dots,
                         self.back_buffer_index,
                         self.fifo.x
                     );
                     self.fetcher.clear_visible_objects();
+                    self.fetcher.reset();
+                    self.fifo.reset();
                     // self.fifo.reset(); //doesnt work
                     self.stat.mode_flag = LCDModeFlag::HBLANK;
+                    if gb.cpu.interrupt_master_enable {
+                        if self.stat.mode0_hblank_interrupt_enable {
+                            gb.cpu.if_register.lcd_stat = true;
+                        }
+                    }
                     self.dots = 456 - 80 - 172; // last one needs to be modifyable
                 }
             }
@@ -226,7 +242,8 @@ impl super::MemoryInterface for PPU {
         } else if addr == memory::ppu::SCX {
             self.scx = value;
         } else if addr == memory::ppu::LY {
-            warn!("LY is read only at address {:#06x}, ignoring write", addr);
+            warn!("LY is read only at address {:#06x}, not ignoring write", addr);
+            self.ly = value;
         } else if addr == memory::ppu::LYC {
             self.lyc = value;
         } else if addr == memory::ppu::DMA {
@@ -288,10 +305,16 @@ impl PPU {
     }
 
     fn handle_int(&mut self, gb: &mut Gameboy) {
+        if self.ly == self.lyc {
+            self.stat.lyc_flag = true;
+        } else {
+            self.stat.lyc_flag = false;
+        }
         if gb.cpu.interrupt_master_enable {
-            if self.ly == self.lyc {
-                self.stat.lyc_flag = true;
-                gb.cpu.if_register.lcd_stat = true;
+            if self.stat.lyc_interrupt_enable {
+                if self.ly == self.lyc {
+                    gb.cpu.if_register.lcd_stat = true;
+                }
             }
             if self.ly == 144 {
                 gb.cpu.if_register.vblank = true;
