@@ -113,9 +113,28 @@ impl super::MemoryInterface for CPU {
 }
 
 impl CPU {
+    fn check_halted(&mut self) -> bool {
+        if !self.halted {
+            return true;
+        }
+        if (self.ie_register.vblank && self.if_register.vblank)
+            || (self.ie_register.lcd_stat && self.if_register.lcd_stat)
+            || (self.ie_register.timer && self.if_register.timer)
+            || (self.ie_register.serial && self.if_register.serial)
+            || (self.ie_register.joypad && self.if_register.joypad)
+        {
+            self.halted = false;
+            return true;
+        }
+        false
+    }
+
     fn decode_execute(&mut self, gb: &mut Gameboy) -> Result<u32, std::fmt::Error> {
         let ime_before: bool = self.interrupt_master_enable;
         if self.t_cycles == 0 {
+            if !self.check_halted() {
+                return Ok(self.t_cycles as u32);
+            }
             instructions::handle_int(self, gb);
 
             if gb.read8(self.pc) == 0xCB {

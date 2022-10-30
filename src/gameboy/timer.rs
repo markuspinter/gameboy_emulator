@@ -84,9 +84,9 @@ impl super::MemoryInterface for Timer {
         if addr == memory::timer::DIV {
             //NOTE: check if timer prescaler is influenced by div and handle special case if so:
             //https://gbdev.io/pandocs/Timer_Obscure_Behaviour.html
-            if self.tac.enable && matches!(self.tac.prescaler, TimerPrescaler::PRESC_1024) && (self.div & 0x02 != 0) {
-                self.tick_tima();
-            }
+            // if self.tac.enable && matches!(self.tac.prescaler, TimerPrescaler::PRESC_1024) && (self.div & 0x02 != 0) {
+            //     self.tick_tima();
+            // }
             self.div = 0x00;
             return Some(());
         } else if addr == memory::timer::TIMA {
@@ -138,9 +138,9 @@ impl Timer {
             self.glitch_tick -= 1;
             if self.glitch_tick == 0 {
                 self.tima = self.tma;
-                if gb.cpu.interrupt_master_enable {
-                    gb.cpu.if_register.timer = true;
-                }
+                // if gb.cpu.interrupt_master_enable {
+                gb.cpu.if_register.timer = true;
+                // }
             }
         }
     }
