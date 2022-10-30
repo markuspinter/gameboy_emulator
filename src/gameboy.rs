@@ -166,13 +166,13 @@ impl Gameboy {
                 minifb::Scale::X4,
             ));
 
-            // tile_map_screen = Some(Screen::new(
-            //     Self::TILE_MAP_ROWS,
-            //     Self::TILE_MAP_COLUMNS,
-            //     1,
-            //     1,
-            //     minifb::Scale::X4,
-            // ));
+            tile_map_screen = Some(Screen::new(
+                Self::TILE_MAP_ROWS,
+                Self::TILE_MAP_COLUMNS,
+                1,
+                1,
+                minifb::Scale::X4,
+            ));
         }
 
         while self.running {

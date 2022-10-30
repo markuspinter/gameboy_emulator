@@ -130,7 +130,6 @@ impl CPU {
     }
 
     fn decode_execute(&mut self, gb: &mut Gameboy) -> Result<u32, std::fmt::Error> {
-        let ime_before: bool = self.interrupt_master_enable;
         if self.t_cycles == 0 {
             if !self.check_halted() {
                 return Ok(self.t_cycles as u32);
@@ -142,13 +141,6 @@ impl CPU {
             } else {
                 (self.pc, self.t_cycles) = instructions::execute_instruction(self, gb);
             }
-            // if ime_before != self.interrupt_master_enable {
-            //     self.interrupt_active = self.interrupt_master_enable;
-            // } else {
-            //     if self.interrupt_active {
-            //         instructions::handle_int(self, gb);
-            //     }
-            // }
         }
         self.t_cycles -= 1;
         Ok(self.t_cycles as u32)
@@ -175,66 +167,6 @@ impl CPU {
             t_cycles: 0,
         }
     }
-
-    // fn _get_reg8(&self, reg: Register8) -> u16 {
-    //     match reg {
-    //         Register8::A => self.a,
-    //         Register8::B => self.b,
-    //         Register8::C => self.c,
-    //         Register8::D => self.d,
-    //         Register8::E => self.e,
-    //         Register8::F => self.f,
-    //         Register8::H => self.h,
-    //         Register8::L => self.l,
-    //     }
-    // }
-
-    // fn _get_reg16(&self, reg: Register16) -> u16 {
-    //     match reg {
-    //         Register16::PC => self.pc,
-    //         Register16::SP => self.sp,
-    //         Register16::AF => (self.a as u16) << 8 | self.f as u16,
-    //         Register16::BC => (self.b as u16) << 8 | self.c as u16,
-    //         Register16::DE => (self.d as u16) << 8 | self.e as u16,
-    //         Register16::HL => (self.h as u16) << 8 | self.l as u16,
-    //     }
-    // }
-
-    // fn _set_reg8(&mut self, reg: Register8, value: u16) {
-    //     match reg {
-    //         Register8::A => self.a = value,
-    //         Register8::B => self.b = value,
-    //         Register8::C => self.c = value,
-    //         Register8::D => self.d = value,
-    //         Register8::E => self.e = value,
-    //         Register8::F => self.f = value,
-    //         Register8::H => self.h = value,
-    //         Register8::L => self.l = value,
-    //     }
-    // }
-
-    // fn _set_reg16(&mut self, reg: Register16, value: u16) {
-    //     match reg {
-    //         Register16::PC => self.pc = value,
-    //         Register16::SP => self.sp = value,
-    //         Register16::AF => {
-    //             self.a = value >> 8;
-    //             self.f = value;
-    //         }
-    //         Register16::BC => {
-    //             self.b = value >> 8;
-    //             self.c = value;
-    //         }
-    //         Register16::DE => {
-    //             self.d = value >> 8;
-    //             self.e = value;
-    //         }
-    //         Register16::HL => {
-    //             self.h = value >> 8;
-    //             self.l = value;
-    //         }
-    //     }
-    // }
 
     fn _get_flag(&self, flag: Flag) -> u8 {
         (self.f >> (flag as u8)) & 1
