@@ -99,11 +99,11 @@ lazy_static! {
 
     static ref RAM_SIZE_MAP: HashMap<u8, (usize, &'static str)> = vec![
         (0x00, (0, "None")),
-        (0x01, (0, "2 KBytes (unused)")), //unused
-        (0x02, (0x2000, "8 KBytes")),
-        (0x03, (0x8000, "32 KBytes (4 banks of 8KBytes each)")),
-        (0x04, (0x20000, "128 KBytes (16 banks of 8KBytes each)")),
-        (0x05, (0x10000, "64 KBytes (8 banks of 8KBytes each)")),
+        (0x01, (0, "2 KiBytes (unused)")), //unused
+        (0x02, (0x2000, "8 KiBytes")),
+        (0x03, (0x8000, "32 KiBytes (4 banks of 8KBytes each)")),
+        (0x04, (0x20000, "128 KiBytes (16 banks of 8KBytes each)")),
+        (0x05, (0x10000, "64 KiBytes (8 banks of 8KBytes each)")),
     ]
     .iter()
     .copied()
@@ -124,13 +124,18 @@ impl std::convert::From<&Vec<u8>> for CartridgeHeader {
             ram_size: 0,
             ram_banks: 0,
         };
-        header.title = String::from(std::str::from_utf8(&rom[0x134..=0x143]).unwrap());
+        header.title =
+            String::from(std::str::from_utf8(&rom[0x134..=0x143]).unwrap_or("failed to parse cartridge title"));
         header.cartridge_type =
             FromPrimitive::from_u8(rom[0x147]).expect(format!("cartridge type not supported {}", rom[0x147]).as_str());
         header.rom_size = ROM_SIZE_MAP[&rom[0x148]].0;
         header.rom_banks = header.rom_size / 0x4000;
-        header.ram_size = RAM_SIZE_MAP[&rom[0x149]].0;
+        header.ram_size = std::cmp::max(RAM_SIZE_MAP[&rom[0x149]].0, 0x2000);
         header.ram_banks = header.ram_size / 0x2000;
+
+        if header.rom_size >= 0x100000 {
+            panic!("1MiB rom cartridges not supported yet");
+        }
 
         header
     }
@@ -179,8 +184,9 @@ impl MemoryInterface for Cartridge {
 impl Cartridge {
     pub fn new(bootrom_path: String, rom_path: String) -> Self {
         let rom = Self::load_rom(rom_path);
-        let ram = Self::load_ram("asdf".into());
         let header = CartridgeHeader::from(&rom);
+        let ram = vec![0; header.ram_size];
+
         let mut mem = Cartridge {
             header: header.clone(),
             boot_rom: Self::load_boot_rom(bootrom_path),

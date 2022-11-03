@@ -225,7 +225,7 @@ impl Fetcher {
                 //pixel conversion
                 for i in (0..=7).rev() {
                     ppu.fifo.push_into_bg_fifo(FifoElement {
-                        color_id: ppu.bgp.color_map[(bit!(self.high, i) << 1 | bit!(self.low, i)) as usize],
+                        color_id: bit!(self.high, i) << 1 | bit!(self.low, i),
                         palette_nummber: 0,
                         bg_priority: false,
                         is_object: false,

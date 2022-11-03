@@ -73,7 +73,7 @@ impl Fifo {
     }
 
     pub fn mix_tile_line(&mut self) {
-        for i in 0..8 {
+        for i in 0..std::cmp::min(self.bg_fifo.len(), 8) {
             if self.object_fifo[i].color_id != 0 {
                 if self.object_fifo[i].bg_priority {
                     if self.bg_fifo[i].color_id == 0 {
@@ -95,7 +95,16 @@ impl Fifo {
     pub fn pop(&mut self, ppu: &PPU) -> Option<u32> {
         if !self.is_suspended {
             self.x += 1;
-            Some(match self.bg_fifo.pop_front().unwrap().color_id {
+            let elem = self.bg_fifo.pop_front().unwrap();
+            let mut color_id = ppu.bgp.color_map[elem.color_id as usize];
+            if elem.is_object {
+                if elem.palette_nummber == 0 {
+                    color_id = ppu.obp0.color_map[elem.color_id as usize];
+                } else {
+                    color_id = ppu.obp1.color_map[elem.color_id as usize];
+                }
+            }
+            Some(match color_id {
                 0 => MonochromeColor::White as u32,
                 1 => MonochromeColor::LightGray as u32,
                 2 => MonochromeColor::DarkGray as u32,
