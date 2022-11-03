@@ -65,6 +65,29 @@ pub struct MemoryRange {
     pub size: usize,
 }
 
+pub mod cartridge {
+    use super::MemoryRange;
+
+    pub const ROM_BANK_0: MemoryRange = MemoryRange {
+        begin: 0x0000,
+        end: 0x3FFF,
+        size: 0x4000,
+    };
+    pub const ROM_BANK_N: MemoryRange = MemoryRange {
+        begin: 0x4000,
+        end: 0x7FFF,
+        size: 0x4000,
+    };
+
+    pub const EXTERNAL_RAM: MemoryRange = MemoryRange {
+        begin: 0xA000,
+        end: 0xBFFF,
+        size: 0x2000,
+    };
+
+    pub const BOOTROM_FLAG: u16 = 0xFF40;
+}
+
 pub mod ppu {
     use super::MemoryRange;
 

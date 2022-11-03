@@ -1,5 +1,6 @@
 use std::{fmt::Error, time::SystemTime};
 
+pub mod cartridge;
 pub mod cpu;
 pub mod interrupts;
 pub mod joypad;
@@ -15,7 +16,7 @@ use ppu::PPU;
 
 use crate::{screen::Screen, utils};
 
-use self::{joypad::Joypad, timer::Timer};
+use self::{cartridge::Cartridge, joypad::Joypad, timer::Timer};
 
 type MemoryResult<T> = Result<T, MemoryError>;
 
@@ -113,6 +114,7 @@ impl Gameboy {
 }
 
 pub struct Gameboy {
+    cartridge: Cartridge,
     cpu: CPU,
     ppu: PPU,
     screen: Screen,
@@ -135,7 +137,8 @@ impl Gameboy {
     const TILE_MAP_COLUMNS: usize = 256;
 
     pub fn new(bootrom_path: String, rom_path: String) -> Self {
-        Self {
+        let gb = Self {
+            cartridge: Cartridge::new(bootrom_path.clone(), rom_path.clone()),
             cpu: CPU::new(),
             ppu: PPU::new(),
             joypad: Joypad::new(),
@@ -145,7 +148,9 @@ impl Gameboy {
             running: true,
             cgb_mode: false,
             vblank: false,
-        }
+        };
+        gb.cartridge.debug_print();
+        gb
     }
 
     pub unsafe fn run(&mut self, debug_windows: bool) -> Result<(), Error> {
