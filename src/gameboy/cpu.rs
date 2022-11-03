@@ -154,7 +154,7 @@ impl CPU {
             f: 0x00,
             h: 0x00,
             l: 0x00,
-            pc: 0x0000,
+            pc: 0x00FC,
             sp: 0x0000,
 
             ie_register: InterruptRegister::from(0_u8),
