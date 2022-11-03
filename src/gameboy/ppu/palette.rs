@@ -47,12 +47,20 @@ impl std::convert::From<u8> for PaletteData {
     }
 }
 
+// pub enum MonochromeColor {
+//     Off = 0x00CADC9F,
+//     White = 0x009BBC0F,
+//     LightGray = 0x008BAC0F,
+//     DarkGray = 0x00306230,
+//     Black = 0x000F380F,
+// }
+
 pub enum MonochromeColor {
-    Off = 0x00CADC9F,
-    White = 0x009BBC0F,
-    LightGray = 0x008BAC0F,
-    DarkGray = 0x00306230,
-    Black = 0x000F380F,
+    Off = 0x00FFFFAA,
+    White = 0x00FFFFFF,
+    LightGray = 0x00AAAAAA,
+    DarkGray = 0x00666666,
+    Black = 0x00000000,
 }
 
 pub enum MonochromeColorID {

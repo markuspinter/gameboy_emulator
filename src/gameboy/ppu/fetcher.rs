@@ -209,13 +209,24 @@ impl Fetcher {
                     self.tile_data_start + self.next_tile_id as u16 + 1
                 ),
             };
-            for i in (0..=7).rev() {
-                ppu.fifo.push_into_object_fifo(FifoElement {
-                    color_id: bit!(self.high, i) << 1 | bit!(self.low, i),
-                    palette_nummber: attr.palette_number,
-                    bg_priority: attr.bg_window_override,
-                    is_object: true,
-                });
+            if attr.x_flip {
+                for i in (0..=7) {
+                    ppu.fifo.push_into_object_fifo(FifoElement {
+                        color_id: bit!(self.high, i) << 1 | bit!(self.low, i),
+                        palette_nummber: attr.palette_number,
+                        bg_priority: attr.bg_window_override,
+                        is_object: true,
+                    });
+                }
+            } else {
+                for i in (0..=7).rev() {
+                    ppu.fifo.push_into_object_fifo(FifoElement {
+                        color_id: bit!(self.high, i) << 1 | bit!(self.low, i),
+                        palette_nummber: attr.palette_number,
+                        bg_priority: attr.bg_window_override,
+                        is_object: true,
+                    });
+                }
             }
             self.fetching_object = false;
             self.visible_objects.remove(self.curr_object_index);

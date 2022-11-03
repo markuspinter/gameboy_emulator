@@ -52,7 +52,7 @@ impl super::MBCInterface for MBC1 {
         } else if addr >= write::BANKING_MODE_SELECT.begin && addr <= write::BANKING_MODE_SELECT.end {
             self.banking_mode = value;
             if self.banking_mode != 0 {
-                panic!("advanced banking mode not supported");
+                log::error!("advanced banking mode not supported");
             }
         }
     }

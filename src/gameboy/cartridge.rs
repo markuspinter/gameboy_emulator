@@ -24,6 +24,7 @@ enum CartridgeType {
     MBC1 = 0x01,
     MBC1_RAM = 0x02,
     MBC1_RAM_BATTERY = 0x03,
+    MBC3_RAM_BATTERY = 0x13,
     UNKNOWN = 0xFF,
 }
 
@@ -133,8 +134,8 @@ impl std::convert::From<&Vec<u8>> for CartridgeHeader {
         header.ram_size = std::cmp::max(RAM_SIZE_MAP[&rom[0x149]].0, 0x2000);
         header.ram_banks = header.ram_size / 0x2000;
 
-        if header.rom_size >= 0x100000 {
-            panic!("1MiB rom cartridges not supported yet");
+        if header.rom_size >= 0x200000 {
+            panic!("2MiB rom cartridges not supported yet");
         }
 
         header
@@ -196,6 +197,7 @@ impl Cartridge {
                 CartridgeType::MBC1 => MBC(Box::new(MBC1::new(rom, ram))),
                 CartridgeType::MBC1_RAM => MBC(Box::new(MBC1::new(rom, ram))),
                 CartridgeType::MBC1_RAM_BATTERY => MBC(Box::new(MBC1::new(rom, ram))),
+                CartridgeType::MBC3_RAM_BATTERY => MBC(Box::new(MBC1::new(rom, ram))),
                 CartridgeType::UNKNOWN => panic!("cartridge type is 0xFF"),
             },
         };
