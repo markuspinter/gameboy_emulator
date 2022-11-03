@@ -102,8 +102,8 @@ impl Joypad {
     pub fn new() -> Self {
         Self {
             key_map: HashMap::from([
-                (Key::K, Button::A),
-                (Key::L, Button::B),
+                (Key::L, Button::A),
+                (Key::K, Button::B),
                 (Key::F, Button::SELECT),
                 (Key::J, Button::START),
                 (Key::W, Button::UP),
