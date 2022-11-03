@@ -102,6 +102,7 @@ impl Fetcher {
     }
 
     fn get_tile(&mut self, ppu: &mut super::PPU) -> FetcherState {
+        self.y = ppu.ly.wrapping_add(ppu.scy);
         if ppu.lcdc.window_enable && self.drawing_window {
             if ppu.lcdc.window_tile_map_area {
                 self.tile_map_start = memory::ppu::TILE_MAP_AREA_9C00.begin; //bg 9c00
@@ -124,12 +125,11 @@ impl Fetcher {
         if self.fetching_object {
             addr = self.visible_objects[self.curr_object_index].0 + 2;
         } else {
-            addr = self.tile_map_start
-                + ((self.x + (ppu.scx / 8)) & 0x1F) as u16
-                + (((ppu.ly.wrapping_add(ppu.scy)) / 8) as u16 * (32) as u16);
+            addr =
+                self.tile_map_start + ((self.x + (ppu.scx / 8)) & 0x1F) as u16 + (((self.y) / 8) as u16 * (32) as u16);
         }
 
-        self.next_tile_id = match ppu.read8(addr) {
+        self.next_tile_id = match ppu.read8_unlocked(addr) {
             Some(val) => val,
             None => panic!("reached invalid address {:#06X} in fetcher get tile", addr),
         };
@@ -147,15 +147,19 @@ impl Fetcher {
             }
             addr = self.tile_data_start
                 + (self.next_tile_id as u16 * PPU::BYTES_PER_TILE as u16)
-                + ((ppu.ly % 8) as u16 * 2);
+                + ((self.y % 8) as u16 * 2);
         } else {
             self.tile_data_start = memory::ppu::TILE_DATA_AREA_8000.begin;
             addr = self.tile_data_start
                 + (self.next_tile_id as u16 * PPU::BYTES_PER_TILE as u16)
-                + ((ppu.ly + 16 - self.visible_objects[self.curr_object_index].2) as u16 * 2);
+                + ((self
+                    .y
+                    .wrapping_add(16)
+                    .wrapping_sub(self.visible_objects[self.curr_object_index].2)) as u16
+                    * 2);
         }
 
-        self.low = match ppu.read8(addr) {
+        self.low = match ppu.read8_unlocked(addr) {
             Some(val) => val,
             None => panic!(
                 "reached invalid address {:#06X} in fetcher low",
@@ -175,10 +179,14 @@ impl Fetcher {
         } else {
             addr = self.tile_data_start
                 + (self.next_tile_id as u16 * PPU::BYTES_PER_TILE as u16)
-                + ((ppu.ly + 16 - self.visible_objects[self.curr_object_index].2) as u16 * 2)
+                + ((self
+                    .y
+                    .wrapping_add(16)
+                    .wrapping_sub(self.visible_objects[self.curr_object_index].2)) as u16
+                    * 2)
                 + 1;
         }
-        self.high = match ppu.read8(addr) {
+        self.high = match ppu.read8_unlocked(addr) {
             Some(val) => val,
             None => panic!(
                 "reached invalid address {:#06X} in fetcher high",
@@ -194,7 +202,7 @@ impl Fetcher {
 
     fn push(&mut self, ppu: &mut super::PPU) -> FetcherState {
         if self.fetching_object {
-            let attr: SpriteAttributes = match ppu.read8(self.visible_objects[self.curr_object_index].0 + 3) {
+            let attr: SpriteAttributes = match ppu.read8_unlocked(self.visible_objects[self.curr_object_index].0 + 3) {
                 Some(val) => SpriteAttributes::from(val),
                 None => panic!(
                     "reached invalid address {:#06X} in fetcher high",
@@ -225,11 +233,7 @@ impl Fetcher {
                 }
                 self.x += 1;
                 // self.x %= (PPU::COLUMNS / 8) as u8;
-                if self.x == 0 {
-                    if (ppu.ly % 8) == 0 {
-                        self.y = (self.y + 1) % (PPU::ROWS / 8) as u8;
-                    }
-                }
+
                 FetcherState::GET_TILE
             } else {
                 FetcherState::PUSH

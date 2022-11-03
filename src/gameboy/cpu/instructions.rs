@@ -529,6 +529,7 @@ pub fn execute_instruction_extension(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u
         _ => 8,
     };
     (cpu.pc.wrapping_add(2), tcycles)
+    // new_pc
 }
 
 pub fn execute_instruction(cpu: &mut CPU, gb: &mut Gameboy) -> (u16, u16) {

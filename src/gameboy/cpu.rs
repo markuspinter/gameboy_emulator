@@ -136,11 +136,9 @@ impl CPU {
             }
             instructions::handle_int(self, gb);
 
-            if gb.read8(self.pc) == 0xCB {
-                (self.pc, self.t_cycles) = instructions::execute_instruction_extension(self, gb);
-            } else {
-                (self.pc, self.t_cycles) = instructions::execute_instruction(self, gb);
-            }
+            let mut cycles = 0;
+            (self.pc, cycles) = instructions::execute_instruction(self, gb);
+            self.t_cycles = cycles + 8;
         }
         self.t_cycles -= 1;
         Ok(self.t_cycles as u32)

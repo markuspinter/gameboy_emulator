@@ -242,8 +242,8 @@ impl super::MemoryInterface for PPU {
         } else if addr == memory::ppu::SCX {
             self.scx = value;
         } else if addr == memory::ppu::LY {
-            warn!("LY is read only at address {:#06x}, not ignoring write", addr);
-            self.ly = value;
+            warn!("LY is read only at address {:#06x}, ignoring write", addr);
+            // self.ly = value;
         } else if addr == memory::ppu::LYC {
             self.lyc = value;
         } else if addr == memory::ppu::DMA {
@@ -592,5 +592,14 @@ impl PPU {
             }
         }
         println!("--------");
+    }
+
+    fn read8_unlocked(&self, addr: u16) -> Option<u8> {
+        if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
+            return Some(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
+        } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
+            return Some(self.oam[usize::from(addr - memory::ppu::OAM.begin)]);
+        }
+        return None;
     }
 }

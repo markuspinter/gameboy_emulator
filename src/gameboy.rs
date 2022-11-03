@@ -174,6 +174,7 @@ impl Gameboy {
                 minifb::Scale::X4,
             ));
         }
+        let mut debug_counter = 0;
 
         while self.running {
             if debug_windows {
@@ -199,15 +200,20 @@ impl Gameboy {
                 //16742 {
                 //59.720 fps = 16742 us {
                 if debug_windows {
-                    self.ppu.process_tile_data();
-                }
-                if let Some(ref mut screen) = tile_data_screen {
-                    screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
-                    screen.update();
-                }
-                if let Some(ref mut screen) = tile_map_screen {
-                    screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
-                    screen.update();
+                    debug_counter += 1;
+                    if debug_counter >= 60 {
+                        self.ppu.process_tile_data();
+
+                        if let Some(ref mut screen) = tile_data_screen {
+                            screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
+                            screen.update();
+                        }
+                        if let Some(ref mut screen) = tile_map_screen {
+                            screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                            screen.update();
+                        }
+                        debug_counter = 0;
+                    }
                 }
 
                 self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
