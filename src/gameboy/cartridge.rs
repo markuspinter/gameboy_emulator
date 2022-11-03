@@ -39,13 +39,13 @@ struct CartridgeHeader {
 
 struct MBC(Box<dyn MBCInterface>);
 trait MBCInterface {
-    fn read8_rom_bank_0(&self) -> u8;
-    fn read8_rom_bank_n(&self) -> u8;
-    fn read8_ram_bank_n(&self) -> u8;
+    fn read8_rom_bank_0(&self, addr: u16) -> u8;
+    fn read8_rom_bank_n(&self, addr: u16) -> u8;
+    fn read8_ram_bank_n(&self, addr: u16) -> u8;
 
-    fn write8_rom_bank_0(&self);
-    fn write8_rom_bank_n(&self);
-    fn write8_ram_bank_n(&self);
+    fn write8_rom_bank_0(&mut self, addr: u16, value: u8);
+    fn write8_rom_bank_n(&mut self, addr: u16, value: u8);
+    fn write8_ram_bank_n(&mut self, addr: u16, value: u8);
 
     fn get_rom(&self) -> &Vec<u8>;
 
@@ -57,11 +57,11 @@ trait MBCInterface {
 impl MemoryInterface for MBC {
     fn read8(&self, addr: u16) -> Option<u8> {
         if addr >= memory::cartridge::ROM_BANK_0.begin && addr <= memory::cartridge::ROM_BANK_0.end {
-            return Some(self.0.read8_rom_bank_0());
+            return Some(self.0.read8_rom_bank_0(addr));
         } else if addr >= memory::cartridge::ROM_BANK_N.begin && addr <= memory::cartridge::ROM_BANK_N.end {
-            return Some(self.0.read8_rom_bank_n());
+            return Some(self.0.read8_rom_bank_n(addr));
         } else if addr >= memory::cartridge::EXTERNAL_RAM.begin && addr <= memory::cartridge::EXTERNAL_RAM.end {
-            return Some(self.0.read8_ram_bank_n());
+            return Some(self.0.read8_ram_bank_n(addr));
         } else {
             return None;
         }
@@ -69,11 +69,11 @@ impl MemoryInterface for MBC {
 
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr >= memory::cartridge::ROM_BANK_0.begin && addr <= memory::cartridge::ROM_BANK_0.end {
-            self.0.write8_rom_bank_0();
+            self.0.write8_rom_bank_0(addr, value);
         } else if addr >= memory::cartridge::ROM_BANK_N.begin && addr <= memory::cartridge::ROM_BANK_N.end {
-            self.0.write8_rom_bank_n();
+            self.0.write8_rom_bank_n(addr, value);
         } else if addr >= memory::cartridge::EXTERNAL_RAM.begin && addr <= memory::cartridge::EXTERNAL_RAM.end {
-            self.0.write8_ram_bank_n();
+            self.0.write8_ram_bank_n(addr, value);
         } else {
             return None;
         }
@@ -145,6 +145,11 @@ pub struct Cartridge {
 
 impl MemoryInterface for Cartridge {
     fn read8(&self, addr: u16) -> Option<u8> {
+        if self.boot_flag == 0 {
+            if addr >= memory::cartridge::BOOTROM.begin && addr <= memory::cartridge::BOOTROM.end {
+                return Some(self.boot_rom[addr as usize]);
+            }
+        }
         if let Some(res) = self.mbc.read8(addr) {
             return Some(res);
         } else if addr == memory::cartridge::BOOTROM_FLAG {
@@ -155,8 +160,14 @@ impl MemoryInterface for Cartridge {
     }
 
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
+        if self.boot_flag == 0 {
+            if addr >= memory::cartridge::BOOTROM.begin && addr <= memory::cartridge::BOOTROM.end {
+                log::error!("trying to write to bootrom, addr {:#06X}", addr);
+            }
+        }
         if let Some(res) = self.mbc.write8(addr, value) {
         } else if addr == memory::cartridge::BOOTROM_FLAG {
+            log::warn!("bootrom flag set to {:#04X}", value);
             self.boot_flag = value;
         } else {
             return None;

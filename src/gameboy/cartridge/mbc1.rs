@@ -6,27 +6,27 @@ pub struct MBC1 {
 }
 
 impl super::MBCInterface for MBC1 {
-    fn read8_rom_bank_0(&self) -> u8 {
+    fn read8_rom_bank_0(&self, addr: u16) -> u8 {
         todo!()
     }
 
-    fn read8_rom_bank_n(&self) -> u8 {
+    fn read8_rom_bank_n(&self, addr: u16) -> u8 {
         todo!()
     }
 
-    fn read8_ram_bank_n(&self) -> u8 {
+    fn read8_ram_bank_n(&self, addr: u16) -> u8 {
         todo!()
     }
 
-    fn write8_rom_bank_0(&self) {
+    fn write8_rom_bank_0(&mut self, addr: u16, value: u8) {
         todo!()
     }
 
-    fn write8_rom_bank_n(&self) {
+    fn write8_rom_bank_n(&mut self, addr: u16, value: u8) {
         todo!()
     }
 
-    fn write8_ram_bank_n(&self) {
+    fn write8_ram_bank_n(&mut self, addr: u16, value: u8) {
         todo!()
     }
 

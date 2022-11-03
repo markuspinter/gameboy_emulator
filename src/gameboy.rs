@@ -77,6 +77,9 @@ impl Gameboy {
         if let Some(res) = self.timer.read8(addr) {
             return res;
         }
+        if let Some(res) = self.cartridge.read8(addr) {
+            return res;
+        }
         if let Some(res) = self.memory.read8(addr) {
             return res;
         }
@@ -94,6 +97,9 @@ impl Gameboy {
             return;
         }
         if let Some(()) = self.timer.write8(addr, value) {
+            return;
+        }
+        if let Some(()) = self.cartridge.write8(addr, value) {
             return;
         }
         if let Some(()) = self.memory.write8(addr, value) {

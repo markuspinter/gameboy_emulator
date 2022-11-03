@@ -68,6 +68,12 @@ pub struct MemoryRange {
 pub mod cartridge {
     use super::MemoryRange;
 
+    pub const BOOTROM: MemoryRange = MemoryRange {
+        begin: 0x0000,
+        end: 0x00FF,
+        size: 0x0100,
+    };
+
     pub const ROM_BANK_0: MemoryRange = MemoryRange {
         begin: 0x0000,
         end: 0x3FFF,
@@ -85,7 +91,7 @@ pub mod cartridge {
         size: 0x2000,
     };
 
-    pub const BOOTROM_FLAG: u16 = 0xFF40;
+    pub const BOOTROM_FLAG: u16 = 0xFF50;
 }
 
 pub mod ppu {
