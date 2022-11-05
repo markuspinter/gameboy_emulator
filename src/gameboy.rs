@@ -1,14 +1,15 @@
 use std::{fmt::Error, time::SystemTime};
 
+pub mod apu;
 pub mod cartridge;
 pub mod cpu;
 pub mod interrupts;
 pub mod joypad;
 pub mod memory;
 pub mod ppu;
-pub mod sound;
 pub mod timer;
 
+use apu::APU;
 use cpu::CPU;
 use memory::Memory;
 use minifb::Key;
@@ -65,6 +66,9 @@ trait GameboyModule {
 
 impl Gameboy {
     fn read8(&self, addr: u16) -> u8 {
+        if let Some(res) = self.apu.read8(addr) {
+            return res;
+        }
         if let Some(res) = self.ppu.read8(addr) {
             return res;
         }
@@ -87,6 +91,9 @@ impl Gameboy {
     }
 
     fn write8(&mut self, addr: u16, value: u8) {
+        if let Some(()) = self.apu.write8(addr, value) {
+            return;
+        }
         if let Some(()) = self.ppu.write8(addr, value) {
             return;
         }
@@ -124,6 +131,7 @@ pub struct Gameboy {
     cpu: CPU,
     ppu: PPU,
     screen: Screen,
+    apu: APU,
     memory: Memory,
     joypad: Joypad,
     timer: Timer,
@@ -150,6 +158,7 @@ impl Gameboy {
             joypad: Joypad::new(),
             timer: Timer::new(),
             screen: Screen::new(Self::SCREEN_ROWS, Self::SCREEN_COLUMNS, 1, 1, minifb::Scale::X4),
+            apu: APU::new(),
             memory: Memory::new(bootrom_path, rom_path),
             running: true,
             cgb_mode: false,
