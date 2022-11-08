@@ -126,10 +126,9 @@ impl Wave {
 
     fn set_nr30(&mut self, value: u8) {
         self.dac_enable = bit!(value, 7) != 0;
-        println!("nr30 {:#010b}, {}", value, self.dac_enable);
+        log::debug!("nr30 {:#010b}, {}", value, self.dac_enable);
         if !self.sink.empty() {
             if !self.dac_enable {
-                println!("pause");
                 self.sink.pause();
                 // self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
             } else {

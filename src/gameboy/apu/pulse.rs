@@ -331,9 +331,10 @@ impl PulseSweep {
         self.inital_envelope_volume = value >> 4;
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
-        println!(
+        log::debug!(
             "envelope volume {}; envelop increase {}",
-            self.inital_envelope_volume, self.envelope_increase
+            self.inital_envelope_volume,
+            self.envelope_increase
         );
         if !self.sink.empty() {
             if self.inital_envelope_volume == 0 {
@@ -367,9 +368,10 @@ impl PulseSweep {
         self.sound_length_enable = bit!(value, 6) != 0;
         self.wave_length &= 0x00FF;
         self.wave_length |= ((value & 0b111) as u16) << 8;
-        println!(
+        log::debug!(
             "sound length enable {}; shall trigger {}",
-            self.sound_length_enable, self.shall_trigger
+            self.sound_length_enable,
+            self.shall_trigger
         );
 
         if self.sink.empty() {

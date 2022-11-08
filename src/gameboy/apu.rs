@@ -34,7 +34,7 @@ impl super::MemoryInterface for APU {
         } else if addr == memory::apu::NR51 {
             return Some(self.nr51);
         } else if addr == memory::apu::NR52 {
-            println!("read nr52");
+            log::trace!("read nr52");
             return Some(self.nr52);
         }
         return None;
