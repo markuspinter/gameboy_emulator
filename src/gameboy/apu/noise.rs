@@ -108,8 +108,9 @@ impl Noise {
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
         if !self.sink.empty() {
-            if value & 0xF8 == 0 {
-                // self.sink.stop();
+            if self.inital_envelope_volume == 0 {
+                self.sink.stop();
+                self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
             }
         }
     }
@@ -133,19 +134,19 @@ impl Noise {
             let res = speed::<NoiseOscillator, NoiseParameters>(oscillator);
             self.noise_mpsc = res.1;
 
-            // if self.sound_length_enable {
-            //     self.sink.append(res.0.take_duration(duration).amplify(0.05));
-            // } else {
-            //     self.sink.append(res.0.amplify(0.05));
-            // }
-            // self.sink.append(res.0.take_duration(duration).amplify(0.05));
+            if self.sound_length_enable {
+                self.sink.append(res.0.take_duration(duration / 10).amplify(0.1));
+            } else {
+                self.sink.append(res.0.amplify(0.1));
+            }
+            // self.sink.append(res.0.take_duration(duration).amplify(0.1));
 
-            // self.noise_mpsc
-            //     .send(NoiseParameters {
-            //         clock_shift: 0,
-            //         clock_divider: 0,
-            //     })
-            //     .unwrap();
+            self.noise_mpsc
+                .send(NoiseParameters {
+                    clock_shift: self.clock_shift,
+                    clock_divider: self.clock_divider,
+                })
+                .unwrap();
         }
     }
 }
@@ -214,7 +215,11 @@ impl NoiseOscillator {
     fn get_sample(&mut self) -> f32 {
         let sample: f32;
 
-        sample = self.lerp();
+        // sample = self.lerp();
+        sample = if (self.lfsr_queue[0] & 0b1) == 0 { 0.0 } else { 1.0 };
+        if (self.index as usize) == 1 {
+            self.tick();
+        }
         self.index += self.index_increment;
         self.index %= 2.0 as f32;
 
@@ -231,8 +236,8 @@ impl NoiseOscillator {
         if (truncated_index) == 1 {
             self.tick();
         }
-        let val = if (self.lfsr_queue[0] & 0b1) == 0 { -1.0 } else { 1.0 };
-        let next_val = if (self.lfsr_queue[1] & 0b1) == 0 { -1.0 } else { 1.0 };
+        let val = if (self.lfsr_queue[0] & 0b1) == 0 { 0.0 } else { 1.0 };
+        let next_val = if (self.lfsr_queue[1] & 0b1) == 0 { 0.0 } else { 1.0 };
 
         return truncated_index_weight * val + next_index_weight * next_val;
     }

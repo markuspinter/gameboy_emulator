@@ -106,8 +106,11 @@ impl Pulse {
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
         if !self.sink.empty() {
-            if value & 0xF8 == 0 {
-                // self.sink.stop();
+            if self.inital_envelope_volume == 0 {
+                self.sink.pause();
+                // self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
+            } else {
+                // self.sink.play();
             }
         }
     }
@@ -160,12 +163,12 @@ impl Pulse {
                 let res = speed::<PulseOscillator, PulseParameters>(oscillator);
                 self.noise_mpsc = res.1;
 
-                // if self.sound_length_enable {
-                //     self.sink.append(res.0.take_duration(duration).amplify(0.05));
-                // } else {
-                //     self.sink.append(res.0.amplify(0.05));
-                // }
-                // self.sink.append(res.0.take_duration(duration).amplify(0.05));
+                if self.sound_length_enable {
+                    self.sink.append(res.0.take_duration(duration).amplify(0.1));
+                } else {
+                    self.sink.append(res.0.amplify(0.1));
+                }
+                // self.sink.append(res.0.take_duration(duration).amplify(0.1));
 
                 log::debug!("wave length {}; freq {}", self.wave_length, freq);
 
@@ -195,6 +198,9 @@ impl Pulse {
                     frequency: freq as f32,
                 })
                 .unwrap();
+            if self.shall_trigger {
+                self.sink.play();
+            }
         }
     }
 }
@@ -325,9 +331,16 @@ impl PulseSweep {
         self.inital_envelope_volume = value >> 4;
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
+        println!(
+            "envelope volume {}; envelop increase {}",
+            self.inital_envelope_volume, self.envelope_increase
+        );
         if !self.sink.empty() {
-            if value & 0xF8 == 0 {
-                // self.sink.stop();
+            if self.inital_envelope_volume == 0 {
+                self.sink.pause();
+                // self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
+            } else {
+                // self.sink.play();
             }
         }
     }
@@ -354,6 +367,10 @@ impl PulseSweep {
         self.sound_length_enable = bit!(value, 6) != 0;
         self.wave_length &= 0x00FF;
         self.wave_length |= ((value & 0b111) as u16) << 8;
+        println!(
+            "sound length enable {}; shall trigger {}",
+            self.sound_length_enable, self.shall_trigger
+        );
 
         if self.sink.empty() {
             if self.shall_trigger {
@@ -373,12 +390,12 @@ impl PulseSweep {
                 let res = speed::<PulseOscillator, PulseParameters>(oscillator);
                 self.noise_mpsc = res.1;
 
-                // if self.sound_length_enable {
-                //     self.sink.append(res.0.take_duration(duration).amplify(0.05));
-                // } else {
-                //     self.sink.append(res.0.amplify(0.05));
-                // }
-                // self.sink.append(res.0.take_duration(duration).amplify(0.05));
+                if self.sound_length_enable {
+                    self.sink.append(res.0.take_duration(duration).amplify(0.1));
+                } else {
+                    self.sink.append(res.0.amplify(0.1));
+                }
+                // self.sink.append(res.0.take_duration(duration).amplify(0.1));
 
                 // log::debug!("freq {}", freq);
 
@@ -407,6 +424,9 @@ impl PulseSweep {
                     frequency: freq as f32,
                 })
                 .unwrap();
+            if self.shall_trigger {
+                self.sink.play();
+            }
         }
     }
 }
@@ -451,8 +471,8 @@ impl PulseOscillator {
     fn get_sample(&mut self) -> f32 {
         let sample: f32;
 
-        sample = self.lerp();
-        // sample = if (self.index) / 8.0 < self.duty_cycle { 1.0 } else { 0.0 };
+        // sample = self.lerp();
+        sample = if (self.index) / 8.0 < self.duty_cycle { 1.0 } else { 0.0 };
         self.index += self.index_increment;
         self.index %= 8.0 as f32;
 

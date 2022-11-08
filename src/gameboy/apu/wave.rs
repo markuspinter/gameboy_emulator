@@ -129,7 +129,11 @@ impl Wave {
         println!("nr30 {:#010b}, {}", value, self.dac_enable);
         if !self.sink.empty() {
             if !self.dac_enable {
-                self.sink.stop();
+                println!("pause");
+                self.sink.pause();
+                // self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
+            } else {
+                // self.sink.play();
             }
         }
     }
@@ -200,12 +204,11 @@ impl Wave {
                 self.noise_mpsc = res.1;
 
                 if self.sound_length_enable {
-                    self.sink.append(res.0.take_duration(duration).amplify(0.05));
+                    self.sink.append(res.0.take_duration(duration).amplify(0.1));
                 } else {
-                    self.sink.append(res.0.amplify(0.05));
+                    self.sink.append(res.0.amplify(0.1));
                 }
-                // self.sink.append(res.0.take_duration(duration).amplify(0.05));
-                self.sink.play();
+                // self.sink.append(res.0.take_duration(duration).amplify(0.1));
 
                 self.noise_mpsc
                     .send(WaveParameters {
@@ -222,6 +225,9 @@ impl Wave {
                     frequency: freq as f32,
                 })
                 .unwrap();
+            if self.shall_trigger {
+                self.sink.play();
+            }
         }
     }
     fn set_wave_pattern(&mut self, addr: u16, value: u8) {
@@ -281,7 +287,8 @@ impl WaveOscillator {
     fn get_sample(&mut self) -> f32 {
         let sample: f32;
 
-        sample = self.lerp();
+        // sample = self.lerp();
+        sample = self.wave_table[self.index as usize];
         self.index += self.index_increment;
         self.index %= self.wave_table.len() as f32;
 
