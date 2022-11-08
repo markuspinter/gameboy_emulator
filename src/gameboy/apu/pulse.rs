@@ -107,7 +107,7 @@ impl Pulse {
         self.sweep_pace = value & 0b111;
         if !self.sink.empty() {
             if value & 0xF8 == 0 {
-                self.sink.stop();
+                // self.sink.stop();
             }
         }
     }
@@ -147,8 +147,9 @@ impl Pulse {
                 let duration =
                     Duration::from_micros((((1.0 / 256.0) * (64.0 - self.length_timer as f32)) * 1e6) as u64);
                 // log::debug!("start sound for: {:?}", duration);
+                let freq: f32 = 131072.0 / (2048 - self.wave_length as u32) as f32;
                 let oscillator = PulseOscillator::new(
-                    88200,
+                    44100,
                     match self.wave_duty {
                         WaveDuty::P12_5 => 0.125,
                         WaveDuty::P25 => 0.25,
@@ -159,14 +160,13 @@ impl Pulse {
                 let res = speed::<PulseOscillator, PulseParameters>(oscillator);
                 self.noise_mpsc = res.1;
 
-                if self.sound_length_enable {
-                    self.sink.append(res.0.take_duration(duration).amplify(0.05));
-                } else {
-                    self.sink.append(res.0.amplify(0.05));
-                }
+                // if self.sound_length_enable {
+                //     self.sink.append(res.0.take_duration(duration).amplify(0.05));
+                // } else {
+                //     self.sink.append(res.0.amplify(0.05));
+                // }
                 // self.sink.append(res.0.take_duration(duration).amplify(0.05));
 
-                let freq: f32 = 131072.0 / (2048 - self.wave_length as u32) as f32;
                 log::debug!("wave length {}; freq {}", self.wave_length, freq);
 
                 self.noise_mpsc
@@ -200,11 +200,6 @@ impl Pulse {
 }
 
 pub struct PulseSweep {
-    //     Bit 6-4 - Sweep pace
-    // Bit 3   - Sweep increase/decrease
-    //            0: Addition    (wavelength increases)
-    //            1: Subtraction (wavelength decreases)
-    // Bit 2-0 - Sweep slope control (n: 0-7)
     sweep_pace_for_frequency: u8,
     sweep_decrease: bool,
     sweep_slope: u8,
@@ -332,14 +327,14 @@ impl PulseSweep {
         self.sweep_pace = value & 0b111;
         if !self.sink.empty() {
             if value & 0xF8 == 0 {
-                self.sink.stop();
+                // self.sink.stop();
             }
         }
     }
     fn set_nr13(&mut self, value: u8) {
         self.wave_length &= 0x0700;
         self.wave_length |= value as u16;
-        let freq = 131072 / (2048 - self.wave_length as u32);
+        let freq = 131072.0 / (2048 - self.wave_length as u32) as f32;
         if !self.sink.empty() {
             self.noise_mpsc
                 .send(PulseParameters {
@@ -364,6 +359,7 @@ impl PulseSweep {
             if self.shall_trigger {
                 let duration =
                     Duration::from_micros((((1.0 / 256.0) * (64.0 - self.length_timer as f32)) * 1e6) as u64);
+                let freq = 131072.0 / (2048 - self.wave_length as u32) as f32;
                 // log::debug!("start sound for: {:?}", duration);
                 let oscillator = PulseOscillator::new(
                     44100,
@@ -377,14 +373,13 @@ impl PulseSweep {
                 let res = speed::<PulseOscillator, PulseParameters>(oscillator);
                 self.noise_mpsc = res.1;
 
-                if self.sound_length_enable {
-                    self.sink.append(res.0.take_duration(duration).amplify(0.05));
-                } else {
-                    self.sink.append(res.0.amplify(0.05));
-                }
+                // if self.sound_length_enable {
+                //     self.sink.append(res.0.take_duration(duration).amplify(0.05));
+                // } else {
+                //     self.sink.append(res.0.amplify(0.05));
+                // }
                 // self.sink.append(res.0.take_duration(duration).amplify(0.05));
 
-                let freq = 131072 / (2048 - self.wave_length as u32);
                 // log::debug!("freq {}", freq);
 
                 self.noise_mpsc
@@ -400,7 +395,7 @@ impl PulseSweep {
                     .unwrap();
             }
         } else {
-            let freq = 131072 / (2048 - self.wave_length as u32);
+            let freq = 131072.0 / (2048 - self.wave_length as u32) as f32;
             self.noise_mpsc
                 .send(PulseParameters {
                     duty_cycle: match self.wave_duty {
@@ -432,7 +427,7 @@ use crate::{
     gameboy::{apu::utils::speed, memory, MemoryInterface},
 };
 
-use super::{utils::CustomSource, wave::Wave};
+use super::utils::CustomSource;
 
 pub struct PulseOscillator {
     sample_rate: u32,
@@ -457,6 +452,7 @@ impl PulseOscillator {
         let sample: f32;
 
         sample = self.lerp();
+        // sample = if (self.index) / 8.0 < self.duty_cycle { 1.0 } else { 0.0 };
         self.index += self.index_increment;
         self.index %= 8.0 as f32;
 
@@ -470,11 +466,11 @@ impl PulseOscillator {
         let next_index_weight = self.index - truncated_index as f32;
         let truncated_index_weight = 1.0 - next_index_weight;
 
-        let mut val = 0.0;
+        let mut val = -1.0;
         if (self.index) / 8.0 < self.duty_cycle {
             val = 1.0;
         }
-        let mut next_val = 0.0;
+        let mut next_val = -1.0;
         if (next_index as f32) / 8.0 < self.duty_cycle {
             next_val = 1.0;
         }

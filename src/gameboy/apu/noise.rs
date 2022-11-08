@@ -109,7 +109,7 @@ impl Noise {
         self.sweep_pace = value & 0b111;
         if !self.sink.empty() {
             if value & 0xF8 == 0 {
-                self.sink.stop();
+                // self.sink.stop();
             }
         }
     }
@@ -138,7 +138,7 @@ impl Noise {
             // } else {
             //     self.sink.append(res.0.amplify(0.05));
             // }
-            self.sink.append(res.0.take_duration(duration).amplify(0.05));
+            // self.sink.append(res.0.take_duration(duration).amplify(0.05));
 
             // self.noise_mpsc
             //     .send(NoiseParameters {
@@ -231,8 +231,8 @@ impl NoiseOscillator {
         if (truncated_index) == 1 {
             self.tick();
         }
-        let val = (self.lfsr_queue[0] & 0b1) as f32;
-        let next_val = (self.lfsr_queue[1] & 0b1) as f32;
+        let val = if (self.lfsr_queue[0] & 0b1) == 0 { -1.0 } else { 1.0 };
+        let next_val = if (self.lfsr_queue[1] & 0b1) == 0 { -1.0 } else { 1.0 };
 
         return truncated_index_weight * val + next_index_weight * next_val;
     }

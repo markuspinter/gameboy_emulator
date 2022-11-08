@@ -177,6 +177,8 @@ pub mod ppu {
 }
 
 pub mod apu {
+    use super::MemoryRange;
+
     pub const NR11: u16 = 0xFF10;
     pub const NR12: u16 = 0xFF11;
     pub const NR10: u16 = 0xFF12;
@@ -202,6 +204,12 @@ pub mod apu {
     pub const NR50: u16 = 0xFF24;
     pub const NR51: u16 = 0xFF25;
     pub const NR52: u16 = 0xFF26;
+
+    pub const WAVE_PATTERN_RAM: MemoryRange = MemoryRange {
+        begin: 0xFF30,
+        end: 0xFF3F,
+        size: 0x0010,
+    };
 }
 
 pub mod joypad {
