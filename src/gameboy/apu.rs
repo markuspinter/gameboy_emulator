@@ -1,5 +1,6 @@
 use super::memory;
 
+mod driver;
 mod noise;
 mod pulse;
 mod utils;
