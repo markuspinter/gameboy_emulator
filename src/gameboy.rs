@@ -210,6 +210,7 @@ impl Gameboy {
                 self.cpu.tick(self_ptr)?;
                 self.ppu.tick(self_ptr)?;
                 self.timer.tick(self_ptr)?;
+                self.apu.tick(self_ptr)?;
             }
 
             let diff = SystemTime::now()

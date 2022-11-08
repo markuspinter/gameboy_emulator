@@ -58,7 +58,7 @@ pub struct Timer {
 impl GameboyModule for Timer {
     unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
         let gb = &mut *gb_ptr;
-        self.tick_div();
+        self.tick_div(gb);
         if self.tac.enable {
             self.tick_timer(gb);
         }
@@ -145,12 +145,17 @@ impl Timer {
         }
     }
 
-    fn tick_div(&mut self) {
+    fn tick_div(&mut self, gb: &mut Gameboy) {
         self.div_timer_tick += 1;
 
         self.div_timer_tick %= Timer::DIV_PRESCALER;
         if self.div_timer_tick == 0 {
+            let prev_div = self.div;
             self.div = self.div.wrapping_add(1);
+
+            if (prev_div >> 4) & 0b1 == 1 && (self.div >> 4) & 0b1 == 1 {
+                gb.apu.tick_div();
+            }
         }
     }
 }

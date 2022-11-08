@@ -134,11 +134,11 @@ impl Noise {
             let res = speed::<NoiseOscillator, NoiseParameters>(oscillator);
             self.noise_mpsc = res.1;
 
-            if self.sound_length_enable {
-                self.sink.append(res.0.take_duration(duration).amplify(0.1));
-            } else {
-                self.sink.append(res.0.amplify(0.1));
-            }
+            // if self.sound_length_enable {
+            //     self.sink.append(res.0.take_duration(duration).amplify(0.1));
+            // } else {
+            //     self.sink.append(res.0.amplify(0.1));
+            // }
             // self.sink.append(res.0.take_duration(duration).amplify(0.1));
 
             self.noise_mpsc

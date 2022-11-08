@@ -1,4 +1,10 @@
-use super::memory;
+use std::{collections::VecDeque, sync::mpsc};
+
+use rodio::{OutputStream, OutputStreamHandle, Sink};
+
+use self::driver::{AudioDriver, AudioQueue};
+
+use super::{memory, GameboyModule};
 
 mod driver;
 mod noise;
@@ -18,6 +24,39 @@ pub struct APU {
     nr50: u8,
     nr51: u8,
     nr52: u8,
+
+    div: u8,
+
+    stream: OutputStream,
+    stream_handle: OutputStreamHandle,
+    sink: Sink,
+    audio_queue_sender: mpsc::Sender<AudioQueue>,
+}
+
+impl GameboyModule for APU {
+    unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
+        let gb = &mut *gb_ptr;
+        if gb.vblank {
+            let mut queue: VecDeque<f32> = VecDeque::new();
+            for sample in self.wave.get_samples() {
+                queue.push_back(*sample);
+            }
+
+            self.audio_queue_sender
+                .send(AudioQueue {
+                    queue,
+                    shall_clear_old_samples: false,
+                })
+                .unwrap();
+            self.wave.reset_samples();
+        }
+        // self.pulse_sweep.tick(gb);
+        // self.pulse.tick(gb);
+        self.wave.tick(gb)?;
+        // self.noise.tick(gb);
+
+        Ok(0)
+    }
 }
 
 impl super::MemoryInterface for APU {
@@ -60,19 +99,74 @@ impl super::MemoryInterface for APU {
 }
 
 impl APU {
+    const ENVELOPE_SWEEP_DIVIDER: u8 = 8;
+    const SOUND_LENGTH_DIVIDER: u8 = 2;
+    const CH1_FREQUENCY_SWEEP_DIVIDER: u8 = 4;
+    const AUDIO_SAMPLING_RATE: u32 = 44100;
+
     pub fn new() -> Self {
-        Self {
+        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let mut apu = Self {
             pulse_sweep: pulse::PulseSweep::new(),
 
             pulse: pulse::Pulse::new(),
 
-            wave: wave::Wave::new(),
+            wave: wave::Wave::new(Self::AUDIO_SAMPLING_RATE),
 
             noise: noise::Noise::new(),
 
             nr50: 0,
             nr51: 0,
             nr52: 0,
+
+            div: 0,
+
+            sink: Sink::try_new(&stream_handle).unwrap(),
+            stream: _stream,
+            stream_handle: stream_handle,
+            audio_queue_sender: tx,
+        };
+        apu.sink.append(AudioDriver::new(Self::AUDIO_SAMPLING_RATE, 1, rx));
+        apu
+    }
+
+    pub fn tick_div(&mut self) {
+        self.div = self.div.wrapping_add(1);
+
+        if self.div % APU::ENVELOPE_SWEEP_DIVIDER == 0 {
+            // self.pulse_sweep.tick_envelope_sweep();
+            // self.pulse.tick_envelope_sweep();
+            // self.noise.tick_envelope_sweep();
+        }
+
+        if self.div % APU::SOUND_LENGTH_DIVIDER == 0 {
+            // self.pulse_sweep.tick_timer();
+            // self.pulse.tick_timer();
+            self.wave.tick_timer();
+            // self.noise.tick_timer();
+        }
+
+        if self.div % APU::CH1_FREQUENCY_SWEEP_DIVIDER == 0 {
+            // self.pulse_sweep.tick_frequency_sweep();
+        }
+    }
+}
+
+trait APUChannel {
+    fn tick_timer(&mut self);
+    fn sample(&mut self);
+    fn get_samples(&mut self) -> &Vec<f32>;
+    fn reset_samples(&mut self);
+    // fn get_current_sample(&self) -> u8; //unused right now (CGB)
+    #[inline]
+    fn dac(sample: u8, dac_enabled: bool) -> f32 {
+        const SAMPLE_BIT_RESOLUTION: u8 = 16;
+        if dac_enabled {
+            // println!("dac result {}", sample as f32 / SAMPLE_BIT_RESOLUTION as f32);
+            sample as f32 / SAMPLE_BIT_RESOLUTION as f32
+        } else {
+            0.0
         }
     }
 }

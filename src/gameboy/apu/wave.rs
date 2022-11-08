@@ -6,10 +6,13 @@ use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
 
 use crate::{
     bit,
-    gameboy::{memory, MemoryInterface},
+    gameboy::{memory, GameboyModule, MemoryInterface},
 };
 
-use super::utils::{speed, CustomSource};
+use super::{
+    utils::{speed, CustomSource},
+    APUChannel,
+};
 
 #[derive(Clone, Debug, FromPrimitive)]
 enum WaveOutputLevel {
@@ -20,20 +23,37 @@ enum WaveOutputLevel {
 }
 
 pub struct Wave {
-    dac_enable: bool,
+    dac_enabled: bool,
 
     wave_length: u16,
     length_timer: u8,
     output_level: WaveOutputLevel,
     shall_trigger: bool,
     sound_length_enable: bool, //(1=Stop output when length in NR21 expires)
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
-    sink: Sink,
-    noise_mpsc: mpsc::Sender<WaveParameters>,
 
     wave_pattern_ram: [u8; memory::apu::WAVE_PATTERN_RAM.size],
-    wave_pattern_vec: Vec<f32>,
+    wave_pattern_vec: Vec<u8>,
+
+    t_cycles: u16,
+    timer: u8,
+    active: bool,
+    frame_index: usize,
+    samples: Vec<f32>,
+
+    frame_index_fraction: f32,
+    frame_index_fraction_increment: f32,
+    sample_rate: u32,
+}
+
+impl GameboyModule for Wave {
+    unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
+        if self.t_cycles == 0 {
+            self.sample();
+            self.t_cycles = 5;
+        }
+        self.t_cycles -= 1;
+        Ok(self.t_cycles as u32)
+    }
 }
 
 impl MemoryInterface for Wave {
@@ -75,10 +95,11 @@ impl MemoryInterface for Wave {
 }
 
 impl Wave {
-    pub fn new() -> Self {
+    const WAVE_PATTERN_FRAME_SIZE: usize = 32;
+    pub fn new(sample_rate: u32) -> Self {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         Self {
-            dac_enable: false,
+            dac_enabled: false,
 
             wave_length: 0,
 
@@ -88,19 +109,23 @@ impl Wave {
             shall_trigger: false,
             sound_length_enable: false,
 
-            sink: Sink::try_new(&stream_handle).unwrap(),
-            stream: _stream,
-            stream_handle: stream_handle,
-            noise_mpsc: mpsc::channel().0,
-
             wave_pattern_ram: [0; memory::apu::WAVE_PATTERN_RAM.size],
-            wave_pattern_vec: vec![0.0; memory::apu::WAVE_PATTERN_RAM.size * 2],
+            wave_pattern_vec: vec![0; memory::apu::WAVE_PATTERN_RAM.size * 2],
+            t_cycles: 0,
+            timer: 0,
+            active: false,
+            frame_index: 0,
+            samples: Vec::new(),
+
+            sample_rate,
+            frame_index_fraction: 0.,
+            frame_index_fraction_increment: 0.,
         }
     }
 
     fn get_nr30(&self) -> u8 {
         let mut byte: u8 = 0;
-        byte |= (self.dac_enable as u8) << 7;
+        byte |= (self.dac_enabled as u8) << 7;
         byte
     }
 
@@ -125,216 +150,92 @@ impl Wave {
     }
 
     fn set_nr30(&mut self, value: u8) {
-        self.dac_enable = bit!(value, 7) != 0;
-        log::debug!("nr30 {:#010b}, {}", value, self.dac_enable);
-        if !self.sink.empty() {
-            if !self.dac_enable {
-                self.sink.pause();
-                // self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
-            } else {
-                // self.sink.play();
-            }
-        }
+        self.dac_enabled = bit!(value, 7) != 0;
     }
 
     fn set_nr31(&mut self, value: u8) {
         self.length_timer = value;
     }
+
     fn set_nr32(&mut self, value: u8) {
         self.output_level = FromPrimitive::from_u8((value >> 5) & 0b11).expect("couldn't convert wave output level");
-        for index in 0..memory::apu::WAVE_PATTERN_RAM.size {
-            self.wave_pattern_vec[index * 2] = ((self.wave_pattern_ram[index] >> 4)
-                >> match self.output_level {
-                    WaveOutputLevel::Mute => 8, //mute
-                    WaveOutputLevel::P100 => 0,
-                    WaveOutputLevel::P50 => 1,
-                    WaveOutputLevel::P25 => 2,
-                }) as f32
-                / 16.0;
-            self.wave_pattern_vec[index * 2 + 1] = ((self.wave_pattern_ram[index] & 0x0F)
-                >> match self.output_level {
-                    WaveOutputLevel::Mute => 8, //mute
-                    WaveOutputLevel::P100 => 0,
-                    WaveOutputLevel::P50 => 1,
-                    WaveOutputLevel::P25 => 2,
-                }) as f32
-                / 16.0;
-        }
-
-        // update wave pattern
-        if !self.sink.empty() {
-            let freq = 65536.0 / (2048 - self.wave_length as u32) as f32;
-            self.noise_mpsc
-                .send(WaveParameters {
-                    wave_table: self.wave_pattern_vec.clone(),
-                    frequency: freq as f32,
-                })
-                .unwrap();
-        }
     }
+
     fn set_nr33(&mut self, value: u8) {
         self.wave_length &= 0x0700;
         self.wave_length |= value as u16;
 
-        if !self.sink.empty() {
-            let freq = 65536.0 / (2048 - self.wave_length as u32) as f32;
-            self.noise_mpsc
-                .send(WaveParameters {
-                    wave_table: self.wave_pattern_vec.clone(),
-                    frequency: freq as f32,
-                })
-                .unwrap();
-        }
+        self.frame_index_fraction_increment = (65536. / (2048. * self.wave_length as f32))
+            * (Wave::WAVE_PATTERN_FRAME_SIZE as f32 / self.sample_rate as f32);
     }
+
     fn set_nr34(&mut self, value: u8) {
         self.shall_trigger = bit!(value, 7) != 0;
         self.sound_length_enable = bit!(value, 6) != 0;
         self.wave_length &= 0x00FF;
         self.wave_length |= ((value & 0b111) as u16) << 8;
 
-        if self.sink.empty() {
-            if self.shall_trigger {
-                let duration =
-                    Duration::from_micros((((1.0 / 256.0) * (64.0 - self.length_timer as f32)) * 1e6) as u64);
-                let freq = 65536.0 / (2048 - self.wave_length as u32) as f32;
-                // log::debug!("start sound for: {:?}", duration);
-                let oscillator = WaveOscillator::new(44100, self.wave_pattern_vec.clone());
-                let res = speed::<WaveOscillator, WaveParameters>(oscillator);
-                self.noise_mpsc = res.1;
-
-                if self.sound_length_enable {
-                    self.sink.append(res.0.take_duration(duration).amplify(0.1));
-                } else {
-                    self.sink.append(res.0.amplify(0.1));
-                }
-                // self.sink.append(res.0.take_duration(duration).amplify(0.1));
-
-                self.noise_mpsc
-                    .send(WaveParameters {
-                        wave_table: self.wave_pattern_vec.clone(),
-                        frequency: freq as f32,
-                    })
-                    .unwrap();
-            }
-        } else {
-            let freq = 65536.0 / (2048 - self.wave_length as u32) as f32;
-            self.noise_mpsc
-                .send(WaveParameters {
-                    wave_table: self.wave_pattern_vec.clone(),
-                    frequency: freq as f32,
-                })
-                .unwrap();
-            if self.shall_trigger {
-                self.sink.play();
-            }
+        if self.shall_trigger {
+            self.active = true;
         }
+
+        self.frame_index_fraction_increment = (65536. / (2048 - self.wave_length) as f32)
+            * (Wave::WAVE_PATTERN_FRAME_SIZE as f32 / self.sample_rate as f32);
     }
+
     fn set_wave_pattern(&mut self, addr: u16, value: u8) {
         let index = (addr - memory::apu::WAVE_PATTERN_RAM.begin) as usize;
         self.wave_pattern_ram[index] = value;
-        self.wave_pattern_vec[index * 2] = ((value >> 4)
-            >> match self.output_level {
-                WaveOutputLevel::Mute => 8, //mute
-                WaveOutputLevel::P100 => 0,
-                WaveOutputLevel::P50 => 1,
-                WaveOutputLevel::P25 => 2,
-            }) as f32
-            / 16.0;
-        self.wave_pattern_vec[index * 2 + 1] = ((value & 0x0F)
-            >> match self.output_level {
-                WaveOutputLevel::Mute => 8, //mute
-                WaveOutputLevel::P100 => 0,
-                WaveOutputLevel::P50 => 1,
-                WaveOutputLevel::P25 => 2,
-            }) as f32
-            / 16.0;
-        //update wave pattern
-        if !self.sink.empty() {
-            let freq = 65536.0 / (2048 - self.wave_length as u32) as f32;
-            self.noise_mpsc
-                .send(WaveParameters {
-                    wave_table: self.wave_pattern_vec.clone(),
-                    frequency: freq as f32,
-                })
-                .unwrap();
+        self.wave_pattern_vec[index * 2] = value >> 4;
+        self.wave_pattern_vec[index * 2 + 1] = value & 0x0F;
+    }
+}
+
+impl APUChannel for Wave {
+    fn tick_timer(&mut self) {
+        if self.timer == 255 {
+            if self.sound_length_enable {
+                self.active = false;
+            }
+        }
+        self.timer = self.timer.wrapping_add(1);
+    }
+
+    fn sample(&mut self) {
+        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 {
+            self.frame_index_fraction += self.frame_index_fraction_increment;
+            self.frame_index_fraction %= Wave::WAVE_PATTERN_FRAME_SIZE as f32;
+
+            self.frame_index = self.frame_index_fraction as usize;
+
+            let digital_sample = self.wave_pattern_vec[self.frame_index]
+                >> match self.output_level {
+                    WaveOutputLevel::Mute => 4,
+                    WaveOutputLevel::P100 => 0,
+                    WaveOutputLevel::P50 => 1,
+                    WaveOutputLevel::P25 => 2,
+                };
+            if self.active {
+                // println!(
+                //     "digital sample {}; frame index {}; fraction increment {}, freq {}, dac enabled {}",
+                //     digital_sample,
+                //     self.frame_index,
+                //     self.frame_index_fraction_increment,
+                //     65536. / (2048. - self.wave_length as f32),
+                //     self.dac_enabled
+                // );
+                self.samples.push(Self::dac(digital_sample, self.dac_enabled));
+            } else {
+                self.samples.push(0.0);
+            }
         }
     }
-}
 
-struct WaveParameters {
-    wave_table: Vec<f32>,
-    frequency: f32,
-}
-
-struct WaveOscillator {
-    sample_rate: u32,
-    wave_table: Vec<f32>,
-    index: f32,
-    index_increment: f32,
-}
-
-impl WaveOscillator {
-    fn new(sample_rate: u32, wave_table: Vec<f32>) -> WaveOscillator {
-        return WaveOscillator {
-            sample_rate: sample_rate,
-            wave_table: wave_table,
-            index: 0.0,
-            index_increment: 0.0,
-        };
+    fn get_samples(&mut self) -> &Vec<f32> {
+        &self.samples
     }
 
-    fn get_sample(&mut self) -> f32 {
-        let sample: f32;
-
-        // sample = self.lerp();
-        sample = self.wave_table[self.index as usize];
-        self.index += self.index_increment;
-        self.index %= self.wave_table.len() as f32;
-
-        return sample;
-    }
-
-    fn lerp(&self) -> f32 {
-        let truncated_index = self.index as usize;
-        let next_index = (truncated_index + 1) % self.wave_table.len();
-
-        let next_index_weight = self.index - truncated_index as f32;
-        let truncated_index_weight = 1.0 - next_index_weight;
-
-        return truncated_index_weight * self.wave_table[truncated_index]
-            + next_index_weight * self.wave_table[next_index];
-    }
-}
-
-impl CustomSource<WaveParameters> for WaveOscillator {
-    fn set_parameters(&mut self, parameters: WaveParameters) {
-        self.wave_table = parameters.wave_table;
-        self.index_increment = parameters.frequency * self.wave_table.len() as f32 / self.sample_rate as f32;
-    }
-}
-
-impl Source for WaveOscillator {
-    fn channels(&self) -> u16 {
-        return 1;
-    }
-
-    fn sample_rate(&self) -> u32 {
-        return self.sample_rate;
-    }
-
-    fn current_frame_len(&self) -> Option<usize> {
-        return None;
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        return None;
-    }
-}
-
-impl Iterator for WaveOscillator {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        return Some(self.get_sample());
+    fn reset_samples(&mut self) {
+        self.samples.clear();
     }
 }

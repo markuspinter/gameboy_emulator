@@ -8,8 +8,8 @@ use std::{collections::VecDeque, time::SystemTime};
 use super::wave;
 
 pub struct AudioQueue {
-    queue: VecDeque<f32>,
-    shall_clear_old_samples: bool,
+    pub queue: VecDeque<f32>,
+    pub shall_clear_old_samples: bool,
 }
 pub struct AudioDriver {
     channels: u16,
@@ -37,7 +37,10 @@ impl AudioDriver {
         let sample: f32;
 
         sample = match self.audio_queue.pop_front() {
-            Some(val) => val,
+            Some(val) => {
+                // println!("{}", val);
+                val
+            }
             None => 0.0,
         };
 
@@ -45,6 +48,7 @@ impl AudioDriver {
     }
 
     fn queue_samples(&mut self, queue: &mut AudioQueue) {
+        // println!("new samples {:?}", queue.queue);
         if queue.shall_clear_old_samples {
             self.audio_queue.clear();
         }
