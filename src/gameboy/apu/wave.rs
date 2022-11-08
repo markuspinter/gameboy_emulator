@@ -205,7 +205,8 @@ impl Wave {
                     self.sink.append(res.0.amplify(0.05));
                 }
                 // self.sink.append(res.0.take_duration(duration).amplify(0.05));
-                println!("hello");
+                self.sink.play();
+
                 self.noise_mpsc
                     .send(WaveParameters {
                         wave_table: self.wave_pattern_vec.clone(),
