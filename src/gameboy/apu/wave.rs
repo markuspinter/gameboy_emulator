@@ -49,7 +49,7 @@ impl GameboyModule for Wave {
     unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
         if self.t_cycles == 0 {
             self.sample();
-            self.t_cycles = 5;
+            self.t_cycles = 4;
         }
         self.t_cycles -= 1;
         Ok(self.t_cycles as u32)
