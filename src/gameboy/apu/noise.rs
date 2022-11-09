@@ -1,14 +1,18 @@
+use crate::{
+    bit,
+    gameboy::{memory, GameboyModule, MemoryInterface},
+};
+
+use super::{APUChannel, APUEnvelope};
+
 pub enum LFSRWidth {
     LFSR15Bits,
     LFSR7Bits,
 }
 
-struct NoiseParameters {
-    clock_shift: u8,
-    clock_divider: u8,
-}
-
 pub struct Noise {
+    dac_enabled: bool,
+
     length_timer: u8,
     inital_envelope_volume: u8,
     envelope_increase: bool,
@@ -18,10 +22,31 @@ pub struct Noise {
     clock_divider: u8,
     shall_trigger: bool,
     sound_length_enable: bool, //(1=Stop output when length in NR41 expires)
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
-    sink: Sink,
-    noise_mpsc: mpsc::Sender<NoiseParameters>,
+
+    t_cycles: u16,
+    timer: u8,
+    active: bool,
+    frame_index: usize,
+    samples: Vec<f32>,
+
+    sweep_volume: u8,
+
+    lfsr: u16,
+
+    frame_index_fraction: f32,
+    frame_index_fraction_increment: f32,
+    sample_rate: u32,
+}
+
+impl GameboyModule for Noise {
+    unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
+        if self.t_cycles == 0 {
+            self.sample();
+            self.t_cycles = 9;
+        }
+        self.t_cycles -= 1;
+        Ok(self.t_cycles as u32)
+    }
 }
 
 impl MemoryInterface for Noise {
@@ -55,9 +80,11 @@ impl MemoryInterface for Noise {
 }
 
 impl Noise {
-    pub fn new() -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    const NOISE_FRAME_SIZE: usize = 1;
+    pub fn new(sample_rate: u32) -> Self {
         Self {
+            dac_enabled: false,
+
             length_timer: 0,
             inital_envelope_volume: 0,
             envelope_increase: false,
@@ -68,10 +95,19 @@ impl Noise {
             shall_trigger: false,
             sound_length_enable: false,
 
-            sink: Sink::try_new(&stream_handle).unwrap(),
-            stream: _stream,
-            stream_handle: stream_handle,
-            noise_mpsc: mpsc::channel().0,
+            t_cycles: 0,
+            timer: 0,
+            active: false,
+            frame_index: 0,
+            samples: Vec::new(),
+
+            sweep_volume: 0,
+
+            lfsr: 0,
+
+            sample_rate,
+            frame_index_fraction: 0.,
+            frame_index_fraction_increment: 0.,
         }
     }
 
@@ -107,11 +143,12 @@ impl Noise {
         self.inital_envelope_volume = value >> 4;
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
-        if !self.sink.empty() {
-            if self.inital_envelope_volume == 0 {
-                self.sink.stop();
-                self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
-            }
+
+        if value & 0xF8 == 0 {
+            self.dac_enabled = false;
+            self.active = false;
+        } else {
+            self.dac_enabled = true;
         }
     }
     fn set_nr43(&mut self, value: u8) {
@@ -122,183 +159,78 @@ impl Noise {
             LFSRWidth::LFSR7Bits
         };
         self.clock_divider = value & 0b111;
+
+        let mut clock_divider = 2 * self.clock_divider;
+        if self.clock_divider == 0 {
+            clock_divider = 1;
+        }
+
+        self.frame_index_fraction_increment = ((2.0 * 262144.)
+            / (clock_divider as u32 * (1 << self.clock_shift as u32)) as f32)
+            * (Noise::NOISE_FRAME_SIZE as f32 / self.sample_rate as f32);
+        // println!(
+        //     "frame index incr {}, denom {}, freq {}",
+        //     self.frame_index_fraction_increment,
+        //     (clock_divider as u32 * (1 << self.clock_shift as u32)),
+        //     (2.0 * 262144.) / ((clock_divider as u32 * (1 << self.clock_shift as u32)) as f32)
+        // );
     }
     fn set_nr44(&mut self, value: u8) {
         self.shall_trigger = bit!(value, 7) != 0;
         self.sound_length_enable = bit!(value, 6) != 0;
 
-        if self.sink.empty() && self.shall_trigger {
-            let duration = Duration::from_micros((((1.0 / 256.0) * (64.0 - self.length_timer as f32)) * 1e6) as u64);
-            // println!("start sound for: {:?}", duration);
-            let oscillator = NoiseOscillator::new(44100);
-            let res = speed::<NoiseOscillator, NoiseParameters>(oscillator);
-            self.noise_mpsc = res.1;
-
-            // if self.sound_length_enable {
-            //     self.sink.append(res.0.take_duration(duration).amplify(0.1));
-            // } else {
-            //     self.sink.append(res.0.amplify(0.1));
-            // }
-            // self.sink.append(res.0.take_duration(duration).amplify(0.1));
-
-            self.noise_mpsc
-                .send(NoiseParameters {
-                    clock_shift: self.clock_shift,
-                    clock_divider: self.clock_divider,
-                })
-                .unwrap();
+        if self.shall_trigger {
+            self.active = true;
         }
     }
 }
 
-use core::time::Duration;
-use rodio::{source::Source, OutputStream, OutputStreamHandle, Sink};
-use std::{collections::VecDeque, sync::mpsc, time::SystemTime};
-
-use crate::{
-    bit,
-    gameboy::{memory, MemoryInterface},
-};
-
-use super::utils::{speed, CustomSource};
-
-pub struct NoiseOscillator {
-    sample_rate: u32,
-    index: f32,
-    index_increment: f32,
-
-    clock_shift: u8,
-    lfsr_width: u8,
-    clock_divider: u8,
-
-    lfsr_queue: VecDeque<u16>,
-    lfsr: u16,
-}
-
-impl NoiseOscillator {
-    pub fn new(sample_rate: u32) -> Self {
-        let mut se = Self {
-            sample_rate: sample_rate,
-
-            index_increment: 0.0,
-            index: 0.0,
-
-            clock_shift: 0,
-            lfsr_width: 15,
-            clock_divider: 0,
-
-            lfsr: 0,
-            lfsr_queue: VecDeque::new(),
-        };
-
-        se.tick();
-        se.set_parameters(NoiseParameters {
-            clock_shift: 0,
-            clock_divider: 0,
-        });
-        return se;
-    }
-
-    fn tick(&mut self) {
-        if self.lfsr_queue.len() > 0 {
-            self.lfsr_queue.pop_front();
-        } else {
-            self.lfsr_queue.push_back(self.lfsr);
+impl APUChannel for Noise {
+    fn tick_timer(&mut self) {
+        if self.timer == 63 {
+            if self.sound_length_enable {
+                self.active = false;
+            }
         }
-
-        let new_bit = !(bit!(self.lfsr, 0) ^ bit!(self.lfsr, 1)); //xnor operation
-        self.lfsr = (self.lfsr & !(1 << 15)) | (new_bit << 15);
-        self.lfsr = self.lfsr >> 1;
-        self.lfsr_queue.push_back(self.lfsr);
+        self.timer = self.timer.wrapping_add(1);
     }
 
-    fn get_sample(&mut self) -> f32 {
-        let sample: f32;
+    fn sample(&mut self) {
+        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 {
+            self.frame_index_fraction += self.frame_index_fraction_increment;
 
-        // sample = self.lerp();
-        sample = if (self.lfsr_queue[0] & 0b1) == 0 { 0.0 } else { 1.0 };
-        if (self.index as usize) == 1 {
-            self.tick();
+            self.frame_index = self.frame_index_fraction as usize;
+
+            if self.frame_index >= 1 {
+                self.frame_index_fraction %= Noise::NOISE_FRAME_SIZE as f32;
+
+                let new_bit = !(bit!(self.lfsr, 0) ^ bit!(self.lfsr, 1)); //xnor operation
+                self.lfsr = (self.lfsr & !(1 << 15)) | (new_bit << 15);
+                if matches!(self.lfsr_width, LFSRWidth::LFSR7Bits) {
+                    self.lfsr = (self.lfsr & !(1 << 7)) | (new_bit << 7);
+                }
+                self.lfsr = self.lfsr >> 1;
+            }
+
+            let digital_sample = match (self.lfsr & 0b1) != 0 {
+                true => self.inital_envelope_volume,
+                false => 0,
+            };
+            // println!("digital noise sample {}, lfsr {}", digital_sample, self.lfsr);
+
+            if self.active {
+                self.samples.push(Self::dac(digital_sample, self.dac_enabled));
+            } else {
+                self.samples.push(0.0);
+            }
         }
-        self.index += self.index_increment;
-        self.index %= 2.0 as f32;
-
-        return sample;
     }
 
-    fn lerp(&mut self) -> f32 {
-        let truncated_index = self.index as usize;
-        let next_index = (truncated_index + 1) % 2;
-
-        let next_index_weight = self.index - truncated_index as f32;
-        let truncated_index_weight = 1.0 - next_index_weight;
-
-        if (truncated_index) == 1 {
-            self.tick();
-        }
-        let val = if (self.lfsr_queue[0] & 0b1) == 0 { 0.0 } else { 1.0 };
-        let next_val = if (self.lfsr_queue[1] & 0b1) == 0 { 0.0 } else { 1.0 };
-
-        return truncated_index_weight * val + next_index_weight * next_val;
-    }
-}
-
-impl CustomSource<NoiseParameters> for NoiseOscillator {
-    fn set_parameters(&mut self, parameters: NoiseParameters) {
-        // self.index_increment = frequency * 64 as f32
-        //                        / self.sample_rate as f32;
-        self.clock_shift = parameters.clock_shift;
-        self.clock_divider = (parameters.clock_divider * 2);
-        self.lfsr = 0;
-        self.lfsr_queue.clear();
-        self.tick();
-        if parameters.clock_divider == 0 {
-            self.clock_divider = 1;
-        }
-        let frequency: u32 = (2_u32 * 262144) / (self.clock_divider as u32 * (1 << self.clock_shift as u32));
-        self.index_increment = (frequency as f32 * 2.0) / self.sample_rate as f32;
-    }
-}
-
-impl Source for NoiseOscillator {
-    fn channels(&self) -> u16 {
-        return 1;
+    fn get_samples(&mut self) -> &Vec<f32> {
+        &self.samples
     }
 
-    fn sample_rate(&self) -> u32 {
-        return self.sample_rate;
+    fn reset_samples(&mut self) {
+        self.samples.clear();
     }
-
-    fn current_frame_len(&self) -> Option<usize> {
-        return None;
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        return None;
-    }
-}
-
-impl Iterator for NoiseOscillator {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        return Some(self.get_sample());
-    }
-}
-
-#[test]
-fn test_noise() {
-    let mut oscillator = NoiseOscillator::new(44100);
-
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-
-    let sink = Sink::try_new(&stream_handle).unwrap();
-
-    // receive pitch mpsc channel too
-    let (source, pitch) = speed(oscillator);
-    let real_source = source.take_duration(Duration::from_millis(1000));
-    sink.append(real_source);
-
-    // std::thread::sleep(std::time::Duration::from_secs(5));
-    sink.sleep_until_end();
 }

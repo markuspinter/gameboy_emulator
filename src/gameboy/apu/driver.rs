@@ -52,6 +52,9 @@ impl AudioDriver {
         if queue.shall_clear_old_samples {
             self.audio_queue.clear();
         }
+        // if self.audio_queue.len() >= 2 * queue.queue.len() {
+        //     self.audio_queue.clear();
+        // }
         self.audio_queue.append(&mut queue.queue);
     }
 }

@@ -40,8 +40,22 @@ impl GameboyModule for APU {
             let mut queue: VecDeque<f32> = VecDeque::new();
             let pulse_sweep_samples = self.pulse_sweep.get_samples();
             let pulse_samples = self.pulse.get_samples();
-            for (i, sample) in self.wave.get_samples().iter().enumerate() {
-                queue.push_back(*sample + pulse_samples[i] + pulse_sweep_samples[i]);
+            let wave_samples = self.wave.get_samples();
+            let noise_samples = self.noise.get_samples();
+            // if !(pulse_sweep_samples.len() == pulse_samples.len()
+            //     && pulse_samples.len() == wave_samples.len()
+            //     && wave_samples.len() == noise_samples.len())
+            // {
+            //     panic!("samples don't have same size");
+            // }
+            let mut mixed_sample = 0.0;
+            for i in 0..noise_samples.len() {
+                // mixed_sample += pulse_sweep_samples[i];
+                mixed_sample += pulse_samples[i];
+                // mixed_sample += wave_samples[i];
+                // mixed_sample += noise_samples[i];
+                queue.push_back(mixed_sample);
+                mixed_sample = 0.0;
             }
 
             self.audio_queue_sender
@@ -53,11 +67,12 @@ impl GameboyModule for APU {
             self.pulse_sweep.reset_samples();
             self.pulse.reset_samples();
             self.wave.reset_samples();
+            self.noise.reset_samples();
         }
         self.pulse_sweep.tick(gb)?;
         self.pulse.tick(gb)?;
         self.wave.tick(gb)?;
-        // self.noise.tick(gb);
+        self.noise.tick(gb)?;
 
         Ok(0)
     }
@@ -118,7 +133,7 @@ impl APU {
 
             wave: wave::Wave::new(Self::AUDIO_SAMPLING_RATE),
 
-            noise: noise::Noise::new(),
+            noise: noise::Noise::new(Self::AUDIO_SAMPLING_RATE),
 
             nr50: 0,
             nr51: 0,
@@ -140,7 +155,7 @@ impl APU {
 
         if self.div % APU::ENVELOPE_SWEEP_DIVIDER == 0 {
             // self.pulse_sweep.tick_envelope_sweep();
-            // self.pulse.tick_envelope_sweep();
+            self.pulse.tick_envelope_sweep();
             // self.noise.tick_envelope_sweep();
         }
 
@@ -148,7 +163,7 @@ impl APU {
             self.pulse_sweep.tick_timer();
             self.pulse.tick_timer();
             self.wave.tick_timer();
-            // self.noise.tick_timer();
+            self.noise.tick_timer();
         }
 
         if self.div % APU::CH1_FREQUENCY_SWEEP_DIVIDER == 0 {
@@ -173,4 +188,8 @@ trait APUChannel {
             0.0
         }
     }
+}
+
+trait APUEnvelope {
+    fn tick_envelope_sweep(&mut self);
 }

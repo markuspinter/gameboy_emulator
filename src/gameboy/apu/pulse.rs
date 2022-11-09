@@ -6,7 +6,7 @@ use crate::{
     gameboy::{memory, GameboyModule, MemoryInterface},
 };
 
-use super::APUChannel;
+use super::{APUChannel, APUEnvelope};
 
 #[derive(Clone, Debug, FromPrimitive)]
 enum WaveDuty {
@@ -34,9 +34,16 @@ pub struct Pulse {
     frame_index: usize,
     samples: Vec<f32>,
 
+    curr_inital_envelope_volume: u8,
+    curr_envelope_increase: bool,
+    curr_sweep_pace: u8,
+    sweep_volume: u8,
+    envelope_tick: u8,
+
     frame_index_fraction: f32,
     frame_index_fraction_increment: f32,
     sample_rate: u32,
+    waiting_for_sync: bool,
 }
 
 impl GameboyModule for Pulse {
@@ -104,9 +111,16 @@ impl Pulse {
             frame_index: 0,
             samples: Vec::new(),
 
+            curr_inital_envelope_volume: 0,
+            curr_envelope_increase: false,
+            curr_sweep_pace: 0,
+            sweep_volume: 0,
+            envelope_tick: 0,
+
             sample_rate,
             frame_index_fraction: 0.,
             frame_index_fraction_increment: 0.,
+            waiting_for_sync: false,
         }
     }
 
@@ -151,6 +165,11 @@ impl Pulse {
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
 
+        println!(
+            "init vol {}; env incr {}; sweep pace {}",
+            self.inital_envelope_volume, self.envelope_increase, self.sweep_pace
+        );
+
         if value & 0xF8 == 0 {
             self.dac_enabled = false;
             self.active = false;
@@ -173,6 +192,10 @@ impl Pulse {
 
         if self.shall_trigger {
             self.active = true;
+            self.curr_envelope_increase = self.envelope_increase;
+            self.curr_inital_envelope_volume = self.inital_envelope_volume;
+            self.curr_sweep_pace = self.sweep_pace;
+            self.sweep_volume = self.inital_envelope_volume;
         }
 
         self.frame_index_fraction_increment =
@@ -197,13 +220,21 @@ impl APUChannel for Pulse {
 
             self.frame_index = self.frame_index_fraction as usize;
 
-            let digital_sample = std::cmp::min(self.pulse_frame[self.frame_index], self.inital_envelope_volume);
+            let digital_sample = match self.pulse_frame[self.frame_index] != 0 {
+                true => self.sweep_volume,
+                false => 0,
+            };
+            if digital_sample > 15 {
+                println!("dig sample {}", digital_sample);
+            }
 
             if self.active {
                 self.samples.push(Self::dac(digital_sample, self.dac_enabled));
             } else {
                 self.samples.push(0.0);
             }
+        } else {
+            self.waiting_for_sync = true;
         }
     }
 
@@ -213,6 +244,33 @@ impl APUChannel for Pulse {
 
     fn reset_samples(&mut self) {
         self.samples.clear();
+        self.waiting_for_sync = false;
+    }
+}
+
+impl APUEnvelope for Pulse {
+    fn tick_envelope_sweep(&mut self) {
+        if self.curr_sweep_pace > 0 && !self.waiting_for_sync {
+            if self.envelope_tick == 0 {
+                if self.curr_envelope_increase {
+                    if self.sweep_volume == 15 {
+                        self.sweep_volume = 15;
+                    } else {
+                        self.sweep_volume += 1;
+                    }
+                } else {
+                    if self.sweep_volume == 0 {
+                        self.sweep_volume = 0;
+                    } else {
+                        self.sweep_volume -= 1;
+                    }
+                }
+                // println!("sweep_volume {}", self.sweep_volume);
+                self.envelope_tick = self.curr_sweep_pace;
+            } else {
+                self.envelope_tick -= 1;
+            }
+        }
     }
 }
 
