@@ -208,51 +208,50 @@ impl Gameboy {
                     self.ppu.print_state_machine();
                 }
             } else if !paused {
-                // if ticks < 70224 {
-                self.cpu.tick(self_ptr)?;
-                self.ppu.tick(self_ptr)?;
-                self.timer.tick(self_ptr)?;
-                self.apu.tick(self_ptr)?;
-                // }
-                ticks += 1;
-            }
+                if ticks < 70224 {
+                    self.cpu.tick(self_ptr)?;
+                    self.ppu.tick(self_ptr)?;
+                    self.timer.tick(self_ptr)?;
+                    self.apu.tick(self_ptr)?;
+                    self.vblank = false;
+                } else {
+                    if debug_windows {
+                        debug_counter += 1;
+                        if debug_counter >= 60 {
+                            self.ppu.process_tile_data();
 
-            let diff = SystemTime::now()
-                .duration_since(prev)
-                .expect("system time failed")
-                .as_micros();
-            if diff > 16742 {
-                //16742 {
-                //59.720 fps = 16742 us {
-                if debug_windows {
-                    debug_counter += 1;
-                    if debug_counter >= 60 {
-                        self.ppu.process_tile_data();
-
-                        if let Some(ref mut screen) = tile_data_screen {
-                            screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
-                            screen.update();
+                            if let Some(ref mut screen) = tile_data_screen {
+                                screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
+                                screen.update();
+                            }
+                            if let Some(ref mut screen) = tile_map_screen {
+                                screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                                screen.update();
+                            }
+                            debug_counter = 0;
                         }
-                        if let Some(ref mut screen) = tile_map_screen {
-                            screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
-                            screen.update();
-                        }
-                        debug_counter = 0;
                     }
-                }
 
-                self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
-                (self.running, pause_pressed) = self.screen.update();
-                self.vblank = true;
-                self.joypad.tick(self_ptr)?;
-                ticks = 0;
+                    self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
+                    (self.running, pause_pressed) = self.screen.update();
+                    self.vblank = true;
+                    self.joypad.tick(self_ptr)?;
+                    ticks = 0;
 
-                if pause_pressed {
-                    paused = !paused;
+                    if pause_pressed {
+                        paused = !paused;
+                    }
+                    let diff = 16742
+                        - SystemTime::now()
+                            .duration_since(prev)
+                            .expect("system time failed")
+                            .as_micros();
+                    //16742 {
+                    //59.720 fps = 16742 us {
+                    std::thread::sleep(std::time::Duration::from_micros(diff as u64));
+                    prev = SystemTime::now();
                 }
-                prev = SystemTime::now();
-            } else {
-                self.vblank = false;
+                ticks += 1;
             }
         }
         Ok(())
