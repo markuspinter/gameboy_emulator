@@ -42,18 +42,18 @@ impl GameboyModule for APU {
             let pulse_samples = self.pulse.get_samples();
             let wave_samples = self.wave.get_samples();
             let noise_samples = self.noise.get_samples();
-            // if !(pulse_sweep_samples.len() == pulse_samples.len()
-            //     && pulse_samples.len() == wave_samples.len()
-            //     && wave_samples.len() == noise_samples.len())
-            // {
-            //     panic!("samples don't have same size");
-            // }
+            if !(pulse_sweep_samples.len() == pulse_samples.len()
+                && pulse_samples.len() == wave_samples.len()
+                && wave_samples.len() == noise_samples.len())
+            {
+                panic!("samples don't have same size");
+            }
             let mut mixed_sample = 0.0;
             for i in 0..noise_samples.len() {
-                // mixed_sample += pulse_sweep_samples[i];
+                mixed_sample += pulse_sweep_samples[i];
                 mixed_sample += pulse_samples[i];
-                // mixed_sample += wave_samples[i];
-                // mixed_sample += noise_samples[i];
+                mixed_sample += wave_samples[i];
+                mixed_sample += noise_samples[i];
                 queue.push_back(mixed_sample);
                 mixed_sample = 0.0;
             }
@@ -154,9 +154,9 @@ impl APU {
         self.div = self.div.wrapping_add(1);
 
         if self.div % APU::ENVELOPE_SWEEP_DIVIDER == 0 {
-            // self.pulse_sweep.tick_envelope_sweep();
+            self.pulse_sweep.tick_envelope_sweep();
             self.pulse.tick_envelope_sweep();
-            // self.noise.tick_envelope_sweep();
+            self.noise.tick_envelope_sweep();
         }
 
         if self.div % APU::SOUND_LENGTH_DIVIDER == 0 {
