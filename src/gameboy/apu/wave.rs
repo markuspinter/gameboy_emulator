@@ -49,7 +49,7 @@ impl GameboyModule for Wave {
     unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
         if self.t_cycles == 0 {
             self.sample();
-            self.t_cycles = 4;
+            self.t_cycles = 3;
         }
         self.t_cycles -= 1;
         Ok(self.t_cycles as u32)
@@ -151,6 +151,9 @@ impl Wave {
 
     fn set_nr30(&mut self, value: u8) {
         self.dac_enabled = bit!(value, 7) != 0;
+        if !self.dac_enabled {
+            self.active = false;
+        }
     }
 
     fn set_nr31(&mut self, value: u8) {
@@ -216,14 +219,6 @@ impl APUChannel for Wave {
                     WaveOutputLevel::P25 => 2,
                 };
             if self.active {
-                // println!(
-                //     "digital sample {}; frame index {}; fraction increment {}, freq {}, dac enabled {}",
-                //     digital_sample,
-                //     self.frame_index,
-                //     self.frame_index_fraction_increment,
-                //     65536. / (2048. - self.wave_length as f32),
-                //     self.dac_enabled
-                // );
                 self.samples.push(Self::dac(digital_sample, self.dac_enabled));
             } else {
                 self.samples.push(0.0);

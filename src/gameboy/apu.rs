@@ -38,8 +38,10 @@ impl GameboyModule for APU {
         let gb = &mut *gb_ptr;
         if gb.vblank {
             let mut queue: VecDeque<f32> = VecDeque::new();
-            for sample in self.wave.get_samples() {
-                queue.push_back(*sample);
+            let pulse_sweep_samples = self.pulse_sweep.get_samples();
+            let pulse_samples = self.pulse.get_samples();
+            for (i, sample) in self.wave.get_samples().iter().enumerate() {
+                queue.push_back(*sample + pulse_samples[i] + pulse_sweep_samples[i]);
             }
 
             self.audio_queue_sender
@@ -48,10 +50,12 @@ impl GameboyModule for APU {
                     shall_clear_old_samples: false,
                 })
                 .unwrap();
+            self.pulse_sweep.reset_samples();
+            self.pulse.reset_samples();
             self.wave.reset_samples();
         }
-        // self.pulse_sweep.tick(gb);
-        // self.pulse.tick(gb);
+        self.pulse_sweep.tick(gb)?;
+        self.pulse.tick(gb)?;
         self.wave.tick(gb)?;
         // self.noise.tick(gb);
 
@@ -108,9 +112,9 @@ impl APU {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let (tx, rx) = mpsc::channel();
         let mut apu = Self {
-            pulse_sweep: pulse::PulseSweep::new(),
+            pulse_sweep: pulse::PulseSweep::new(Self::AUDIO_SAMPLING_RATE),
 
-            pulse: pulse::Pulse::new(),
+            pulse: pulse::Pulse::new(Self::AUDIO_SAMPLING_RATE),
 
             wave: wave::Wave::new(Self::AUDIO_SAMPLING_RATE),
 
@@ -141,8 +145,8 @@ impl APU {
         }
 
         if self.div % APU::SOUND_LENGTH_DIVIDER == 0 {
-            // self.pulse_sweep.tick_timer();
-            // self.pulse.tick_timer();
+            self.pulse_sweep.tick_timer();
+            self.pulse.tick_timer();
             self.wave.tick_timer();
             // self.noise.tick_timer();
         }

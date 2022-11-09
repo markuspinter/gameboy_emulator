@@ -1,3 +1,13 @@
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
+
+use crate::{
+    bit,
+    gameboy::{memory, GameboyModule, MemoryInterface},
+};
+
+use super::APUChannel;
+
 #[derive(Clone, Debug, FromPrimitive)]
 enum WaveDuty {
     P12_5 = 0b00,
@@ -6,18 +16,38 @@ enum WaveDuty {
     P75 = 0b11,
 }
 pub struct Pulse {
+    dac_enabled: bool,
+
     wave_duty: WaveDuty,
     wave_length: u16,
+    pulse_frame: [u8; 8],
     length_timer: u8,
     inital_envelope_volume: u8,
     envelope_increase: bool,
     sweep_pace: u8,
     shall_trigger: bool,
     sound_length_enable: bool, //(1=Stop output when length in NR21 expires)
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
-    sink: Sink,
-    noise_mpsc: mpsc::Sender<PulseParameters>,
+
+    t_cycles: u16,
+    timer: u8,
+    active: bool,
+    frame_index: usize,
+    samples: Vec<f32>,
+
+    frame_index_fraction: f32,
+    frame_index_fraction_increment: f32,
+    sample_rate: u32,
+}
+
+impl GameboyModule for Pulse {
+    unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
+        if self.t_cycles == 0 {
+            self.sample();
+            self.t_cycles = 5;
+        }
+        self.t_cycles -= 1;
+        Ok(self.t_cycles as u32)
+    }
 }
 
 impl MemoryInterface for Pulse {
@@ -51,11 +81,14 @@ impl MemoryInterface for Pulse {
 }
 
 impl Pulse {
-    pub fn new() -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    const PULSE_FRAME_SIZE: usize = 8;
+    pub fn new(sample_rate: u32) -> Self {
         Self {
+            dac_enabled: false,
+
             wave_duty: WaveDuty::P12_5,
             wave_length: 0,
+            pulse_frame: [15, 0, 0, 0, 0, 0, 0, 0],
 
             length_timer: 0,
             inital_envelope_volume: 0,
@@ -65,10 +98,15 @@ impl Pulse {
             shall_trigger: false,
             sound_length_enable: false,
 
-            sink: Sink::try_new(&stream_handle).unwrap(),
-            stream: _stream,
-            stream_handle: stream_handle,
-            noise_mpsc: mpsc::channel().0,
+            t_cycles: 0,
+            timer: 0,
+            active: false,
+            frame_index: 0,
+            samples: Vec::new(),
+
+            sample_rate,
+            frame_index_fraction: 0.,
+            frame_index_fraction_increment: 0.,
         }
     }
 
@@ -100,44 +138,32 @@ impl Pulse {
     fn set_nr21(&mut self, value: u8) {
         self.wave_duty = FromPrimitive::from_u8(value >> 6).expect("couldn't convert wave duty");
         self.length_timer = value & 0b11111;
+
+        self.pulse_frame = match self.wave_duty {
+            WaveDuty::P12_5 => [15, 0, 0, 0, 0, 0, 0, 0],
+            WaveDuty::P25 => [15, 15, 0, 0, 0, 0, 0, 0],
+            WaveDuty::P50 => [15, 15, 15, 15, 0, 0, 0, 0],
+            WaveDuty::P75 => [15, 15, 15, 15, 15, 15, 0, 0],
+        }
     }
     fn set_nr22(&mut self, value: u8) {
         self.inital_envelope_volume = value >> 4;
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
-        if !self.sink.empty() {
-            if self.inital_envelope_volume == 0 {
-                self.sink.pause();
-                // self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
-            } else {
-                // self.sink.play();
-            }
+
+        if value & 0xF8 == 0 {
+            self.dac_enabled = false;
+            self.active = false;
+        } else {
+            self.dac_enabled = true;
         }
     }
     fn set_nr23(&mut self, value: u8) {
-        log::debug!("lower wave length before {}", self.wave_length);
         self.wave_length &= 0x0700;
         self.wave_length |= value as u16;
-        let freq = 131072.0 / (2048 - self.wave_length as u32) as f32;
-        log::debug!(
-            "lower wave length set {}; freq {}, value {}",
-            self.wave_length,
-            freq,
-            value
-        );
-        if !self.sink.empty() {
-            self.noise_mpsc
-                .send(PulseParameters {
-                    duty_cycle: match self.wave_duty {
-                        WaveDuty::P12_5 => 0.125,
-                        WaveDuty::P25 => 0.25,
-                        WaveDuty::P50 => 0.5,
-                        WaveDuty::P75 => 0.75,
-                    },
-                    frequency: freq as f32,
-                })
-                .unwrap();
-        }
+
+        self.frame_index_fraction_increment =
+            (131072. / (2048 - self.wave_length) as f32) * (Pulse::PULSE_FRAME_SIZE as f32 / self.sample_rate as f32);
     }
     fn set_nr24(&mut self, value: u8) {
         self.shall_trigger = bit!(value, 7) != 0;
@@ -145,63 +171,48 @@ impl Pulse {
         self.wave_length &= 0x00FF;
         self.wave_length |= ((value & 0b111) as u16) << 8;
 
-        if self.sink.empty() {
-            if self.shall_trigger {
-                let duration =
-                    Duration::from_micros((((1.0 / 256.0) * (64.0 - self.length_timer as f32)) * 1e6) as u64);
-                // log::debug!("start sound for: {:?}", duration);
-                let freq: f32 = 131072.0 / (2048 - self.wave_length as u32) as f32;
-                let oscillator = PulseOscillator::new(
-                    44100,
-                    match self.wave_duty {
-                        WaveDuty::P12_5 => 0.125,
-                        WaveDuty::P25 => 0.25,
-                        WaveDuty::P50 => 0.5,
-                        WaveDuty::P75 => 0.75,
-                    },
-                );
-                let res = speed::<PulseOscillator, PulseParameters>(oscillator);
-                self.noise_mpsc = res.1;
+        if self.shall_trigger {
+            self.active = true;
+        }
 
-                // if self.sound_length_enable {
-                //     self.sink.append(res.0.take_duration(duration).amplify(0.1));
-                // } else {
-                //     self.sink.append(res.0.amplify(0.1));
-                // }
-                // self.sink.append(res.0.take_duration(duration).amplify(0.1));
+        self.frame_index_fraction_increment =
+            (131072. / (2048 - self.wave_length) as f32) * (Pulse::PULSE_FRAME_SIZE as f32 / self.sample_rate as f32);
+    }
+}
 
-                log::debug!("wave length {}; freq {}", self.wave_length, freq);
-
-                self.noise_mpsc
-                    .send(PulseParameters {
-                        duty_cycle: match self.wave_duty {
-                            WaveDuty::P12_5 => 0.125,
-                            WaveDuty::P25 => 0.25,
-                            WaveDuty::P50 => 0.5,
-                            WaveDuty::P75 => 0.75,
-                        },
-                        frequency: freq as f32,
-                    })
-                    .unwrap();
-            }
-        } else {
-            let freq = 131072.0 / (2048 - self.wave_length as u32) as f32;
-            log::debug!("upper wave length set {}; freq {}", self.wave_length, freq);
-            self.noise_mpsc
-                .send(PulseParameters {
-                    duty_cycle: match self.wave_duty {
-                        WaveDuty::P12_5 => 0.125,
-                        WaveDuty::P25 => 0.25,
-                        WaveDuty::P50 => 0.5,
-                        WaveDuty::P75 => 0.75,
-                    },
-                    frequency: freq as f32,
-                })
-                .unwrap();
-            if self.shall_trigger {
-                self.sink.play();
+impl APUChannel for Pulse {
+    fn tick_timer(&mut self) {
+        if self.timer == 63 {
+            if self.sound_length_enable {
+                self.active = false;
             }
         }
+        self.timer = self.timer.wrapping_add(1);
+    }
+
+    fn sample(&mut self) {
+        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 {
+            self.frame_index_fraction += self.frame_index_fraction_increment;
+            self.frame_index_fraction %= Pulse::PULSE_FRAME_SIZE as f32;
+
+            self.frame_index = self.frame_index_fraction as usize;
+
+            let digital_sample = std::cmp::min(self.pulse_frame[self.frame_index], self.inital_envelope_volume);
+
+            if self.active {
+                self.samples.push(Self::dac(digital_sample, self.dac_enabled));
+            } else {
+                self.samples.push(0.0);
+            }
+        }
+    }
+
+    fn get_samples(&mut self) -> &Vec<f32> {
+        &self.samples
+    }
+
+    fn reset_samples(&mut self) {
+        self.samples.clear();
     }
 }
 
@@ -210,18 +221,39 @@ pub struct PulseSweep {
     sweep_decrease: bool,
     sweep_slope: u8,
 
+    dac_enabled: bool,
+
     wave_duty: WaveDuty,
     wave_length: u16,
+    pulse_frame: [u8; 8],
+
     length_timer: u8,
     inital_envelope_volume: u8,
     envelope_increase: bool,
     sweep_pace: u8,
     shall_trigger: bool,
     sound_length_enable: bool, //(1=Stop output when length in NR21 expires)
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
-    sink: Sink,
-    noise_mpsc: mpsc::Sender<PulseParameters>,
+
+    t_cycles: u16,
+    timer: u8,
+    active: bool,
+    frame_index: usize,
+    samples: Vec<f32>,
+
+    frame_index_fraction: f32,
+    frame_index_fraction_increment: f32,
+    sample_rate: u32,
+}
+
+impl GameboyModule for PulseSweep {
+    unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
+        if self.t_cycles == 0 {
+            self.sample();
+            self.t_cycles = 5;
+        }
+        self.t_cycles -= 1;
+        Ok(self.t_cycles as u32)
+    }
 }
 
 impl MemoryInterface for PulseSweep {
@@ -259,15 +291,18 @@ impl MemoryInterface for PulseSweep {
 }
 
 impl PulseSweep {
-    pub fn new() -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    const PULSE_SWEEP_FRAME_SIZE: usize = 8;
+    pub fn new(sample_rate: u32) -> Self {
         Self {
             sweep_pace_for_frequency: 0,
             sweep_decrease: false,
             sweep_slope: 0,
 
+            dac_enabled: false,
+
             wave_duty: WaveDuty::P12_5,
             wave_length: 0,
+            pulse_frame: [15, 0, 0, 0, 0, 0, 0, 0],
 
             length_timer: 0,
             inital_envelope_volume: 0,
@@ -277,10 +312,15 @@ impl PulseSweep {
             shall_trigger: false,
             sound_length_enable: false,
 
-            sink: Sink::try_new(&stream_handle).unwrap(),
-            stream: _stream,
-            stream_handle: stream_handle,
-            noise_mpsc: mpsc::channel().0,
+            t_cycles: 0,
+            timer: 0,
+            active: false,
+            frame_index: 0,
+            samples: Vec::new(),
+
+            sample_rate,
+            frame_index_fraction: 0.,
+            frame_index_fraction_increment: 0.,
         }
     }
 
@@ -326,212 +366,80 @@ impl PulseSweep {
     fn set_nr11(&mut self, value: u8) {
         self.wave_duty = FromPrimitive::from_u8(value >> 6).expect("couldn't convert wave duty");
         self.length_timer = value & 0b11111;
+
+        self.pulse_frame = match self.wave_duty {
+            WaveDuty::P12_5 => [15, 0, 0, 0, 0, 0, 0, 0],
+            WaveDuty::P25 => [15, 15, 0, 0, 0, 0, 0, 0],
+            WaveDuty::P50 => [15, 15, 15, 15, 0, 0, 0, 0],
+            WaveDuty::P75 => [15, 15, 15, 15, 15, 15, 0, 0],
+        }
     }
     fn set_nr12(&mut self, value: u8) {
         self.inital_envelope_volume = value >> 4;
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
-        log::debug!(
-            "envelope volume {}; envelop increase {}",
-            self.inital_envelope_volume,
-            self.envelope_increase
-        );
-        if !self.sink.empty() {
-            if self.inital_envelope_volume == 0 {
-                self.sink.pause();
-                // self.sink = Sink::try_new(&self.stream_handle).unwrap(); // this is a hack, investigate why stop doesn't suffice
-            } else {
-                // self.sink.play();
-            }
+
+        if value & 0xF8 == 0 {
+            self.dac_enabled = false;
+            self.active = false;
+        } else {
+            self.dac_enabled = true;
         }
     }
     fn set_nr13(&mut self, value: u8) {
         self.wave_length &= 0x0700;
         self.wave_length |= value as u16;
-        let freq = 131072.0 / (2048 - self.wave_length as u32) as f32;
-        if !self.sink.empty() {
-            self.noise_mpsc
-                .send(PulseParameters {
-                    duty_cycle: match self.wave_duty {
-                        WaveDuty::P12_5 => 0.125,
-                        WaveDuty::P25 => 0.25,
-                        WaveDuty::P50 => 0.5,
-                        WaveDuty::P75 => 0.75,
-                    },
-                    frequency: freq as f32,
-                })
-                .unwrap();
-        }
+
+        self.frame_index_fraction_increment = (131072. / (2048 - self.wave_length) as f32)
+            * (PulseSweep::PULSE_SWEEP_FRAME_SIZE as f32 / self.sample_rate as f32);
     }
     fn set_nr14(&mut self, value: u8) {
         self.shall_trigger = bit!(value, 7) != 0;
         self.sound_length_enable = bit!(value, 6) != 0;
         self.wave_length &= 0x00FF;
         self.wave_length |= ((value & 0b111) as u16) << 8;
-        log::debug!(
-            "sound length enable {}; shall trigger {}",
-            self.sound_length_enable,
-            self.shall_trigger
-        );
 
-        if self.sink.empty() {
-            if self.shall_trigger {
-                let duration =
-                    Duration::from_micros((((1.0 / 256.0) * (64.0 - self.length_timer as f32)) * 1e6) as u64);
-                let freq = 131072.0 / (2048 - self.wave_length as u32) as f32;
-                // log::debug!("start sound for: {:?}", duration);
-                let oscillator = PulseOscillator::new(
-                    44100,
-                    match self.wave_duty {
-                        WaveDuty::P12_5 => 0.125,
-                        WaveDuty::P25 => 0.25,
-                        WaveDuty::P50 => 0.5,
-                        WaveDuty::P75 => 0.75,
-                    },
-                );
-                let res = speed::<PulseOscillator, PulseParameters>(oscillator);
-                self.noise_mpsc = res.1;
+        if self.shall_trigger {
+            self.active = true;
+        }
 
-                // if self.sound_length_enable {
-                //     self.sink.append(res.0.take_duration(duration).amplify(0.1));
-                // } else {
-                //     self.sink.append(res.0.amplify(0.1));
-                // }
-                // self.sink.append(res.0.take_duration(duration).amplify(0.1));
+        self.frame_index_fraction_increment = (131072. / (2048 - self.wave_length) as f32)
+            * (PulseSweep::PULSE_SWEEP_FRAME_SIZE as f32 / self.sample_rate as f32);
+    }
+}
 
-                // log::debug!("freq {}", freq);
-
-                self.noise_mpsc
-                    .send(PulseParameters {
-                        duty_cycle: match self.wave_duty {
-                            WaveDuty::P12_5 => 0.125,
-                            WaveDuty::P25 => 0.25,
-                            WaveDuty::P50 => 0.5,
-                            WaveDuty::P75 => 0.75,
-                        },
-                        frequency: freq as f32,
-                    })
-                    .unwrap();
+impl APUChannel for PulseSweep {
+    fn tick_timer(&mut self) {
+        if self.timer == 63 {
+            if self.sound_length_enable {
+                self.active = false;
             }
-        } else {
-            let freq = 131072.0 / (2048 - self.wave_length as u32) as f32;
-            self.noise_mpsc
-                .send(PulseParameters {
-                    duty_cycle: match self.wave_duty {
-                        WaveDuty::P12_5 => 0.125,
-                        WaveDuty::P25 => 0.25,
-                        WaveDuty::P50 => 0.5,
-                        WaveDuty::P75 => 0.75,
-                    },
-                    frequency: freq as f32,
-                })
-                .unwrap();
-            if self.shall_trigger {
-                self.sink.play();
+        }
+        self.timer = self.timer.wrapping_add(1);
+    }
+
+    fn sample(&mut self) {
+        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 {
+            self.frame_index_fraction += self.frame_index_fraction_increment;
+            self.frame_index_fraction %= PulseSweep::PULSE_SWEEP_FRAME_SIZE as f32;
+
+            self.frame_index = self.frame_index_fraction as usize;
+
+            let digital_sample = std::cmp::min(self.pulse_frame[self.frame_index], self.inital_envelope_volume);
+
+            if self.active {
+                self.samples.push(Self::dac(digital_sample, self.dac_enabled));
+            } else {
+                self.samples.push(0.0);
             }
         }
     }
-}
 
-struct PulseParameters {
-    duty_cycle: f32,
-    frequency: f32,
-}
-
-use core::time::Duration;
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
-use rodio::{source::Source, OutputStream, OutputStreamHandle, Sink};
-use std::sync::mpsc;
-
-use crate::{
-    bit,
-    gameboy::{apu::utils::speed, memory, MemoryInterface},
-};
-
-use super::utils::CustomSource;
-
-pub struct PulseOscillator {
-    sample_rate: u32,
-    duty_cycle: f32,
-    index_increment: f32,
-    index: f32,
-}
-
-impl PulseOscillator {
-    pub fn new(sample_rate: u32, duty_cycle: f32) -> Self {
-        let mut se = Self {
-            sample_rate: sample_rate,
-            duty_cycle: duty_cycle,
-
-            index_increment: 0.0,
-            index: 0.0,
-        };
-        return se;
+    fn get_samples(&mut self) -> &Vec<f32> {
+        &self.samples
     }
 
-    fn get_sample(&mut self) -> f32 {
-        let sample: f32;
-
-        // sample = self.lerp();
-        sample = if (self.index) / 8.0 < self.duty_cycle { 1.0 } else { 0.0 };
-        self.index += self.index_increment;
-        self.index %= 8.0 as f32;
-
-        return sample;
-    }
-
-    fn lerp(&self) -> f32 {
-        let truncated_index = self.index as usize;
-        let next_index = (truncated_index + 1) % 8;
-
-        let next_index_weight = self.index - truncated_index as f32;
-        let truncated_index_weight = 1.0 - next_index_weight;
-
-        let mut val = -1.0;
-        if (self.index) / 8.0 < self.duty_cycle {
-            val = 1.0;
-        }
-        let mut next_val = -1.0;
-        if (next_index as f32) / 8.0 < self.duty_cycle {
-            next_val = 1.0;
-        }
-
-        return truncated_index_weight * val + next_index_weight * next_val;
-    }
-}
-
-impl CustomSource<PulseParameters> for PulseOscillator {
-    fn set_parameters(&mut self, parameters: PulseParameters) {
-        // self.index_increment = frequency * 64 as f32
-        //                        / self.sample_rate as f32;
-        log::debug!("params frequency {}", parameters.frequency);
-        self.index_increment = parameters.frequency * 8.0 / self.sample_rate as f32;
-    }
-}
-
-impl Source for PulseOscillator {
-    fn channels(&self) -> u16 {
-        return 1;
-    }
-
-    fn sample_rate(&self) -> u32 {
-        return self.sample_rate;
-    }
-
-    fn current_frame_len(&self) -> Option<usize> {
-        return None;
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        return None;
-    }
-}
-
-impl Iterator for PulseOscillator {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        return Some(self.get_sample());
+    fn reset_samples(&mut self) {
+        self.samples.clear();
     }
 }

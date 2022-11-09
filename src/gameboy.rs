@@ -195,6 +195,7 @@ impl Gameboy {
             ));
         }
         let mut debug_counter = 0;
+        let mut ticks = 0;
 
         while self.running {
             if debug_windows {
@@ -207,10 +208,13 @@ impl Gameboy {
                     self.ppu.print_state_machine();
                 }
             } else if !paused {
+                // if ticks < 70224 {
                 self.cpu.tick(self_ptr)?;
                 self.ppu.tick(self_ptr)?;
                 self.timer.tick(self_ptr)?;
                 self.apu.tick(self_ptr)?;
+                // }
+                ticks += 1;
             }
 
             let diff = SystemTime::now()
@@ -241,6 +245,7 @@ impl Gameboy {
                 (self.running, pause_pressed) = self.screen.update();
                 self.vblank = true;
                 self.joypad.tick(self_ptr)?;
+                ticks = 0;
 
                 if pause_pressed {
                     paused = !paused;
