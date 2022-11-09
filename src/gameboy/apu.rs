@@ -31,6 +31,7 @@ pub struct APU {
     stream_handle: OutputStreamHandle,
     sink: Sink,
     audio_queue_sender: mpsc::Sender<AudioQueue>,
+    shall_clear_audio_queue: bool,
 }
 
 impl GameboyModule for APU {
@@ -61,9 +62,11 @@ impl GameboyModule for APU {
             self.audio_queue_sender
                 .send(AudioQueue {
                     queue,
-                    shall_clear_old_samples: false,
+                    shall_clear_old_samples: self.shall_clear_audio_queue,
                 })
                 .unwrap();
+            self.shall_clear_audio_queue = false;
+
             self.pulse_sweep.reset_samples();
             self.pulse.reset_samples();
             self.wave.reset_samples();
@@ -145,6 +148,7 @@ impl APU {
             stream: _stream,
             stream_handle: stream_handle,
             audio_queue_sender: tx,
+            shall_clear_audio_queue: false,
         };
         apu.sink.append(AudioDriver::new(Self::AUDIO_SAMPLING_RATE, 1, rx));
         apu
@@ -169,6 +173,10 @@ impl APU {
         if self.div % APU::CH1_FREQUENCY_SWEEP_DIVIDER == 0 {
             // self.pulse_sweep.tick_frequency_sweep();
         }
+    }
+
+    pub fn clear_audio_queue(&mut self) {
+        self.shall_clear_audio_queue = true;
     }
 }
 

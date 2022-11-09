@@ -214,6 +214,7 @@ impl Gameboy {
                     self.timer.tick(self_ptr)?;
                     self.apu.tick(self_ptr)?;
                     self.vblank = false;
+                    ticks += 1;
                 } else {
                     if debug_windows {
                         debug_counter += 1;
@@ -241,17 +242,21 @@ impl Gameboy {
                     if pause_pressed {
                         paused = !paused;
                     }
-                    let diff = 16742
-                        - SystemTime::now()
-                            .duration_since(prev)
-                            .expect("system time failed")
-                            .as_micros();
+                    let diff = SystemTime::now()
+                        .duration_since(prev)
+                        .expect("system time failed")
+                        .as_micros();
+
                     //16742 {
                     //59.720 fps = 16742 us {
-                    std::thread::sleep(std::time::Duration::from_micros(diff as u64));
+                    if diff < 16742 {
+                        std::thread::sleep(std::time::Duration::from_micros(16742 - diff as u64));
+                    } else {
+                        log::warn!("emulation for frame took longer than one real frame time {}us", diff);
+                        self.apu.clear_audio_queue();
+                    }
                     prev = SystemTime::now();
                 }
-                ticks += 1;
             }
         }
         Ok(())
