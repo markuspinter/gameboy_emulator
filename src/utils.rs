@@ -47,3 +47,10 @@ macro_rules! bit {
         ($a >> $b) & 0b1
     }};
 }
+
+#[macro_export]
+macro_rules! set_bit {
+    ($a:expr,$b:expr,$c:expr) => {{
+        ($a & !(1 << $b)) | ($c << $b);
+    }};
+}
