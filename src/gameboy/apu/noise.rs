@@ -3,7 +3,7 @@ use crate::{
     gameboy::{memory, GameboyModule, MemoryInterface},
 };
 
-use super::{APUChannel, APUEnvelope};
+use super::{APUChannel, APUEnvelope, APU};
 
 pub enum LFSRWidth {
     LFSR15Bits,
@@ -45,8 +45,10 @@ pub struct Noise {
 
 impl GameboyModule for Noise {
     unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
+        let gb = &mut *gb_ptr;
+        let apu = &gb.apu;
         if self.t_cycles == 0 {
-            self.sample();
+            self.sample(&apu);
             self.t_cycles = 9;
         }
         self.t_cycles -= 1;
@@ -209,8 +211,8 @@ impl APUChannel for Noise {
         self.timer = self.timer.wrapping_add(1);
     }
 
-    fn sample(&mut self) {
-        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 {
+    fn sample(&mut self, apu: &APU) {
+        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
             self.frame_index_fraction += self.frame_index_fraction_increment;
 
             self.frame_index = self.frame_index_fraction as usize;
@@ -230,13 +232,11 @@ impl APUChannel for Noise {
                 true => self.sweep_volume,
                 false => 0,
             };
-            // println!("digital noise sample {}, lfsr {}", digital_sample, self.lfsr);
 
-            if self.active {
-                self.samples.push(Self::dac(digital_sample, self.dac_enabled));
-            } else {
-                self.samples.push(0.0);
-            }
+            let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
+
+            self.samples.push(analog_sample.0);
+            self.samples.push(analog_sample.1);
         } else {
             self.waiting_for_sync = true;
         }
@@ -249,6 +249,10 @@ impl APUChannel for Noise {
     fn reset_samples(&mut self) {
         self.samples.clear();
         self.waiting_for_sync = false;
+    }
+
+    fn is_active(&self) -> bool {
+        self.active
     }
 }
 
