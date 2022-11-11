@@ -4,10 +4,10 @@ use super::{memory, Gameboy, GameboyModule};
 
 #[derive(Clone, Debug)]
 enum TimerPrescaler {
-    PRESC_1024 = 1024,
-    PRESC_16 = 16,
-    PRESC_64 = 64,
-    PRESC_256 = 256,
+    Presc1024 = 1024,
+    Presc16 = 16,
+    Presc64 = 64,
+    Presc256 = 256,
 }
 
 #[derive(Clone, Debug)]
@@ -33,10 +33,10 @@ impl std::convert::From<u8> for TimerControl {
             unused_bits: byte >> 3,
             enable: bit!(byte, 2) != 0,
             prescaler: match byte & 0b11 {
-                0b00 => TimerPrescaler::PRESC_1024,
-                0b01 => TimerPrescaler::PRESC_16,
-                0b10 => TimerPrescaler::PRESC_64,
-                0b11 => TimerPrescaler::PRESC_256,
+                0b00 => TimerPrescaler::Presc1024,
+                0b01 => TimerPrescaler::Presc16,
+                0b10 => TimerPrescaler::Presc64,
+                0b11 => TimerPrescaler::Presc256,
                 _ => panic!("TimerControl: prescaler > 3 should not exist"),
             },
         }

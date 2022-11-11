@@ -7,11 +7,11 @@ mod stat;
 
 use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
-use log::{warn};
+use log::warn;
 
 use self::{
     fetcher::Fetcher,
-    fifo::{Fifo},
+    fifo::Fifo,
     lcdc::LCDControl,
     palette::PaletteData,
     stat::{LCDModeFlag, LCDStatus},
@@ -61,12 +61,12 @@ impl GameboyModule for PPU {
             self.dma_cycles -= 1;
         }
         match self.stat.mode_flag {
-            LCDModeFlag::HBLANK => {
+            LCDModeFlag::HBlank => {
                 if self.dots == 0 {
                     log::trace!("hblank fifo {}", self.fifo.bg_fifo.len());
 
                     if self.back_buffer_index == 0 {
-                        self.stat.mode_flag = LCDModeFlag::VBLANK;
+                        self.stat.mode_flag = LCDModeFlag::VBlank;
                         self.dots = 4560;
                         if gb.cpu.interrupt_master_enable {
                             if self.stat.mode1_vblank_interrupt_enable {
@@ -74,7 +74,7 @@ impl GameboyModule for PPU {
                             }
                         }
                     } else {
-                        self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
+                        self.stat.mode_flag = LCDModeFlag::SearchingOAM;
                         self.dots = 80;
                         if gb.cpu.interrupt_master_enable {
                             if self.stat.mode2_oam_interrupt_enable {
@@ -85,11 +85,11 @@ impl GameboyModule for PPU {
                     self.ly += 1;
                 }
             }
-            LCDModeFlag::VBLANK => {
+            LCDModeFlag::VBlank => {
                 if self.dots == 0 {
                     self.frame_ready = true;
                     log::trace!("---vblank fifo {}", self.fifo.bg_fifo.len());
-                    self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
+                    self.stat.mode_flag = LCDModeFlag::SearchingOAM;
                     self.dots = 80;
                     self.ly = 0;
                     if gb.cpu.interrupt_master_enable {
@@ -104,9 +104,9 @@ impl GameboyModule for PPU {
                     self.ly += 1;
                 }
             }
-            LCDModeFlag::SEARCHING_OAM => {
+            LCDModeFlag::SearchingOAM => {
                 if self.dots == 0 {
-                    self.stat.mode_flag = LCDModeFlag::TRANSFERRING_DATA_TO_LCD;
+                    self.stat.mode_flag = LCDModeFlag::TransferringDataToLCD;
                 } else if self.dots % 2 == 0 {
                     //content takes 2 dots to complete
                     let addr: usize = (40 - (self.dots as usize / 2 + 1)) * 4;
@@ -121,7 +121,7 @@ impl GameboyModule for PPU {
                     }
                 }
             }
-            LCDModeFlag::TRANSFERRING_DATA_TO_LCD => {
+            LCDModeFlag::TransferringDataToLCD => {
                 self.fetcher.tick(gb_ptr)?;
                 let popped = self.fifo.tick(gb_ptr)?;
                 self.dots = self.dots.wrapping_add(1);
@@ -144,7 +144,7 @@ impl GameboyModule for PPU {
                     self.fetcher.reset();
                     self.fifo.reset();
                     // self.fifo.reset(); //doesnt work
-                    self.stat.mode_flag = LCDModeFlag::HBLANK;
+                    self.stat.mode_flag = LCDModeFlag::HBlank;
                     if gb.cpu.interrupt_master_enable {
                         if self.stat.mode0_hblank_interrupt_enable {
                             gb.cpu.if_register.lcd_stat = true;
@@ -154,7 +154,7 @@ impl GameboyModule for PPU {
                 }
             }
         }
-        if self.dots > 0 && !matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD) {
+        if self.dots > 0 && !matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
             self.dots -= 1;
         }
 
@@ -165,7 +165,7 @@ impl GameboyModule for PPU {
 impl super::MemoryInterface for PPU {
     fn read8(&self, addr: u16) -> Option<u8> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
-            if matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD) {
+            if matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
                 // warn!(
                 //     "VRAM is inaccessible during mode 3; address {:#06x}, returning garbage (0xFF)",
                 //     addr
@@ -174,8 +174,8 @@ impl super::MemoryInterface for PPU {
             }
             return Some(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
-            if matches!(self.stat.mode_flag, LCDModeFlag::SEARCHING_OAM)
-                || matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD)
+            if matches!(self.stat.mode_flag, LCDModeFlag::SearchingOAM)
+                || matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD)
             {
                 // warn!(
                 //     "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, returning garbage (0xFF)",
@@ -215,7 +215,7 @@ impl super::MemoryInterface for PPU {
 
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
-            if matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD) {
+            if matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
                 // warn!(
                 //     "VRAM is inaccessible during mode 3; address {:#06x}, ignoring write",
                 //     addr
@@ -224,8 +224,8 @@ impl super::MemoryInterface for PPU {
             }
             self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
-            if matches!(self.stat.mode_flag, LCDModeFlag::SEARCHING_OAM)
-                || matches!(self.stat.mode_flag, LCDModeFlag::TRANSFERRING_DATA_TO_LCD)
+            if matches!(self.stat.mode_flag, LCDModeFlag::SearchingOAM)
+                || matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD)
             {
                 // warn!(
                 //     "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, ignoring write",
@@ -303,7 +303,7 @@ impl PPU {
             frame_ready: false,
             ppu_debug: PPUDebug::new(),
         };
-        ppu.stat.mode_flag = LCDModeFlag::VBLANK;
+        ppu.stat.mode_flag = LCDModeFlag::VBlank;
         ppu
     }
 
@@ -372,25 +372,25 @@ impl PPU {
         println!("\tLY: {}", self.ly);
         println!("\tbuffer index: {}", self.back_buffer_index);
         match self.stat.mode_flag {
-            LCDModeFlag::HBLANK => {
+            LCDModeFlag::HBlank => {
                 println!("\t\tSEARCHING_OAM");
                 println!("\t\tTRANSFERRING_DATA_TO_LCD");
                 println!("\t=>\tHBLANK");
                 println!("\t\tVBLANK");
             }
-            LCDModeFlag::VBLANK => {
+            LCDModeFlag::VBlank => {
                 println!("\t\tSEARCHING_OAM");
                 println!("\t\tTRANSFERRING_DATA_TO_LCD");
                 println!("\t\tHBLANK");
                 println!("\t=>\tVBLANK");
             }
-            LCDModeFlag::SEARCHING_OAM => {
+            LCDModeFlag::SearchingOAM => {
                 println!("\t=>\tSEARCHING_OAM");
                 println!("\t\tTRANSFERRING_DATA_TO_LCD");
                 println!("\t\tHBLANK");
                 println!("\t\tVBLANK");
             }
-            LCDModeFlag::TRANSFERRING_DATA_TO_LCD => {
+            LCDModeFlag::TransferringDataToLCD => {
                 println!("\t\tSEARCHING_OAM");
                 println!("\t=>\tTRANSFERRING_DATA_TO_LCD");
                 println!("\t\tHBLANK");

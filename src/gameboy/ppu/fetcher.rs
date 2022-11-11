@@ -9,12 +9,12 @@ use super::{fifo::FifoElement, sprite::SpriteAttributes, PPU};
 
 #[derive(Copy, Clone, Debug)]
 pub enum FetcherState {
-    GET_TILE,
-    GET_DATA_LOW,
-    GET_DATA_HIGH,
-    SLEEP,
-    PUSH,
-    WAIT,
+    GetTile,
+    GetDataLow,
+    GetDataHigh,
+    Sleep,
+    Push,
+    Wait,
 }
 
 pub struct Fetcher {
@@ -45,8 +45,8 @@ impl Fetcher {
     const MAX_SPRITES_PER_ROW: usize = 10;
     pub fn new() -> Self {
         Self {
-            state: FetcherState::GET_TILE,
-            prev_state: FetcherState::GET_TILE,
+            state: FetcherState::GetTile,
+            prev_state: FetcherState::GetTile,
             x: 0,
             y: 0,
             tile_map_start: 0,
@@ -74,8 +74,8 @@ impl Fetcher {
     fn step(&mut self, ppu: &mut super::PPU) {
         if ppu.lcdc.window_enable && !self.drawing_window && ppu.fifo.x == ppu.wx && ppu.ly >= ppu.wy {
             ppu.fifo.bg_fifo.clear();
-            self.state = FetcherState::GET_TILE;
-            self.prev_state = FetcherState::GET_TILE;
+            self.state = FetcherState::GetTile;
+            self.prev_state = FetcherState::GetTile;
             self.drawing_window = true;
         }
         if ppu.lcdc.obj_enable && !self.fetching_object {
@@ -84,18 +84,18 @@ impl Fetcher {
                     self.fetching_object = true;
                     self.curr_object_index = i;
                     ppu.fifo.suspend_fifo();
-                    self.state = FetcherState::GET_TILE;
-                    self.prev_state = FetcherState::GET_TILE;
+                    self.state = FetcherState::GetTile;
+                    self.prev_state = FetcherState::GetTile;
                 }
             }
         }
         let next_state = match self.state {
-            FetcherState::GET_TILE => self.get_tile(ppu),
-            FetcherState::GET_DATA_LOW => self.get_data_low(ppu),
-            FetcherState::GET_DATA_HIGH => self.get_data_high(ppu),
-            FetcherState::SLEEP => self.sleep(),
-            FetcherState::PUSH => self.push(ppu),
-            FetcherState::WAIT => self.wait(),
+            FetcherState::GetTile => self.get_tile(ppu),
+            FetcherState::GetDataLow => self.get_data_low(ppu),
+            FetcherState::GetDataHigh => self.get_data_high(ppu),
+            FetcherState::Sleep => self.sleep(),
+            FetcherState::Push => self.push(ppu),
+            FetcherState::Wait => self.wait(),
         };
         self.prev_state = self.state.clone();
         self.state = next_state;
@@ -133,7 +133,7 @@ impl Fetcher {
             Some(val) => val,
             None => panic!("reached invalid address {:#06X} in fetcher get tile", addr),
         };
-        FetcherState::WAIT
+        FetcherState::Wait
     }
 
     fn get_data_low(&mut self, ppu: &mut super::PPU) -> FetcherState {
@@ -166,7 +166,7 @@ impl Fetcher {
                 self.tile_data_start + self.next_tile_id as u16
             ),
         };
-        FetcherState::WAIT
+        FetcherState::Wait
     }
 
     fn get_data_high(&mut self, ppu: &mut super::PPU) -> FetcherState {
@@ -193,11 +193,11 @@ impl Fetcher {
                 self.tile_data_start + self.next_tile_id as u16 + 1
             ),
         };
-        FetcherState::WAIT
+        FetcherState::Wait
     }
 
     fn sleep(&self) -> FetcherState {
-        FetcherState::WAIT
+        FetcherState::Wait
     }
 
     fn push(&mut self, ppu: &mut super::PPU) -> FetcherState {
@@ -230,7 +230,7 @@ impl Fetcher {
             }
             self.fetching_object = false;
             self.visible_objects.remove(self.curr_object_index);
-            FetcherState::GET_TILE
+            FetcherState::GetTile
         } else {
             if ppu.fifo.is_fifo_pushable() {
                 //pixel conversion
@@ -245,21 +245,21 @@ impl Fetcher {
                 self.x += 1;
                 // self.x %= (PPU::COLUMNS / 8) as u8;
 
-                FetcherState::GET_TILE
+                FetcherState::GetTile
             } else {
-                FetcherState::PUSH
+                FetcherState::Push
             }
         }
     }
 
     fn wait(&self) -> FetcherState {
         match self.prev_state {
-            FetcherState::GET_TILE => FetcherState::GET_DATA_LOW,
-            FetcherState::GET_DATA_LOW => FetcherState::GET_DATA_HIGH,
-            FetcherState::GET_DATA_HIGH => FetcherState::SLEEP,
-            FetcherState::SLEEP => FetcherState::PUSH,
-            FetcherState::PUSH => panic!("changing state from push to wait is not intended"),
-            FetcherState::WAIT => panic!("changing state from wait to wait is not intended"),
+            FetcherState::GetTile => FetcherState::GetDataLow,
+            FetcherState::GetDataLow => FetcherState::GetDataHigh,
+            FetcherState::GetDataHigh => FetcherState::Sleep,
+            FetcherState::Sleep => FetcherState::Push,
+            FetcherState::Push => panic!("changing state from push to wait is not intended"),
+            FetcherState::Wait => panic!("changing state from wait to wait is not intended"),
         }
     }
 
@@ -269,46 +269,46 @@ impl Fetcher {
         println!("\ty: {}", self.y);
         println!("\tfetching obj: {}", self.fetching_object);
         let mut print_state = self.state;
-        if matches!(print_state, FetcherState::WAIT) {
+        if matches!(print_state, FetcherState::Wait) {
             print_state = self.prev_state;
         }
         match print_state {
-            FetcherState::GET_TILE => {
+            FetcherState::GetTile => {
                 println!("\t=>\tGET_TILE");
                 println!("\t\tGET_DATA_LOW");
                 println!("\t\tGET_DATA_HIGH");
                 println!("\t\tSLEEP");
                 println!("\t\tPUSH");
             }
-            FetcherState::GET_DATA_LOW => {
+            FetcherState::GetDataLow => {
                 println!("\t\tGET_TILE");
                 println!("\t=>\tGET_DATA_LOW");
                 println!("\t\tGET_DATA_HIGH");
                 println!("\t\tSLEEP");
                 println!("\t\tPUSH");
             }
-            FetcherState::GET_DATA_HIGH => {
+            FetcherState::GetDataHigh => {
                 println!("\t\tGET_TILE");
                 println!("\t\tGET_DATA_LOW");
                 println!("\t=>\tGET_DATA_HIGH");
                 println!("\t\tSLEEP");
                 println!("\t\tPUSH");
             }
-            FetcherState::SLEEP => {
+            FetcherState::Sleep => {
                 println!("\t\tGET_TILE");
                 println!("\t\tGET_DATA_LOW");
                 println!("\t\tGET_DATA_HIGH");
                 println!("\t=>\tSLEEP");
                 println!("\t\tPUSH");
             }
-            FetcherState::PUSH => {
+            FetcherState::Push => {
                 println!("\t\tGET_TILE");
                 println!("\t\tGET_DATA_LOW");
                 println!("\t\tGET_DATA_HIGH");
                 println!("\t\tSLEEP");
                 println!("\t=>\tPUSH");
             }
-            FetcherState::WAIT => {
+            FetcherState::Wait => {
                 println!("wait should not happen");
             }
         }
@@ -318,7 +318,7 @@ impl Fetcher {
     pub fn reset(&mut self) {
         self.x = 0;
         self.drawing_window = false;
-        self.state = FetcherState::GET_TILE;
-        self.prev_state = FetcherState::GET_TILE;
+        self.state = FetcherState::GetTile;
+        self.prev_state = FetcherState::GetTile;
     }
 }

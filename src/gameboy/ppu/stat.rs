@@ -49,10 +49,10 @@ impl std::convert::From<u8> for LCDStatus {
             mode0_hblank_interrupt_enable: ((byte >> 3) & 0b1) != 0,
             lyc_flag: ((byte >> 2) & 0b1) != 0,
             mode_flag: match byte & 0b11 {
-                0x0 => LCDModeFlag::HBLANK,
-                0x1 => LCDModeFlag::VBLANK,
-                0x2 => LCDModeFlag::SEARCHING_OAM,
-                0x3 => LCDModeFlag::TRANSFERRING_DATA_TO_LCD,
+                0x0 => LCDModeFlag::HBlank,
+                0x1 => LCDModeFlag::VBlank,
+                0x2 => LCDModeFlag::SearchingOAM,
+                0x3 => LCDModeFlag::TransferringDataToLCD,
                 _ => panic!("LCDModeFlag convertion failed"),
             },
         }
@@ -61,10 +61,10 @@ impl std::convert::From<u8> for LCDStatus {
 #[derive(Clone, Debug)]
 #[repr(u8)]
 pub enum LCDModeFlag {
-    HBLANK = 0x0,
-    VBLANK = 0x1,
-    SEARCHING_OAM = 0x2,
-    TRANSFERRING_DATA_TO_LCD = 0x3,
+    HBlank = 0x0,
+    VBlank = 0x1,
+    SearchingOAM = 0x2,
+    TransferringDataToLCD = 0x3,
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn stat_test() {
     println!("{:?}", stat);
     stat.lyc_interrupt_enable = true;
     stat.mode2_oam_interrupt_enable = true;
-    stat.mode_flag = LCDModeFlag::TRANSFERRING_DATA_TO_LCD;
+    stat.mode_flag = LCDModeFlag::TransferringDataToLCD;
     a = u8::from(stat);
     println!("{:#04b}", a);
     assert_eq!(a, 0xE3);
