@@ -7,17 +7,17 @@ mod stat;
 
 use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
-use log::{info, warn};
+use log::{warn};
 
 use self::{
     fetcher::Fetcher,
-    fifo::{Fifo, FifoElement},
+    fifo::{Fifo},
     lcdc::LCDControl,
     palette::PaletteData,
     stat::{LCDModeFlag, LCDStatus},
 };
 
-use super::{memory::MemoryRange, Gameboy, GameboyModule, MemoryInterface};
+use super::{Gameboy, GameboyModule, MemoryInterface};
 
 pub struct PPU {
     frame_buffer: [u32; PPU::ROWS * PPU::COLUMNS],
@@ -158,7 +158,7 @@ impl GameboyModule for PPU {
             self.dots -= 1;
         }
 
-        Ok((0))
+        Ok(0)
     }
 }
 
@@ -466,12 +466,12 @@ impl PPUDebug {
         }
     }
 
-    fn process_tile(&mut self, addr: u16) {}
+    fn process_tile(&mut self, _addr: u16) {}
 
     pub fn get_tile_data_frame_buffer(
         &self,
         wrap_count: usize,
-        vram: &[u8; memory::ppu::VRAM.size],
+        _vram: &[u8; memory::ppu::VRAM.size],
     ) -> [u32; PPU::TILES * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
         let mut frame_buffer: [u32; PPU::TILES * (PPU::TILE_SIZE * PPU::TILE_SIZE)] =
             [0; PPU::TILES * (PPU::TILE_SIZE * PPU::TILE_SIZE)];

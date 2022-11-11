@@ -22,7 +22,7 @@ impl std::convert::From<TimerControl> for u8 {
         let mut byte: u8 = 0x00;
         byte |= (tac.unused_bits & 0x1F) << 3;
         byte |= (tac.enable as u8) << 2;
-        byte |= (tac.prescaler as u8 & 0b11);
+        byte |= tac.prescaler as u8 & 0b11;
         byte
     }
 }
@@ -32,7 +32,7 @@ impl std::convert::From<u8> for TimerControl {
         Self {
             unused_bits: byte >> 3,
             enable: bit!(byte, 2) != 0,
-            prescaler: match (byte & 0b11) {
+            prescaler: match byte & 0b11 {
                 0b00 => TimerPrescaler::PRESC_1024,
                 0b01 => TimerPrescaler::PRESC_16,
                 0b10 => TimerPrescaler::PRESC_64,

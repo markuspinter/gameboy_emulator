@@ -37,7 +37,7 @@ impl Screen {
         let height = rows * pixel_height;
         let mut window_options = WindowOptions::default();
         window_options.scale = scale_factor;
-        let mut ppu = Self {
+        let ppu = Self {
             width: width,
             height: height,
             buffer: vec![0; width * height],

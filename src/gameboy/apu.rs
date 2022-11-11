@@ -76,10 +76,10 @@ impl super::MemoryInterface for APU {
     }
 
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
-        if let Some(res) = self.pulse_sweep.write8(addr, value) {
-        } else if let Some(res) = self.pulse.write8(addr, value) {
-        } else if let Some(res) = self.wave.write8(addr, value) {
-        } else if let Some(res) = self.noise.write8(addr, value) {
+        if let Some(_res) = self.pulse_sweep.write8(addr, value) {
+        } else if let Some(_res) = self.pulse.write8(addr, value) {
+        } else if let Some(_res) = self.wave.write8(addr, value) {
+        } else if let Some(_res) = self.noise.write8(addr, value) {
         } else if addr == memory::apu::NR50 {
             self.set_nr50(value);
         } else if addr == memory::apu::NR51 {
@@ -103,7 +103,7 @@ impl APU {
     pub fn new() -> Self {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let (tx, rx) = mpsc::channel();
-        let mut apu = Self {
+        let apu = Self {
             pulse_sweep: pulse::PulseSweep::new(Self::AUDIO_SAMPLING_RATE),
 
             pulse: pulse::Pulse::new(Self::AUDIO_SAMPLING_RATE),

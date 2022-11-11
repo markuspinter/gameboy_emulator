@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{debug, info};
+use log::{info};
 use minifb::Key;
 
 use crate::bit;
@@ -30,12 +30,12 @@ impl std::convert::From<Joypad> for u8 {
             byte |= (!jp.down as u8) << 3;
             byte |= (!jp.up as u8) << 2;
             byte |= (!jp.left as u8) << 1;
-            byte |= (!jp.right as u8);
+            byte |= !jp.right as u8;
         } else if jp.action_buttons_select {
             byte |= (!jp.start as u8) << 3;
             byte |= (!jp.select as u8) << 2;
             byte |= (!jp.b as u8) << 1;
-            byte |= (!jp.a as u8);
+            byte |= !jp.a as u8;
         } else {
             log::warn!("selecting both action and direction buttons at the same time is not intended");
         }

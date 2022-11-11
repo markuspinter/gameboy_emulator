@@ -89,7 +89,7 @@ impl fmt::Display for CPU {
 impl super::MemoryInterface for CPU {
     fn read8(&self, addr: u16) -> Option<u8> {
         if addr == memory::interrupt::IE {
-            return Some(u8::from((self.ie_register.clone())));
+            return Some(u8::from(self.ie_register.clone()));
         } else if addr == memory::interrupt::IF {
             return Some(u8::from(self.if_register.clone()));
         }

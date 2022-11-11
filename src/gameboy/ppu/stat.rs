@@ -34,7 +34,7 @@ impl std::convert::From<LCDStatus> for u8 {
         byte |= (stat.mode1_vblank_interrupt_enable as u8) << 4;
         byte |= (stat.mode0_hblank_interrupt_enable as u8) << 3;
         byte |= (stat.lyc_flag as u8) << 2;
-        byte |= (stat.mode_flag as u8);
+        byte |= stat.mode_flag as u8;
         byte
     }
 }

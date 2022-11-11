@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use std::{collections::HashMap, fmt::format};
+use std::{collections::HashMap};
 
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -172,7 +172,7 @@ impl MemoryInterface for Cartridge {
                 log::error!("trying to write to bootrom, addr {:#06X}", addr);
             }
         }
-        if let Some(res) = self.mbc.write8(addr, value) {
+        if let Some(_res) = self.mbc.write8(addr, value) {
         } else if addr == memory::cartridge::BOOTROM_FLAG {
             log::warn!("bootrom flag set to {:#04X}", value);
             self.boot_flag = value;
@@ -189,7 +189,7 @@ impl Cartridge {
         let header = CartridgeHeader::from(&rom);
         let ram = vec![0; header.ram_size];
 
-        let mut mem = Cartridge {
+        let mem = Cartridge {
             header: header.clone(),
             boot_rom: Self::load_boot_rom(bootrom_path),
             boot_flag: 0,
@@ -220,7 +220,7 @@ impl Cartridge {
         buffer
     }
 
-    fn load_ram(rom_path: String) -> Vec<u8> {
+    fn load_ram(_rom_path: String) -> Vec<u8> {
         Vec::new()
     }
 

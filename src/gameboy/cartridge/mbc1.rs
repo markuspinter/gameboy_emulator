@@ -1,4 +1,4 @@
-use crate::gameboy::{memory, MemoryInterface};
+use crate::gameboy::{memory};
 
 pub struct MBC1 {
     rom: Vec<u8>,

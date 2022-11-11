@@ -2,7 +2,7 @@ use core::panic;
 
 use crate::{
     bit,
-    gameboy::{memory, Gameboy, GameboyModule, MemoryInterface},
+    gameboy::{memory, GameboyModule},
 };
 
 use super::{fifo::FifoElement, sprite::SpriteAttributes, PPU};
@@ -210,7 +210,7 @@ impl Fetcher {
                 ),
             };
             if attr.x_flip {
-                for i in (0..=7) {
+                for i in 0..=7 {
                     ppu.fifo.push_into_object_fifo(FifoElement {
                         color_id: bit!(self.high, i) << 1 | bit!(self.low, i),
                         palette_nummber: attr.palette_number,

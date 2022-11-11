@@ -41,7 +41,7 @@ trait MemoryInterface {
     fn read8(&self, addr: u16) -> Option<u8>;
     fn write8(&mut self, addr: u16, value: u8) -> Option<()>;
     fn read16(&self, addr: u16) -> Option<u16> {
-        let high_opt = (self.read8(addr + 1));
+        let high_opt = self.read8(addr + 1);
         let low_opt = self.read8(addr);
         if let (Some(high), Some(low)) = (high_opt, low_opt) {
             Some((high as u16) << 8 | low as u16)
@@ -52,7 +52,7 @@ trait MemoryInterface {
     fn write16(&mut self, addr: u16, value: u16) -> Option<()> {
         let high_opt = self.write8(addr + 1, (value >> 8) as u8);
         let low_opt = self.write8(addr, value as u8);
-        if let (Some(high), Some(low)) = (high_opt, low_opt) {
+        if let (Some(_high), Some(_low)) = (high_opt, low_opt) {
             Some(())
         } else {
             None
@@ -116,7 +116,7 @@ impl Gameboy {
     }
 
     fn read16(&self, addr: u16) -> u16 {
-        let high = (self.read8(addr + 1));
+        let high = self.read8(addr + 1);
         let low = self.read8(addr);
         (high as u16) << 8 | low as u16
     }
@@ -194,7 +194,7 @@ impl Gameboy {
                 minifb::Scale::X4,
             ));
         }
-        let mut debug_counter = 0;
+        let _debug_counter = 0;
         let mut ticks = 0;
 
         self.vblank = true;

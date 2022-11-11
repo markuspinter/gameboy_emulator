@@ -183,7 +183,7 @@ impl std::convert::From<InterruptRegister> for u8 {
         byte |= (ir.serial as u8) << 3;
         byte |= (ir.timer as u8) << 2;
         byte |= (ir.lcd_stat as u8) << 1;
-        byte |= (ir.vblank as u8);
+        byte |= ir.vblank as u8;
         byte
     }
 }
@@ -1110,11 +1110,11 @@ fn _bit(cpu: &mut CPU, val: u8, bit: u8) {
     cpu.set_flag(Flag::H, true);
 }
 
-fn _res(cpu: &CPU, val: u8, bit: u8) -> u8 {
+fn _res(_cpu: &CPU, val: u8, bit: u8) -> u8 {
     val & !(1 << bit)
 }
 
-fn _set(cpu: &CPU, val: u8, bit: u8) -> u8 {
+fn _set(_cpu: &CPU, val: u8, bit: u8) -> u8 {
     val | (1 << bit)
 }
 
@@ -1194,7 +1194,7 @@ fn _or8(cpu: &mut CPU, dst: u8, src: u8) -> u8 {
 fn _adc_sbc_getsrc(cpu: &CPU, src: u8) -> (u8, bool) {
     let cy = cpu.f_c() as u8;
     let mut new_cy = false;
-    let mut new_hf = false;
+    let _new_hf = false;
     // if cy == 1 && src == 0xF {
     //     new_hf = true;
     // }

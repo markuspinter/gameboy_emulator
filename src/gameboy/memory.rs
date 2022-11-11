@@ -31,7 +31,7 @@ impl Memory {
         mem
     }
 
-    fn load_rom(bootrom_path: String, rom_path: String) -> Vec<u8> {
+    fn load_rom(_bootrom_path: String, rom_path: String) -> Vec<u8> {
         let f = File::open(rom_path).unwrap();
         let mut reader = BufReader::new(f);
         let mut buffer = Vec::new();

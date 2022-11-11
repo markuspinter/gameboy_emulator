@@ -1,8 +1,8 @@
-use std::{sync::mpsc, time::Duration};
+
 
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
+use rodio::{OutputStream, Source};
 
 use crate::{
     bit,
@@ -10,7 +10,6 @@ use crate::{
 };
 
 use super::{
-    utils::{speed, CustomSource},
     APUChannel, APU,
 };
 
@@ -99,7 +98,7 @@ impl MemoryInterface for Wave {
 impl Wave {
     const WAVE_PATTERN_FRAME_SIZE: usize = 32;
     pub fn new(sample_rate: u32) -> Self {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let (_stream, _stream_handle) = OutputStream::try_default().unwrap();
         Self {
             dac_enabled: false,
 

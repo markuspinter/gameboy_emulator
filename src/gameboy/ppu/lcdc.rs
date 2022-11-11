@@ -38,7 +38,7 @@ impl std::convert::From<LCDControl> for u8 {
         byte |= (lcdc.bg_tile_map_area as u8) << 3;
         byte |= (lcdc.obj_size as u8) << 2;
         byte |= (lcdc.obj_enable as u8) << 1;
-        byte |= (lcdc.bg_and_window_enable as u8);
+        byte |= lcdc.bg_and_window_enable as u8;
         byte
     }
 }

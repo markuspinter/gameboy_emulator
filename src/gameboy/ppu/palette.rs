@@ -31,7 +31,7 @@ impl std::convert::From<PaletteData> for u8 {
         byte |= (pd.color_map[3] & 0b11) << 6;
         byte |= (pd.color_map[2] & 0b11) << 4;
         byte |= (pd.color_map[1] & 0b11) << 2;
-        byte |= (pd.color_map[0] & 0b11);
+        byte |= pd.color_map[0] & 0b11;
         byte
     }
 }

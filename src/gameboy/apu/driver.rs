@@ -1,11 +1,11 @@
 use std::{sync::mpsc, time::Duration};
 
-use rodio::{Sample, Source};
+use rodio::{Source};
 
-use rodio::{OutputStream, OutputStreamHandle, Sink};
-use std::{collections::VecDeque, time::SystemTime};
 
-use super::wave;
+use std::{collections::VecDeque};
+
+
 
 pub struct AudioQueue {
     pub queue: VecDeque<f32>,
@@ -21,8 +21,8 @@ pub struct AudioDriver {
 impl AudioDriver {
     const SAMPLE_RATE: u32 = 44100;
 
-    pub fn new(sample_rate: u32, channels: u16, rx: mpsc::Receiver<AudioQueue>) -> Self {
-        let mut se = Self {
+    pub fn new(_sample_rate: u32, channels: u16, rx: mpsc::Receiver<AudioQueue>) -> Self {
+        let se = Self {
             channels,
             sample_rate: AudioDriver::SAMPLE_RATE,
 
@@ -106,7 +106,7 @@ fn test_audio_driver() {
     }
 
     let (tx, rx) = mpsc::channel();
-    let mut oscillator = AudioDriver::new(44100, 1, rx);
+    let oscillator = AudioDriver::new(44100, 1, rx);
 
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
