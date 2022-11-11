@@ -1,11 +1,8 @@
-use std::fmt::{self, Error};
+use std::fmt;
 
 use self::instructions::InterruptRegister;
 
-use super::{
-    memory::{self, Memory},
-    Gameboy, GameboyModule, MemoryInterface,
-};
+use super::{memory, Gameboy, GameboyModule};
 
 #[allow(non_snake_case)]
 mod instructions;

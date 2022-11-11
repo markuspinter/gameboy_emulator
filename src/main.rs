@@ -21,10 +21,7 @@ fn main() {
 
     unsafe {
         if args.len() >= 4 {
-            if args[3] == "--test" {
-                println!("test run");
-                gb.test_run().unwrap();
-            } else if args[3] == "--debug" {
+            if args[3] == "--debug" {
                 gb.run(true).unwrap();
             } else {
                 gb.run(false).unwrap();

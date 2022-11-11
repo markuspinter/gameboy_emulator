@@ -207,25 +207,25 @@ impl APUChannel for Wave {
     }
 
     fn sample(&mut self, apu: &APU) {
-        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
-            self.frame_index_fraction += self.frame_index_fraction_increment;
-            self.frame_index_fraction %= Wave::WAVE_PATTERN_FRAME_SIZE as f32;
+        // if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
+        self.frame_index_fraction += self.frame_index_fraction_increment;
+        self.frame_index_fraction %= Wave::WAVE_PATTERN_FRAME_SIZE as f32;
 
-            self.frame_index = self.frame_index_fraction as usize;
+        self.frame_index = self.frame_index_fraction as usize;
 
-            let digital_sample = self.wave_pattern_vec[self.frame_index]
-                >> match self.output_level {
-                    WaveOutputLevel::Mute => 4,
-                    WaveOutputLevel::P100 => 0,
-                    WaveOutputLevel::P50 => 1,
-                    WaveOutputLevel::P25 => 2,
-                };
+        let digital_sample = self.wave_pattern_vec[self.frame_index]
+            >> match self.output_level {
+                WaveOutputLevel::Mute => 4,
+                WaveOutputLevel::P100 => 0,
+                WaveOutputLevel::P50 => 1,
+                WaveOutputLevel::P25 => 2,
+            };
 
-            let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
+        let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
 
-            self.samples.push(analog_sample.0);
-            self.samples.push(analog_sample.1);
-        }
+        self.samples.push(analog_sample.0);
+        self.samples.push(analog_sample.1);
+        // }
     }
 
     fn get_samples(&mut self) -> &Vec<f32> {

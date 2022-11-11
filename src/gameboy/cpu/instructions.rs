@@ -1,6 +1,6 @@
 use crate::{
     bit,
-    gameboy::{cpu::Flag, Gameboy, MemoryInterface},
+    gameboy::{cpu::Flag, Gameboy},
 };
 
 use super::CPU;
@@ -15,6 +15,7 @@ enum Reg16 {
 }
 
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 enum Reg8 {
     A,
     F,
@@ -157,7 +158,7 @@ fn reg_dec8(cpu: &mut CPU, reg: &Reg8) {
     reg_set8(cpu, reg, val);
 }
 
-#[derive(Debug)]
+#[allow(non_camel_case_types)]
 pub enum Interrupt {
     VBLANK,
     LCD_STAT,

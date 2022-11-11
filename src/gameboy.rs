@@ -15,7 +15,7 @@ use memory::Memory;
 use minifb::Key;
 use ppu::PPU;
 
-use crate::{screen::Screen, utils};
+use crate::screen::Screen;
 
 use self::{cartridge::Cartridge, joypad::Joypad, timer::Timer};
 
@@ -139,7 +139,7 @@ pub struct Gameboy {
     running: bool,
     cgb_mode: bool,
 
-    vblank: bool,
+    pub vblank: bool,
 }
 
 impl Gameboy {
@@ -197,6 +197,8 @@ impl Gameboy {
         let mut debug_counter = 0;
         let mut ticks = 0;
 
+        self.vblank = true;
+
         while self.running {
             if debug_windows {
                 self.cpu.tick(self_ptr)?;
@@ -216,32 +218,27 @@ impl Gameboy {
                 // }
                 ticks += 1;
             }
-
-            let diff = SystemTime::now()
-                .duration_since(prev)
-                .expect("system time failed")
-                .as_micros();
-            if diff > 16742 {
+            if let Some(frame_buffer) = self.ppu.get_frame_buffer() {
                 //16742 {
                 //59.720 fps = 16742 us {
-                if debug_windows {
-                    debug_counter += 1;
-                    if debug_counter >= 60 {
-                        self.ppu.process_tile_data();
+                // if debug_windows {
+                //     debug_counter += 1;
+                //     if debug_counter >= 60 {
+                //         self.ppu.process_tile_data();
 
-                        if let Some(ref mut screen) = tile_data_screen {
-                            screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
-                            screen.update();
-                        }
-                        if let Some(ref mut screen) = tile_map_screen {
-                            screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
-                            screen.update();
-                        }
-                        debug_counter = 0;
-                    }
-                }
+                //         if let Some(ref mut screen) = tile_data_screen {
+                //             screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
+                //             screen.update();
+                //         }
+                //         if let Some(ref mut screen) = tile_map_screen {
+                //             screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                //             screen.update();
+                //         }
+                //         debug_counter = 0;
+                //     }
+                // }
 
-                self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
+                self.screen.set_frame_buffer(frame_buffer);
                 (self.running, pause_pressed) = self.screen.update();
                 self.vblank = true;
                 self.joypad.tick(self_ptr)?;
@@ -250,61 +247,20 @@ impl Gameboy {
                 if pause_pressed {
                     paused = !paused;
                 }
+
+                let diff = SystemTime::now()
+                    .duration_since(prev)
+                    .expect("system time failed")
+                    .as_micros();
+                self.apu.sync();
+                if diff < 16742 {
+                    std::thread::sleep(std::time::Duration::from_micros(16742 - diff as u64));
+                } else {
+                    log::warn!("skipped one frame, clearing audio buffer");
+                    self.apu.shall_clear_audio_queue = true; // clear audio queue since skipped one frame
+                }
+
                 prev = SystemTime::now();
-            } else {
-                self.vblank = false;
-            }
-        }
-        Ok(())
-    }
-
-    pub unsafe fn test_run(&mut self) -> Result<(), Error> {
-        let mut prev = SystemTime::now();
-
-        let mem = utils::load_bytes("roms/mem_dump".into());
-        self.ppu.test_load_memory(mem.as_slice());
-
-        let self_ptr = self as *mut Self;
-        self.ppu.tick(self_ptr)?;
-
-        self.ppu.print_tiles(0x10);
-
-        let mut draw_bg: bool = true;
-        let mut shall_pause: bool = false;
-
-        while self.running {
-            if !shall_pause {
-                self.cpu.tick(self_ptr)?;
-                self.ppu.tick(self_ptr)?;
-                self.timer.tick(self_ptr)?;
-            }
-
-            // self.screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
-
-            let diff = SystemTime::now()
-                .duration_since(prev)
-                .expect("system time failed")
-                .as_micros();
-            if diff > 33333 {
-                // self.ppu.tick(self_ptr)?;
-                self.screen.set_frame_buffer(&self.ppu.get_frame_buffer());
-                // if draw_bg {
-                //     self.screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
-                // } else {
-                //     // self.screen.set_frame_buffer(&self.ppu.get_window_frame_buffer());
-                //     self.screen.set_frame_buffer(&self.ppu.get_objects_frame_buffer());
-                // }
-                (self.running, shall_pause) = self.screen.update();
-                //59.720 fps = 16742 us {
-                log::info!(
-                    "{:.2} fps",
-                    1e6 / SystemTime::now()
-                        .duration_since(prev)
-                        .expect("system time failed")
-                        .as_micros() as f32
-                );
-                prev = SystemTime::now();
-                // draw_bg = !draw_bg;
             }
         }
         Ok(())

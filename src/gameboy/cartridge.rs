@@ -19,6 +19,7 @@ pub mod mbc0;
 pub mod mbc1;
 
 #[derive(Clone, Debug, FromPrimitive)]
+#[allow(non_camel_case_types)]
 enum CartridgeType {
     ROM_ONLY = 0x00,
     MBC1 = 0x01,

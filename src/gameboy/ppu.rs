@@ -20,12 +20,11 @@ use self::{
 use super::{memory::MemoryRange, Gameboy, GameboyModule, MemoryInterface};
 
 pub struct PPU {
-    frame_buffer: [u32; Self::ROWS * Self::COLUMNS],
-    back_buffer: [u32; Self::ROWS * Self::COLUMNS],
+    frame_buffer: [u32; PPU::ROWS * PPU::COLUMNS],
+    back_buffer: [u32; PPU::ROWS * PPU::COLUMNS],
     back_buffer_index: usize,
     vram: [u8; memory::ppu::VRAM.size],
     oam: [u8; memory::ppu::OAM.size],
-    tiles: [[[u8; Self::TILE_SIZE]; Self::TILE_SIZE]; Self::TILES],
     lcdc: lcdc::LCDControl,
     stat: stat::LCDStatus,
     scy: u8,
@@ -43,6 +42,10 @@ pub struct PPU {
     fetcher: Fetcher,
     fifo: Fifo,
     dots: u16,
+
+    frame_ready: bool,
+
+    ppu_debug: PPUDebug,
 }
 
 impl GameboyModule for PPU {
@@ -84,20 +87,19 @@ impl GameboyModule for PPU {
             }
             LCDModeFlag::VBLANK => {
                 if self.dots == 0 {
-                    if gb.vblank {
-                        log::trace!("---vblank fifo {}", self.fifo.bg_fifo.len());
-                        self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
-                        self.dots = 80;
-                        self.ly = 0;
-                        if gb.cpu.interrupt_master_enable {
-                            if self.stat.mode2_oam_interrupt_enable {
-                                gb.cpu.if_register.lcd_stat = true;
-                            }
+                    self.frame_ready = true;
+                    log::trace!("---vblank fifo {}", self.fifo.bg_fifo.len());
+                    self.stat.mode_flag = LCDModeFlag::SEARCHING_OAM;
+                    self.dots = 80;
+                    self.ly = 0;
+                    if gb.cpu.interrupt_master_enable {
+                        if self.stat.mode2_oam_interrupt_enable {
+                            gb.cpu.if_register.lcd_stat = true;
                         }
-                        // for (i) in 0..4 {
-                        //     self.bgp.color_map[i] = self.bgp.color_map[(i + 1) % 4];
-                        // }
                     }
+                    // for (i) in 0..4 {
+                    //     self.bgp.color_map[i] = self.bgp.color_map[(i + 1) % 4];
+                    // }
                 } else if self.dots % 456 == 0 {
                     self.ly += 1;
                 }
@@ -112,7 +114,7 @@ impl GameboyModule for PPU {
                     let x_pos: u8 = self.oam[addr + 1];
                     if (x_pos != 0)
                         && ((self.ly + 16) >= y_pos)
-                        && ((self.ly + 16) < (y_pos.wrapping_add(Self::TILE_SIZE as u8)))
+                        && ((self.ly + 16) < (y_pos.wrapping_add(PPU::TILE_SIZE as u8)))
                     {
                         self.fetcher
                             .add_visible_object(addr as u16 + memory::ppu::OAM.begin, x_pos, y_pos);
@@ -131,8 +133,8 @@ impl GameboyModule for PPU {
                         self.fifo.x
                     );
                 }
-                if popped == 0 && self.back_buffer_index % (Self::COLUMNS) == 0 {
-                    log::trace!(
+                if popped == 0 && self.back_buffer_index % (PPU::COLUMNS) == 0 {
+                    log::warn!(
                         "mode 3 done, dots taken {}, {}, pushed {}",
                         self.dots,
                         self.back_buffer_index,
@@ -277,12 +279,11 @@ impl PPU {
 
     pub fn new() -> Self {
         let mut ppu = Self {
-            frame_buffer: [0; Self::ROWS * Self::COLUMNS],
-            back_buffer: [0; Self::ROWS * Self::COLUMNS],
+            frame_buffer: [0; PPU::ROWS * PPU::COLUMNS],
+            back_buffer: [0; PPU::ROWS * PPU::COLUMNS],
             back_buffer_index: 0,
             vram: [0; memory::ppu::VRAM.size],
             oam: [0; memory::ppu::OAM.size],
-            tiles: [[[0; Self::TILE_SIZE]; Self::TILE_SIZE]; Self::TILES],
             lcdc: lcdc::LCDControl::from(0),
             stat: stat::LCDStatus::from(0),
             scy: 0,
@@ -299,6 +300,8 @@ impl PPU {
             fetcher: Fetcher::new(),
             fifo: Fifo::new(),
             dots: 0,
+            frame_ready: false,
+            ppu_debug: PPUDebug::new(),
         };
         ppu.stat.mode_flag = LCDModeFlag::VBLANK;
         ppu
@@ -322,178 +325,13 @@ impl PPU {
         }
     }
 
-    pub fn process_tile_data(&mut self) {
-        let tile_data =
-            &self.vram[memory::ppu::TILE_DATA_VRAM.begin as usize..=memory::ppu::TILE_DATA_VRAM.end as usize];
-        for addr in (0..Self::TILES * Self::BYTES_PER_TILE).step_by(Self::BYTES_PER_TILE) {
-            let tile_id: usize = addr / (Self::BYTES_PER_TILE);
-            let mut tile: [[u8; 8]; 8] = [[0; Self::TILE_SIZE]; Self::TILE_SIZE];
-            for line in (0..Self::BYTES_PER_TILE).step_by(2) {
-                let low: u8 = tile_data[addr + line];
-                let high: u8 = tile_data[addr + line + 1];
-
-                //pixel conversion
-                let mut line_pixels: [u8; Self::TILE_SIZE] = [0; Self::TILE_SIZE];
-                for i in (0..=7).rev() {
-                    line_pixels[7 - i] = bit!(high, i) << 1 | bit!(low, i);
-                }
-
-                // println!("{:?}", line_pixels);
-                tile[line >> 1] = line_pixels;
-            }
-            self.tiles[tile_id] = tile;
-        }
-    }
-
-    fn process_tile(&mut self, addr: u16) {}
-
-    pub fn get_tile_data_frame_buffer(
-        &self,
-        wrap_count: usize,
-    ) -> [u32; Self::TILES * (Self::TILE_SIZE * Self::TILE_SIZE)] {
-        let mut frame_buffer: [u32; Self::TILES * (Self::TILE_SIZE * Self::TILE_SIZE)] =
-            [0; Self::TILES * (Self::TILE_SIZE * Self::TILE_SIZE)];
-
-        for row in 0..(self.tiles.len() * Self::TILE_SIZE / wrap_count) {
-            let curr_tile_start: usize = (row / Self::TILE_SIZE) * wrap_count;
-            for tile_index in curr_tile_start..curr_tile_start + wrap_count {
-                let tile_line: [u32; Self::TILE_SIZE] = (self.tiles[tile_index][row % Self::TILE_SIZE])
-                    .iter()
-                    .map(|pixel| match pixel {
-                        0 => MonochromeColor::White as u32,
-                        1 => MonochromeColor::LightGray as u32,
-                        2 => MonochromeColor::DarkGray as u32,
-                        3 => MonochromeColor::Black as u32,
-                        _ => MonochromeColor::Off as u32,
-                    })
-                    .collect::<Vec<u32>>()
-                    .try_into()
-                    .unwrap();
-
-                let fb_start = (tile_index % wrap_count) * Self::TILE_SIZE + (row * wrap_count * Self::TILE_SIZE);
-                frame_buffer[fb_start..fb_start + Self::TILE_SIZE].copy_from_slice(tile_line.as_slice());
-            }
-        }
-
-        frame_buffer
-    }
-
-    fn get_tiles_from_tile_map(
-        &self,
-        tile_map_start: u16,
-    ) -> [&[[u8; 8]; 8]; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE] {
-        let mut map_tiles: [&[[u8; 8]; 8]; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE] =
-            [&[[0; 8]; 8]; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE];
-
-        for addr in tile_map_start..tile_map_start + 0x0400 {
-            let mut tile_id = self.read8(addr).unwrap();
-            let mut offset = 0;
-            if !self.lcdc.bg_and_window_tile_data_area {
-                tile_id = tile_id.wrapping_sub(128);
-                offset = 128;
-            }
-
-            map_tiles[addr as usize - tile_map_start as usize] = &self.tiles[tile_id as usize + offset as usize];
-        }
-        map_tiles
-    }
-
-    pub fn get_bg_frame_buffer(
-        &self,
-    ) -> [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] {
-        let tile_map_start = if self.lcdc.bg_tile_map_area {
-            memory::ppu::TILE_MAP_AREA_9C00.begin
+    pub fn get_frame_buffer(&mut self) -> Option<&[u32]> {
+        if self.frame_ready {
+            self.frame_ready = false;
+            Some(&self.frame_buffer)
         } else {
-            memory::ppu::TILE_MAP_AREA_9800.begin
-        };
-
-        self.get_tile_map_frame_buffer(self.get_tiles_from_tile_map(tile_map_start))
-    }
-
-    pub fn get_window_frame_buffer(
-        &self,
-    ) -> [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] {
-        let tile_map_start = if self.lcdc.window_tile_map_area {
-            memory::ppu::TILE_MAP_AREA_9C00.begin
-        } else {
-            memory::ppu::TILE_MAP_AREA_9800.begin
-        };
-
-        self.get_tile_map_frame_buffer(self.get_tiles_from_tile_map(tile_map_start))
-    }
-
-    fn get_tile_map_frame_buffer(
-        &self,
-        map_tiles: [&[[u8; 8]; 8]; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE],
-    ) -> [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] {
-        let mut frame_buffer: [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] =
-            [0; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)];
-
-        for row in 0..(Self::TILE_MAP_SIZE * Self::TILE_SIZE) {
-            let curr_tile_start: usize = (row / Self::TILE_SIZE) * Self::TILE_MAP_SIZE;
-            for tile_index in curr_tile_start..curr_tile_start + Self::TILE_MAP_SIZE {
-                let tile_line: [u32; Self::TILE_SIZE] = (map_tiles[tile_index][row % Self::TILE_SIZE])
-                    .iter()
-                    .map(|pixel| match self.bgp.color_map[*pixel as usize] {
-                        0 => MonochromeColor::White as u32,
-                        1 => MonochromeColor::LightGray as u32,
-                        2 => MonochromeColor::DarkGray as u32,
-                        3 => MonochromeColor::Black as u32,
-                        _ => MonochromeColor::Off as u32,
-                    })
-                    .collect::<Vec<u32>>()
-                    .try_into()
-                    .unwrap();
-
-                let fb_start = (tile_index % Self::TILE_MAP_SIZE) * Self::TILE_SIZE
-                    + (row * Self::TILE_MAP_SIZE * Self::TILE_SIZE);
-                frame_buffer[fb_start..fb_start + Self::TILE_SIZE].copy_from_slice(tile_line.as_slice());
-            }
+            None
         }
-
-        frame_buffer
-    }
-
-    pub fn get_objects_frame_buffer(
-        &self,
-    ) -> [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] {
-        let mut frame_buffer: [u32; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)] =
-            [0; Self::TILE_MAP_SIZE * Self::TILE_MAP_SIZE * (Self::TILE_SIZE * Self::TILE_SIZE)];
-        //TODO: if LCDC bit 2: 1 -> 2 tile objects
-        for addr in (0..0x00A0).step_by(4) {
-            // print(self.vram[addr])
-            let entry = sprite::OAMTableEntry::new(&self.oam, addr);
-            let curr_tile = self.tiles[entry.tile_index as usize];
-
-            if entry.x_pos <= 0 || entry.x_pos >= 168 || entry.y_pos <= 0 || entry.y_pos >= 160 {
-                log::trace!("sprite is offscreen");
-            } else {
-                for row in entry.y_pos as usize..entry.y_pos as usize + Self::TILE_SIZE {
-                    for col in entry.x_pos as usize..entry.x_pos as usize + Self::TILE_SIZE {
-                        let palette_id = curr_tile[row - entry.y_pos as usize][col - entry.x_pos as usize];
-                        let palette: &PaletteData;
-                        if entry.attributes.palette_number == 0 {
-                            palette = &self.obp0;
-                        } else {
-                            palette = &self.obp1;
-                        }
-                        frame_buffer[row * Self::TILE_MAP_SIZE * Self::TILE_SIZE + col] =
-                            match palette.color_map[palette_id as usize] {
-                                0 => MonochromeColor::White as u32,
-                                1 => MonochromeColor::LightGray as u32,
-                                2 => MonochromeColor::DarkGray as u32,
-                                3 => MonochromeColor::Black as u32,
-                                _ => MonochromeColor::Off as u32,
-                            };
-                    }
-                }
-            }
-        }
-        frame_buffer
-    }
-
-    pub fn get_frame_buffer(&mut self) -> &[u32] {
-        &self.frame_buffer
     }
 
     pub fn test_load_memory(&mut self, mem: &[u8]) {
@@ -517,44 +355,12 @@ impl PPU {
         self.wx = mem[memory::ppu::WX as usize];
     }
 
-    pub fn print_vram(&self) {
-        utils::print_memory_bytes(&self.vram, "vram", 0x100);
-    }
-
-    pub fn print_tiles(&self, count: usize) {
-        for (i, tile) in self.tiles.iter().enumerate() {
-            // let pixel_color = "\u{25A0}";
-            println!("Tile {}: ", i);
-
-            for line in tile {
-                for pixel in line {
-                    let string = match pixel {
-                        0 => "0".truecolor(0x9B, 0xBC, 0x0F),
-                        1 => "1".truecolor(0x8B, 0xAC, 0x0F),
-                        2 => "2".truecolor(0x30, 0x62, 0x30),
-                        3 => "3".truecolor(0x0F, 0x38, 0x0F),
-                        _ => "X".truecolor(0, 0, 0), //string.truecolor(0, 0, 0),
-                    };
-
-                    print!("{}", string);
-                }
-                println!();
-            }
-
-            println!();
-            if i >= count {
-                break;
-            }
-        }
-    }
-
     pub fn push_into_frame_buffer(&mut self, pixel: u32) {
         self.back_buffer[self.back_buffer_index] = pixel; // cgb correction: pixel * 3 / 4 + 0x08;
         self.back_buffer_index += 1;
         if self.back_buffer_index >= self.back_buffer.len() {
-            log::debug!("frame finished");
             self.frame_buffer = self.back_buffer.clone();
-            self.back_buffer = [0; Self::ROWS * Self::COLUMNS];
+            self.back_buffer = [0; PPU::ROWS * PPU::COLUMNS];
             self.back_buffer_index = 0;
         }
     }
@@ -601,5 +407,253 @@ impl PPU {
             return Some(self.oam[usize::from(addr - memory::ppu::OAM.begin)]);
         }
         return None;
+    }
+
+    //---------DEBUG Interface--------
+    pub fn process_tile_data(&mut self) {
+        self.ppu_debug.process_tile_data(&self.vram);
+    }
+
+    pub fn get_tile_data_frame_buffer(&self, wrap_count: usize) {
+        self.ppu_debug.get_tile_data_frame_buffer(wrap_count, &self.vram);
+    }
+
+    pub fn get_bg_frame_buffer(&self) {
+        self.ppu_debug.get_bg_frame_buffer(&self.vram, &self.lcdc, &self.bgp);
+    }
+
+    pub fn get_window_frame_buffer(&self) {
+        self.ppu_debug
+            .get_window_frame_buffer(&self.vram, &self.lcdc, &self.bgp);
+    }
+
+    pub fn get_objects_frame_buffer(&self) {
+        self.ppu_debug
+            .get_objects_frame_buffer(&self.oam, &self.obp0, &self.obp1);
+    }
+}
+
+struct PPUDebug {
+    tiles: [[[u8; PPU::TILE_SIZE]; PPU::TILE_SIZE]; PPU::TILES],
+}
+
+impl PPUDebug {
+    pub fn new() -> Self {
+        Self {
+            tiles: [[[0; PPU::TILE_SIZE]; PPU::TILE_SIZE]; PPU::TILES],
+        }
+    }
+
+    pub fn process_tile_data(&mut self, vram: &[u8; memory::ppu::VRAM.size]) {
+        let tile_data = &vram[memory::ppu::TILE_DATA_VRAM.begin as usize..=memory::ppu::TILE_DATA_VRAM.end as usize];
+        for addr in (0..PPU::TILES * PPU::BYTES_PER_TILE).step_by(PPU::BYTES_PER_TILE) {
+            let tile_id: usize = addr / (PPU::BYTES_PER_TILE);
+            let mut tile: [[u8; 8]; 8] = [[0; PPU::TILE_SIZE]; PPU::TILE_SIZE];
+            for line in (0..PPU::BYTES_PER_TILE).step_by(2) {
+                let low: u8 = tile_data[addr + line];
+                let high: u8 = tile_data[addr + line + 1];
+
+                //pixel conversion
+                let mut line_pixels: [u8; PPU::TILE_SIZE] = [0; PPU::TILE_SIZE];
+                for i in (0..=7).rev() {
+                    line_pixels[7 - i] = bit!(high, i) << 1 | bit!(low, i);
+                }
+
+                // println!("{:?}", line_pixels);
+                tile[line >> 1] = line_pixels;
+            }
+            self.tiles[tile_id] = tile;
+        }
+    }
+
+    fn process_tile(&mut self, addr: u16) {}
+
+    pub fn get_tile_data_frame_buffer(
+        &self,
+        wrap_count: usize,
+        vram: &[u8; memory::ppu::VRAM.size],
+    ) -> [u32; PPU::TILES * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
+        let mut frame_buffer: [u32; PPU::TILES * (PPU::TILE_SIZE * PPU::TILE_SIZE)] =
+            [0; PPU::TILES * (PPU::TILE_SIZE * PPU::TILE_SIZE)];
+
+        for row in 0..(self.tiles.len() * PPU::TILE_SIZE / wrap_count) {
+            let curr_tile_start: usize = (row / PPU::TILE_SIZE) * wrap_count;
+            for tile_index in curr_tile_start..curr_tile_start + wrap_count {
+                let tile_line: [u32; PPU::TILE_SIZE] = (self.tiles[tile_index][row % PPU::TILE_SIZE])
+                    .iter()
+                    .map(|pixel| match pixel {
+                        0 => MonochromeColor::White as u32,
+                        1 => MonochromeColor::LightGray as u32,
+                        2 => MonochromeColor::DarkGray as u32,
+                        3 => MonochromeColor::Black as u32,
+                        _ => MonochromeColor::Off as u32,
+                    })
+                    .collect::<Vec<u32>>()
+                    .try_into()
+                    .unwrap();
+
+                let fb_start = (tile_index % wrap_count) * PPU::TILE_SIZE + (row * wrap_count * PPU::TILE_SIZE);
+                frame_buffer[fb_start..fb_start + PPU::TILE_SIZE].copy_from_slice(tile_line.as_slice());
+            }
+        }
+
+        frame_buffer
+    }
+
+    fn get_tiles_from_tile_map(
+        &self,
+        tile_map_start: u16,
+        vram: &[u8; memory::ppu::VRAM.size],
+        lcdc: &LCDControl,
+    ) -> [&[[u8; 8]; 8]; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE] {
+        let mut map_tiles: [&[[u8; 8]; 8]; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE] =
+            [&[[0; 8]; 8]; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE];
+
+        for addr in tile_map_start..tile_map_start + 0x0400 {
+            let mut tile_id = vram[addr as usize - memory::ppu::VRAM.begin as usize];
+            let mut offset = 0;
+            if !lcdc.bg_and_window_tile_data_area {
+                tile_id = tile_id.wrapping_sub(128);
+                offset = 128;
+            }
+
+            map_tiles[addr as usize - tile_map_start as usize] = &self.tiles[tile_id as usize + offset as usize];
+        }
+        map_tiles
+    }
+
+    pub fn get_bg_frame_buffer(
+        &self,
+        vram: &[u8; memory::ppu::VRAM.size],
+        lcdc: &LCDControl,
+        bgp: &PaletteData,
+    ) -> [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
+        let tile_map_start = if lcdc.bg_tile_map_area {
+            memory::ppu::TILE_MAP_AREA_9C00.begin
+        } else {
+            memory::ppu::TILE_MAP_AREA_9800.begin
+        };
+
+        self.get_tile_map_frame_buffer(self.get_tiles_from_tile_map(tile_map_start, vram, lcdc), bgp)
+    }
+
+    pub fn get_window_frame_buffer(
+        &self,
+        vram: &[u8; memory::ppu::VRAM.size],
+        lcdc: &LCDControl,
+        bgp: &PaletteData,
+    ) -> [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
+        let tile_map_start = if lcdc.window_tile_map_area {
+            memory::ppu::TILE_MAP_AREA_9C00.begin
+        } else {
+            memory::ppu::TILE_MAP_AREA_9800.begin
+        };
+
+        self.get_tile_map_frame_buffer(self.get_tiles_from_tile_map(tile_map_start, vram, lcdc), bgp)
+    }
+
+    fn get_tile_map_frame_buffer(
+        &self,
+        map_tiles: [&[[u8; 8]; 8]; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE],
+        bgp: &PaletteData,
+    ) -> [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
+        let mut frame_buffer: [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] =
+            [0; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)];
+
+        for row in 0..(PPU::TILE_MAP_SIZE * PPU::TILE_SIZE) {
+            let curr_tile_start: usize = (row / PPU::TILE_SIZE) * PPU::TILE_MAP_SIZE;
+            for tile_index in curr_tile_start..curr_tile_start + PPU::TILE_MAP_SIZE {
+                let tile_line: [u32; PPU::TILE_SIZE] = (map_tiles[tile_index][row % PPU::TILE_SIZE])
+                    .iter()
+                    .map(|pixel| match bgp.color_map[*pixel as usize] {
+                        0 => MonochromeColor::White as u32,
+                        1 => MonochromeColor::LightGray as u32,
+                        2 => MonochromeColor::DarkGray as u32,
+                        3 => MonochromeColor::Black as u32,
+                        _ => MonochromeColor::Off as u32,
+                    })
+                    .collect::<Vec<u32>>()
+                    .try_into()
+                    .unwrap();
+
+                let fb_start =
+                    (tile_index % PPU::TILE_MAP_SIZE) * PPU::TILE_SIZE + (row * PPU::TILE_MAP_SIZE * PPU::TILE_SIZE);
+                frame_buffer[fb_start..fb_start + PPU::TILE_SIZE].copy_from_slice(tile_line.as_slice());
+            }
+        }
+
+        frame_buffer
+    }
+
+    pub fn get_objects_frame_buffer(
+        &self,
+        oam: &[u8; memory::ppu::OAM.size],
+        obp0: &PaletteData,
+        obp1: &PaletteData,
+    ) -> [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
+        let mut frame_buffer: [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] =
+            [0; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)];
+        //TODO: if LCDC bit 2: 1 -> 2 tile objects
+        for addr in (0..0x00A0).step_by(4) {
+            // print(self.vram[addr])
+            let entry = sprite::OAMTableEntry::new(oam, addr);
+            let curr_tile = self.tiles[entry.tile_index as usize];
+
+            if entry.x_pos <= 0 || entry.x_pos >= 168 || entry.y_pos <= 0 || entry.y_pos >= 160 {
+                log::trace!("sprite is offscreen");
+            } else {
+                for row in entry.y_pos as usize..entry.y_pos as usize + PPU::TILE_SIZE {
+                    for col in entry.x_pos as usize..entry.x_pos as usize + PPU::TILE_SIZE {
+                        let palette_id = curr_tile[row - entry.y_pos as usize][col - entry.x_pos as usize];
+                        let palette: &PaletteData;
+                        if entry.attributes.palette_number == 0 {
+                            palette = obp0;
+                        } else {
+                            palette = obp1;
+                        }
+                        frame_buffer[row * PPU::TILE_MAP_SIZE * PPU::TILE_SIZE + col] =
+                            match palette.color_map[palette_id as usize] {
+                                0 => MonochromeColor::White as u32,
+                                1 => MonochromeColor::LightGray as u32,
+                                2 => MonochromeColor::DarkGray as u32,
+                                3 => MonochromeColor::Black as u32,
+                                _ => MonochromeColor::Off as u32,
+                            };
+                    }
+                }
+            }
+        }
+        frame_buffer
+    }
+
+    pub fn print_vram(&self, vram: &[u8; memory::ppu::VRAM.size]) {
+        utils::print_memory_bytes(vram, "vram", 0x100);
+    }
+
+    pub fn print_tiles(&self, count: usize) {
+        for (i, tile) in self.tiles.iter().enumerate() {
+            // let pixel_color = "\u{25A0}";
+            println!("Tile {}: ", i);
+
+            for line in tile {
+                for pixel in line {
+                    let string = match pixel {
+                        0 => "0".truecolor(0x9B, 0xBC, 0x0F),
+                        1 => "1".truecolor(0x8B, 0xAC, 0x0F),
+                        2 => "2".truecolor(0x30, 0x62, 0x30),
+                        3 => "3".truecolor(0x0F, 0x38, 0x0F),
+                        _ => "X".truecolor(0, 0, 0), //string.truecolor(0, 0, 0),
+                    };
+
+                    print!("{}", string);
+                }
+                println!();
+            }
+
+            println!();
+            if i >= count {
+                break;
+            }
+        }
     }
 }

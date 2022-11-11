@@ -31,7 +31,7 @@ pub struct APU {
     left_output_volume: u8,
     right_output_volume: u8,
 
-    shall_clear_audio_queue: bool,
+    pub shall_clear_audio_queue: bool,
 
     div: u8,
 
@@ -39,51 +39,12 @@ pub struct APU {
     stream_handle: OutputStreamHandle,
     sink: Sink,
     audio_queue_sender: mpsc::Sender<AudioQueue>,
-    shall_clear_audio_queue: bool,
 }
 
 impl GameboyModule for APU {
     unsafe fn tick(&mut self, gb_ptr: *mut crate::gameboy::Gameboy) -> Result<u32, std::fmt::Error> {
         let gb = &mut *gb_ptr;
         if self.apu_enabled {
-            if gb.vblank {
-                let mut queue: VecDeque<f32> = VecDeque::new();
-                let pulse_sweep_samples = self.pulse_sweep.get_samples();
-                let pulse_samples = self.pulse.get_samples();
-                let wave_samples = self.wave.get_samples();
-                let noise_samples = self.noise.get_samples();
-                if !(pulse_sweep_samples.len() == pulse_samples.len()
-                    && pulse_samples.len() == wave_samples.len()
-                    && wave_samples.len() == noise_samples.len())
-                {
-                    log::warn!("samples don't have same size");
-                    self.shall_clear_audio_queue = true;
-                }
-                let mut mixed_sample = 0.0;
-
-                for i in 0..noise_samples.len() {
-                    mixed_sample += pulse_sweep_samples[i];
-                    mixed_sample += pulse_samples[i];
-                    mixed_sample += wave_samples[i];
-
-                    mixed_sample += noise_samples[i];
-
-                    queue.push_back(mixed_sample);
-
-                    mixed_sample = 0.0;
-                }
-
-                self.audio_queue_sender
-                    .send(AudioQueue {
-                        queue,
-                        shall_clear_old_samples: self.shall_clear_audio_queue,
-                    })
-                    .unwrap();
-                self.pulse_sweep.reset_samples();
-                self.pulse.reset_samples();
-                self.wave.reset_samples();
-                self.noise.reset_samples();
-            }
             self.pulse_sweep.tick(gb)?;
             self.pulse.tick(gb)?;
             self.wave.tick(gb)?;
@@ -166,7 +127,6 @@ impl APU {
             stream: _stream,
             stream_handle: stream_handle,
             audio_queue_sender: tx,
-            shall_clear_audio_queue: false,
         };
         apu.sink.append(AudioDriver::new(Self::AUDIO_SAMPLING_RATE, 2, rx));
         apu
@@ -242,6 +202,52 @@ impl APU {
         self.left_output_volume = (value >> 4) & 0b111;
         self.vin_right = bit!(value, 3) != 0;
         self.right_output_volume = value & 0b111;
+    }
+
+    pub fn sync(&mut self) {
+        let mut queue: VecDeque<f32> = VecDeque::new();
+        let pulse_sweep_samples = self.pulse_sweep.get_samples();
+        let pulse_samples = self.pulse.get_samples();
+        let wave_samples = self.wave.get_samples();
+        let noise_samples = self.noise.get_samples();
+        if !(pulse_sweep_samples.len() == pulse_samples.len()
+            && pulse_samples.len() == wave_samples.len()
+            && wave_samples.len() == noise_samples.len())
+        {
+            log::warn!("samples don't have same size");
+            self.shall_clear_audio_queue = true;
+        }
+        log::warn!(
+            "pulse sweep length {}\npulse length {}\nwave length {}\nnoise length {}",
+            pulse_sweep_samples.len() / 2,
+            pulse_samples.len() / 2,
+            wave_samples.len() / 2,
+            noise_samples.len() / 2
+        );
+        let mut mixed_sample = 0.0;
+
+        for i in 0..wave_samples.len() {
+            // mixed_sample += pulse_sweep_samples[i];
+            // mixed_sample += pulse_samples[i];
+            mixed_sample += wave_samples[i];
+
+            // mixed_sample += noise_samples[i];
+
+            queue.push_back(mixed_sample);
+
+            mixed_sample = 0.0;
+        }
+
+        self.audio_queue_sender
+            .send(AudioQueue {
+                queue,
+                shall_clear_old_samples: self.shall_clear_audio_queue,
+            })
+            .unwrap();
+        self.pulse_sweep.reset_samples();
+        self.pulse.reset_samples();
+        self.wave.reset_samples();
+        self.noise.reset_samples();
     }
 }
 
