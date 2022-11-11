@@ -1,5 +1,4 @@
 extern crate minifb;
-use rand::rngs::ThreadRng;
 use std::time::SystemTime;
 
 use minifb::{Key, Window, WindowOptions};
@@ -15,10 +14,7 @@ pub enum MonochromeColor {
 pub struct Screen {
     buffer: Vec<u32>,
     window: Window,
-    rng: ThreadRng,
     prev: SystemTime,
-    pixel_width: usize,
-    pixel_height: usize,
     width: usize,
     height: usize,
     title_time: SystemTime,
@@ -26,15 +22,7 @@ pub struct Screen {
 }
 
 impl Screen {
-    pub fn new(
-        rows: usize,
-        columns: usize,
-        pixel_width: usize,
-        pixel_height: usize,
-        scale_factor: minifb::Scale,
-    ) -> Self {
-        let width = columns * pixel_width;
-        let height = rows * pixel_height;
+    pub fn new(height: usize, width: usize, scale_factor: minifb::Scale) -> Self {
         let mut window_options = WindowOptions::default();
         window_options.scale = scale_factor;
         let ppu = Self {
@@ -44,15 +32,10 @@ impl Screen {
             window: Window::new("Test - ESC to exit", width, height, window_options).unwrap_or_else(|e| {
                 panic!("{}", e);
             }),
-            rng: rand::thread_rng(),
             prev: SystemTime::now(),
-            pixel_width,
-            pixel_height,
             title_time: SystemTime::now(),
             key_buffer: Vec::new(),
         };
-        // ppu.window
-        //     .limit_update_rate(Some(std::time::Duration::from_micros(16600)));
         ppu
     }
 
@@ -61,19 +44,6 @@ impl Screen {
     }
 
     pub fn update(&mut self) -> (bool, bool) {
-        // let offset: u128 = self
-        //     .prev
-        //     .duration_since(SystemTime::UNIX_EPOCH)
-        //     .expect("asdf")
-        //     .as_millis()
-        //     % u32::MAX as u128;
-        // for (i, item) in self.buffer.iter_mut().enumerate() {
-        //     if i % 3 == 0 {
-        //         // break;
-        //         *item = (offset as u32).wrapping_add(i as u32 + 0xA00);
-        //     }
-        // }
-
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         self.window
             .update_with_buffer(&self.buffer, self.width, self.height)

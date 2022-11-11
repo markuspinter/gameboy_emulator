@@ -19,24 +19,6 @@ use crate::screen::Screen;
 
 use self::{cartridge::Cartridge, joypad::Joypad, timer::Timer};
 
-type MemoryResult<T> = Result<T, MemoryError>;
-
-#[derive(Debug, Clone)]
-enum MemoryError {
-    ReservedAddress,
-    UnknownAddress,
-    ReadOnly,
-    WriteOnly,
-}
-
-impl std::error::Error for MemoryError {}
-
-impl std::fmt::Display for MemoryError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 trait MemoryInterface {
     fn read8(&self, addr: u16) -> Option<u8>;
     fn write8(&mut self, addr: u16, value: u8) -> Option<()>;
@@ -115,12 +97,12 @@ impl Gameboy {
         panic!("write8 address {:#06X} not found", addr);
     }
 
-    fn read16(&self, addr: u16) -> u16 {
+    fn _read16(&self, addr: u16) -> u16 {
         let high = self.read8(addr + 1);
         let low = self.read8(addr);
         (high as u16) << 8 | low as u16
     }
-    fn write16(&mut self, addr: u16, value: u16) {
+    fn _write16(&mut self, addr: u16, value: u16) {
         self.write8(addr + 1, (value >> 8) as u8);
         self.write8(addr, value as u8);
     }
@@ -137,7 +119,7 @@ pub struct Gameboy {
     timer: Timer,
 
     running: bool,
-    cgb_mode: bool,
+    _cgb_mode: bool,
 
     pub vblank: bool,
 }
@@ -157,11 +139,11 @@ impl Gameboy {
             ppu: PPU::new(),
             joypad: Joypad::new(),
             timer: Timer::new(),
-            screen: Screen::new(Self::SCREEN_ROWS, Self::SCREEN_COLUMNS, 1, 1, minifb::Scale::X4),
+            screen: Screen::new(Self::SCREEN_ROWS, Self::SCREEN_COLUMNS, minifb::Scale::X4),
             apu: APU::new(),
-            memory: Memory::new(bootrom_path, rom_path),
+            memory: Memory::new(),
             running: true,
-            cgb_mode: false,
+            _cgb_mode: false,
             vblank: false,
         };
         gb.cartridge.debug_print();
@@ -181,23 +163,20 @@ impl Gameboy {
             tile_data_screen = Some(Screen::new(
                 Self::TILE_DATA_ROWS,
                 Self::TILE_DATA_COLUMNS,
-                1,
-                1,
                 minifb::Scale::X4,
             ));
 
             tile_map_screen = Some(Screen::new(
                 Self::TILE_MAP_ROWS,
                 Self::TILE_MAP_COLUMNS,
-                1,
-                1,
                 minifb::Scale::X4,
             ));
         }
-        let _debug_counter = 0;
-        let mut ticks = 0;
+        let mut debug_counter = 0;
 
         self.vblank = true;
+
+        let mut frame_ready = false;
 
         while self.running {
             if debug_windows {
@@ -216,33 +195,32 @@ impl Gameboy {
                 self.timer.tick(self_ptr)?;
                 self.apu.tick(self_ptr)?;
                 // }
-                ticks += 1;
             }
             if let Some(frame_buffer) = self.ppu.get_frame_buffer() {
-                //16742 {
-                //59.720 fps = 16742 us {
-                // if debug_windows {
-                //     debug_counter += 1;
-                //     if debug_counter >= 60 {
-                //         self.ppu.process_tile_data();
-
-                //         if let Some(ref mut screen) = tile_data_screen {
-                //             screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
-                //             screen.update();
-                //         }
-                //         if let Some(ref mut screen) = tile_map_screen {
-                //             screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
-                //             screen.update();
-                //         }
-                //         debug_counter = 0;
-                //     }
-                // }
-
+                frame_ready = true;
                 self.screen.set_frame_buffer(frame_buffer);
+            }
+            if frame_ready {
+                if debug_windows {
+                    debug_counter += 1;
+                    if debug_counter >= 60 {
+                        self.ppu.process_tile_data();
+
+                        if let Some(ref mut screen) = tile_data_screen {
+                            screen.set_frame_buffer(&self.ppu.get_tile_data_frame_buffer(16));
+                            screen.update();
+                        }
+                        if let Some(ref mut screen) = tile_map_screen {
+                            screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                            screen.update();
+                        }
+                        debug_counter = 0;
+                    }
+                }
+
                 (self.running, pause_pressed) = self.screen.update();
                 self.vblank = true;
                 self.joypad.tick(self_ptr)?;
-                ticks = 0;
 
                 if pause_pressed {
                     paused = !paused;
@@ -254,6 +232,8 @@ impl Gameboy {
                     .as_micros();
                 self.apu.sync();
                 if diff < 16742 {
+                    //16742 {
+                    //59.720 fps = 16742 us {
                     std::thread::sleep(std::time::Duration::from_micros(16742 - diff as u64));
                 } else {
                     log::warn!("skipped one frame, clearing audio buffer");
@@ -261,6 +241,7 @@ impl Gameboy {
                 }
 
                 prev = SystemTime::now();
+                frame_ready = false;
             }
         }
         Ok(())

@@ -132,8 +132,7 @@ impl CPU {
                 return Ok(self.t_cycles as u32);
             }
             instructions::handle_int(self, gb);
-
-            let mut cycles = 0;
+            let cycles;
             (self.pc, cycles) = instructions::execute_instruction(self, gb);
             self.t_cycles = cycles + 8;
         }

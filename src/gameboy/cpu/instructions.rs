@@ -140,7 +140,7 @@ fn reg_inc16(cpu: &mut CPU, reg: &Reg16) {
     reg_set16(cpu, reg, val);
 }
 
-fn reg_inc8(cpu: &mut CPU, reg: &Reg8) {
+fn _reg_inc8(cpu: &mut CPU, reg: &Reg8) {
     let val = reg_get8(cpu, reg);
     let val = val.wrapping_add(1);
     reg_set8(cpu, reg, val);
@@ -152,19 +152,10 @@ fn reg_dec16(cpu: &mut CPU, reg: &Reg16) {
     reg_set16(cpu, reg, val);
 }
 
-fn reg_dec8(cpu: &mut CPU, reg: &Reg8) {
+fn _reg_dec8(cpu: &mut CPU, reg: &Reg8) {
     let val = reg_get8(cpu, reg);
     let val = val.wrapping_sub(1);
     reg_set8(cpu, reg, val);
-}
-
-#[allow(non_camel_case_types)]
-pub enum Interrupt {
-    VBLANK,
-    LCD_STAT,
-    TIMER,
-    SERIAL,
-    JOYPAD,
 }
 
 #[derive(Clone, Debug)]
@@ -197,16 +188,6 @@ impl std::convert::From<u8> for InterruptRegister {
             serial: bit!(byte, 3) != 0,
             joypad: bit!(byte, 4) != 0,
         }
-    }
-}
-
-pub fn set_int(cpu: &mut CPU, int: Interrupt) {
-    match int {
-        Interrupt::VBLANK => cpu.if_register.vblank = true,
-        Interrupt::LCD_STAT => cpu.if_register.lcd_stat = true,
-        Interrupt::TIMER => cpu.if_register.timer = true,
-        Interrupt::SERIAL => cpu.if_register.serial = true,
-        Interrupt::JOYPAD => cpu.if_register.joypad = true,
     }
 }
 

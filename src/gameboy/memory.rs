@@ -1,11 +1,5 @@
-use std::fs::File;
-use std::io::{BufReader, Read};
-
-use crate::utils;
-
 use super::MemoryInterface;
 pub struct Memory {
-    rom: Vec<u8>,
     ram: [u8; 0x10000],
 }
 
@@ -21,41 +15,8 @@ impl MemoryInterface for Memory {
 }
 
 impl Memory {
-    pub fn new(bootrom_path: String, rom_path: String) -> Self {
-        let mut mem = Memory {
-            rom: Self::load_rom(bootrom_path, rom_path),
-            ram: [0; 0x10000],
-        };
-        mem.ram[0..0x8000].clone_from_slice(mem.rom[0..0x8000].into());
-
-        mem
-    }
-
-    fn load_rom(_bootrom_path: String, rom_path: String) -> Vec<u8> {
-        let f = File::open(rom_path).unwrap();
-        let mut reader = BufReader::new(f);
-        let mut buffer = Vec::new();
-
-        // Read file into vector.
-        reader.read_to_end(&mut buffer).unwrap();
-
-        // buffer.splice(..0x100, Self::load_boot_rom(bootrom_path));
-
-        utils::print_memory_bytes(&buffer, "rom", 0x100);
-        buffer
-    }
-
-    fn load_boot_rom(bootrom_path: String) -> Vec<u8> {
-        let f = File::open(bootrom_path).unwrap();
-        let mut reader = BufReader::new(f);
-        let mut buffer = Vec::new();
-
-        // Read file into vector.
-        reader.read_to_end(&mut buffer).unwrap();
-
-        utils::print_memory(&buffer, "bootrom");
-        println!("\n\n");
-        buffer
+    pub fn new() -> Self {
+        Self { ram: [0; 0x10000] }
     }
 }
 

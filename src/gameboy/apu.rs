@@ -11,7 +11,6 @@ use super::{memory, GameboyModule};
 mod driver;
 mod noise;
 mod pulse;
-mod utils;
 mod wave;
 
 pub struct APU {
@@ -35,8 +34,8 @@ pub struct APU {
 
     div: u8,
 
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
+    _stream: OutputStream,
+    _stream_handle: OutputStreamHandle,
     sink: Sink,
     audio_queue_sender: mpsc::Sender<AudioQueue>,
 }
@@ -124,8 +123,8 @@ impl APU {
             div: 0,
 
             sink: Sink::try_new(&stream_handle).unwrap(),
-            stream: _stream,
-            stream_handle: stream_handle,
+            _stream: _stream,
+            _stream_handle: stream_handle,
             audio_queue_sender: tx,
         };
         apu.sink.append(AudioDriver::new(Self::AUDIO_SAMPLING_RATE, 2, rx));

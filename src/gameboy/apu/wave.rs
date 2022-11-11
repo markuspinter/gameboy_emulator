@@ -1,17 +1,13 @@
-
-
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use rodio::{OutputStream, Source};
+use rodio::OutputStream;
 
 use crate::{
     bit,
     gameboy::{memory, GameboyModule, MemoryInterface},
 };
 
-use super::{
-    APUChannel, APU,
-};
+use super::{APUChannel, APU};
 
 #[derive(Clone, Debug, FromPrimitive)]
 enum WaveOutputLevel {

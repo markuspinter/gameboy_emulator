@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -220,7 +220,7 @@ impl Cartridge {
         buffer
     }
 
-    fn load_ram(_rom_path: String) -> Vec<u8> {
+    fn _load_ram(_rom_path: String) -> Vec<u8> {
         Vec::new()
     }
 

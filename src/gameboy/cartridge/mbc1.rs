@@ -1,4 +1,4 @@
-use crate::gameboy::{memory};
+use crate::gameboy::memory;
 
 pub struct MBC1 {
     rom: Vec<u8>,
@@ -84,19 +84,19 @@ impl super::MBCInterface for MBC1 {
 mod read {
     use crate::gameboy::memory::MemoryRange;
 
-    pub const ROM_BANK_X0: MemoryRange = MemoryRange {
+    pub const _ROM_BANK_X0: MemoryRange = MemoryRange {
         begin: 0x0000,
         end: 0x3FFF,
         size: 0x4000,
     };
 
-    pub const ROM_BANK_01_7F: MemoryRange = MemoryRange {
+    pub const _ROM_BANK_01_7F: MemoryRange = MemoryRange {
         begin: 0x4000,
         end: 0x7FFF,
         size: 0x4000,
     };
 
-    pub const RAM_BANK_00_03: MemoryRange = MemoryRange {
+    pub const _RAM_BANK_00_03: MemoryRange = MemoryRange {
         begin: 0xA000,
         end: 0xBFFF,
         size: 0x2000,

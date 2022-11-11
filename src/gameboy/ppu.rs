@@ -17,7 +17,7 @@ use self::{
     stat::{LCDModeFlag, LCDStatus},
 };
 
-use super::{Gameboy, GameboyModule, MemoryInterface};
+use super::{Gameboy, GameboyModule};
 
 pub struct PPU {
     frame_buffer: [u32; PPU::ROWS * PPU::COLUMNS],
@@ -414,22 +414,31 @@ impl PPU {
         self.ppu_debug.process_tile_data(&self.vram);
     }
 
-    pub fn get_tile_data_frame_buffer(&self, wrap_count: usize) {
-        self.ppu_debug.get_tile_data_frame_buffer(wrap_count, &self.vram);
+    pub fn get_tile_data_frame_buffer(
+        &self,
+        wrap_count: usize,
+    ) -> [u32; PPU::TILES * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
+        self.ppu_debug.get_tile_data_frame_buffer(wrap_count, &self.vram)
     }
 
-    pub fn get_bg_frame_buffer(&self) {
-        self.ppu_debug.get_bg_frame_buffer(&self.vram, &self.lcdc, &self.bgp);
+    pub fn get_bg_frame_buffer(
+        &self,
+    ) -> [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
+        self.ppu_debug.get_bg_frame_buffer(&self.vram, &self.lcdc, &self.bgp)
     }
 
-    pub fn get_window_frame_buffer(&self) {
+    pub fn get_window_frame_buffer(
+        &self,
+    ) -> [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
         self.ppu_debug
-            .get_window_frame_buffer(&self.vram, &self.lcdc, &self.bgp);
+            .get_window_frame_buffer(&self.vram, &self.lcdc, &self.bgp)
     }
 
-    pub fn get_objects_frame_buffer(&self) {
+    pub fn get_objects_frame_buffer(
+        &self,
+    ) -> [u32; PPU::TILE_MAP_SIZE * PPU::TILE_MAP_SIZE * (PPU::TILE_SIZE * PPU::TILE_SIZE)] {
         self.ppu_debug
-            .get_objects_frame_buffer(&self.oam, &self.obp0, &self.obp1);
+            .get_objects_frame_buffer(&self.oam, &self.obp0, &self.obp1)
     }
 }
 
@@ -466,7 +475,7 @@ impl PPUDebug {
         }
     }
 
-    fn process_tile(&mut self, _addr: u16) {}
+    fn _process_tile(&mut self, _addr: u16) {}
 
     pub fn get_tile_data_frame_buffer(
         &self,
@@ -626,11 +635,11 @@ impl PPUDebug {
         frame_buffer
     }
 
-    pub fn print_vram(&self, vram: &[u8; memory::ppu::VRAM.size]) {
+    pub fn _print_vram(&self, vram: &[u8; memory::ppu::VRAM.size]) {
         utils::print_memory_bytes(vram, "vram", 0x100);
     }
 
-    pub fn print_tiles(&self, count: usize) {
+    pub fn _print_tiles(&self, count: usize) {
         for (i, tile) in self.tiles.iter().enumerate() {
             // let pixel_color = "\u{25A0}";
             println!("Tile {}: ", i);

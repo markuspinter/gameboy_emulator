@@ -55,7 +55,7 @@ impl Fifo {
         self.bg_fifo.len() <= PPU::TILE_SIZE
     }
 
-    pub fn is_fifo_poppable(&self) -> bool {
+    pub fn _is_fifo_poppable(&self) -> bool {
         self.bg_fifo.len() > PPU::TILE_SIZE
     }
 

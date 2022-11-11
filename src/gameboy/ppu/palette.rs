@@ -63,7 +63,7 @@ pub enum MonochromeColor {
     Black = 0x00000000,
 }
 
-pub enum MonochromeColorID {
+pub enum _MonochromeColorID {
     White = 0,
     LightGray = 1,
     DarkGray = 2,
