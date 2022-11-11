@@ -1,11 +1,8 @@
 use std::{sync::mpsc, time::Duration};
 
-use rodio::{Source};
+use rodio::Source;
 
-
-use std::{collections::VecDeque};
-
-
+use std::collections::VecDeque;
 
 pub struct AudioQueue {
     pub queue: VecDeque<f32>,
@@ -92,6 +89,8 @@ impl Iterator for AudioDriver {
 
 #[test]
 fn test_audio_driver() {
+    use rodio::{OutputStream, Sink};
+
     let mut test_queue: VecDeque<f32> = VecDeque::new();
     let mut freq = 220.;
     let mut wave_length = (1. / freq * 44100.) as u32;
