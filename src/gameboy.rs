@@ -48,6 +48,15 @@ trait GameboyModule {
 
 impl Gameboy {
     fn read8(&self, addr: u16) -> u8 {
+        if self.dma_active {
+            if addr < memory::HRAM.begin || addr > memory::HRAM.end {
+                log::warn!(
+                    "trying to access address {:#06X} during dma transfer, returning 0xFF",
+                    addr
+                );
+                return 0xFF;
+            }
+        }
         if let Some(res) = self.apu.read8(addr) {
             return res;
         }
@@ -97,6 +106,31 @@ impl Gameboy {
         panic!("write8 address {:#06X} not found", addr);
     }
 
+    fn read8_unlocked(&self, addr: u16) -> u8 {
+        if let Some(res) = self.apu.read8(addr) {
+            return res;
+        }
+        if let Some(res) = self.ppu.read8(addr) {
+            return res;
+        }
+        if let Some(res) = self.cpu.read8(addr) {
+            return res;
+        }
+        if let Some(res) = self.joypad.read8(addr) {
+            return res;
+        }
+        if let Some(res) = self.timer.read8(addr) {
+            return res;
+        }
+        if let Some(res) = self.cartridge.read8(addr) {
+            return res;
+        }
+        if let Some(res) = self.memory.read8(addr) {
+            return res;
+        }
+        panic!("read8_unlocked address {:#06X} not found", addr);
+    }
+
     fn _read16(&self, addr: u16) -> u16 {
         let high = self.read8(addr + 1);
         let low = self.read8(addr);
@@ -117,6 +151,8 @@ pub struct Gameboy {
     memory: Memory,
     joypad: Joypad,
     timer: Timer,
+
+    dma_active: bool,
 
     running: bool,
     _cgb_mode: bool,
@@ -142,6 +178,9 @@ impl Gameboy {
             screen: Screen::new(Self::SCREEN_ROWS, Self::SCREEN_COLUMNS, minifb::Scale::X4),
             apu: APU::new(),
             memory: Memory::new(),
+
+            dma_active: false,
+
             running: true,
             _cgb_mode: false,
             vblank: false,
@@ -201,6 +240,7 @@ impl Gameboy {
                 self.screen.set_frame_buffer(frame_buffer);
             }
             if frame_ready {
+                // println!("frame ready");
                 if debug_windows {
                     debug_counter += 1;
                     if debug_counter >= 60 {

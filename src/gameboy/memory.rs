@@ -26,6 +26,12 @@ pub struct MemoryRange {
     pub size: usize,
 }
 
+pub const HRAM: MemoryRange = MemoryRange {
+    begin: 0xFF80,
+    end: 0xFFFE,
+    size: 0x007F,
+};
+
 pub mod cartridge {
     use super::MemoryRange;
 

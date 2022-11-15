@@ -216,7 +216,7 @@ impl APU {
             log::warn!("samples don't have same size");
             self.shall_clear_audio_queue = true;
         }
-        log::warn!(
+        log::info!(
             "pulse sweep length {}\npulse length {}\nwave length {}\nnoise length {}",
             pulse_sweep_samples.len() / 2,
             pulse_samples.len() / 2,

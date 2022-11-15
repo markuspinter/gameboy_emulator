@@ -51,111 +51,29 @@ pub struct PPU {
 impl GameboyModule for PPU {
     unsafe fn tick(&mut self, gb_ptr: *mut Gameboy) -> Result<u32, std::fmt::Error> {
         let gb = &mut *gb_ptr;
-        self.handle_int(gb);
+
         if self.dma_cycles > 0 {
-            let oam_addr = 0x00A0 - self.dma_cycles;
-            let src_addr = ((self.dma & 0xDF) as u16) << 8 | oam_addr as u16;
-            log::trace!("dma oam addr: {:#06X}, src addr: {:#06X}", oam_addr, src_addr);
-            self.oam[oam_addr as usize] = gb.read8(src_addr);
-
-            self.dma_cycles -= 1;
+            gb.dma_active = true;
+            self.handle_dma(gb);
+        } else {
+            gb.dma_active = false;
         }
-        match self.stat.mode_flag {
-            LCDModeFlag::HBlank => {
-                if self.dots == 0 {
-                    log::trace!("hblank fifo {}", self.fifo.bg_fifo.len());
+        if self.lcdc.lcd_ppu_enable {
+            self.handle_int(gb);
 
-                    if self.back_buffer_index == 0 {
-                        self.stat.mode_flag = LCDModeFlag::VBlank;
-                        self.dots = 4560;
-                        if gb.cpu.interrupt_master_enable {
-                            if self.stat.mode1_vblank_interrupt_enable {
-                                gb.cpu.if_register.lcd_stat = true;
-                            }
-                        }
-                    } else {
-                        self.stat.mode_flag = LCDModeFlag::SearchingOAM;
-                        self.dots = 80;
-                        if gb.cpu.interrupt_master_enable {
-                            if self.stat.mode2_oam_interrupt_enable {
-                                gb.cpu.if_register.lcd_stat = true;
-                            }
-                        }
-                    }
-                    self.ly += 1;
+            match self.stat.mode_flag {
+                LCDModeFlag::HBlank => self.handle_hblank(gb),
+                LCDModeFlag::VBlank => self.handle_vblank(gb),
+                LCDModeFlag::SearchingOAM => self.handle_oam_search(),
+                LCDModeFlag::TransferringDataToLCD => {
+                    self.fetcher.tick(gb_ptr)?;
+                    let popped = self.fifo.tick(gb_ptr)?;
+                    self.handle_pixel_transfer(gb, popped);
                 }
             }
-            LCDModeFlag::VBlank => {
-                if self.dots == 0 {
-                    self.frame_ready = true;
-                    log::trace!("---vblank fifo {}", self.fifo.bg_fifo.len());
-                    self.stat.mode_flag = LCDModeFlag::SearchingOAM;
-                    self.dots = 80;
-                    self.ly = 0;
-                    if gb.cpu.interrupt_master_enable {
-                        if self.stat.mode2_oam_interrupt_enable {
-                            gb.cpu.if_register.lcd_stat = true;
-                        }
-                    }
-                    // for (i) in 0..4 {
-                    //     self.bgp.color_map[i] = self.bgp.color_map[(i + 1) % 4];
-                    // }
-                } else if self.dots % 456 == 0 {
-                    self.ly += 1;
-                }
+            if self.dots > 0 && !matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
+                self.dots -= 1;
             }
-            LCDModeFlag::SearchingOAM => {
-                if self.dots == 0 {
-                    self.stat.mode_flag = LCDModeFlag::TransferringDataToLCD;
-                } else if self.dots % 2 == 0 {
-                    //content takes 2 dots to complete
-                    let addr: usize = (40 - (self.dots as usize / 2 + 1)) * 4;
-                    let y_pos: u8 = self.oam[addr];
-                    let x_pos: u8 = self.oam[addr + 1];
-                    if (x_pos != 0)
-                        && ((self.ly + 16) >= y_pos)
-                        && ((self.ly + 16) < (y_pos.wrapping_add(PPU::TILE_SIZE as u8)))
-                    {
-                        self.fetcher
-                            .add_visible_object(addr as u16 + memory::ppu::OAM.begin, x_pos, y_pos);
-                    }
-                }
-            }
-            LCDModeFlag::TransferringDataToLCD => {
-                self.fetcher.tick(gb_ptr)?;
-                let popped = self.fifo.tick(gb_ptr)?;
-                self.dots = self.dots.wrapping_add(1);
-                if self.dots > 4000 {
-                    log::warn!(
-                        "mode 3 ongoing, dots taken {}, {}, pushed {}",
-                        self.dots,
-                        self.back_buffer_index,
-                        self.fifo.x
-                    );
-                }
-                if popped == 0 && self.back_buffer_index % (PPU::COLUMNS) == 0 {
-                    log::warn!(
-                        "mode 3 done, dots taken {}, {}, pushed {}",
-                        self.dots,
-                        self.back_buffer_index,
-                        self.fifo.x
-                    );
-                    self.fetcher.clear_visible_objects();
-                    self.fetcher.reset();
-                    self.fifo.reset();
-                    // self.fifo.reset(); //doesnt work
-                    self.stat.mode_flag = LCDModeFlag::HBlank;
-                    if gb.cpu.interrupt_master_enable {
-                        if self.stat.mode0_hblank_interrupt_enable {
-                            gb.cpu.if_register.lcd_stat = true;
-                        }
-                    }
-                    self.dots = 456 - 80 - 172; // last one needs to be modifyable
-                }
-            }
-        }
-        if self.dots > 0 && !matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
-            self.dots -= 1;
         }
 
         Ok(0)
@@ -166,23 +84,23 @@ impl super::MemoryInterface for PPU {
     fn read8(&self, addr: u16) -> Option<u8> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
-                // warn!(
-                //     "VRAM is inaccessible during mode 3; address {:#06x}, returning garbage (0xFF)",
-                //     addr
-                // );
-                // return Some(0xFF);
+                warn!(
+                    "VRAM is inaccessible during mode 3; address {:#06x}, returning garbage (0xFF)",
+                    addr
+                );
+                return Some(0xFF);
             }
             return Some(self.vram[usize::from(addr - memory::ppu::VRAM.begin)]);
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::SearchingOAM)
                 || matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD)
             {
-                // warn!(
-                //     "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, returning garbage (0xFF)",
-                //     self.stat.mode_flag as u8,
-                //     addr
-                // );
-                // return Some(0xFF);
+                warn!(
+                    "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, returning garbage (0xFF)",
+                    self.stat.mode_flag as u8,
+                    addr
+                );
+                return Some(0xFF);
             }
             return Some(self.oam[usize::from(addr - memory::ppu::OAM.begin)]);
         } else if addr == memory::ppu::LCDC {
@@ -216,27 +134,35 @@ impl super::MemoryInterface for PPU {
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
-                // warn!(
-                //     "VRAM is inaccessible during mode 3; address {:#06x}, ignoring write",
-                //     addr
-                // );
-                // return Some(());
+                warn!(
+                    "VRAM is inaccessible during mode 3; address {:#06x}, ignoring write",
+                    addr
+                );
+                return Some(());
             }
             self.vram[usize::from(addr - memory::ppu::VRAM.begin)] = value;
         } else if addr >= memory::ppu::OAM.begin && addr <= memory::ppu::OAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::SearchingOAM)
                 || matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD)
             {
-                // warn!(
-                //     "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, ignoring write",
-                //     self.stat.mode_flag as u8, addr
-                // );
-                // return Some(());
+                warn!(
+                    "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, ignoring write",
+                    self.stat.mode_flag as u8, addr
+                );
+                return Some(());
             }
             self.oam[usize::from(addr - memory::ppu::OAM.begin)] = value;
         } else if addr == memory::ppu::LCDC {
             log::info!("lcdc changed: {:#010b}", u8::from(value.clone()));
             self.lcdc = value.into();
+            if !self.lcdc.lcd_ppu_enable {
+                self.back_buffer_index = 0;
+                self.frame_ready = false;
+                self.dots = 0;
+                self.stat.mode_flag = LCDModeFlag::VBlank;
+                self.fifo.reset();
+                self.fetcher.reset();
+            }
         } else if addr == memory::ppu::STAT {
             self.stat = value.into();
         } else if addr == memory::ppu::SCY {
@@ -322,6 +248,109 @@ impl PPU {
             if self.ly == 144 {
                 gb.cpu.if_register.vblank = true;
             }
+        }
+    }
+
+    fn handle_dma(&mut self, gb: &Gameboy) {
+        let oam_addr = 0x00A0 - self.dma_cycles;
+        let src_addr = ((self.dma & 0xDF) as u16) << 8 | oam_addr as u16;
+        log::trace!("dma oam addr: {:#06X}, src addr: {:#06X}", oam_addr, src_addr);
+        self.oam[oam_addr as usize] = gb.read8_unlocked(src_addr);
+
+        self.dma_cycles -= 1;
+    }
+
+    fn handle_hblank(&mut self, gb: &mut Gameboy) {
+        if self.dots == 0 {
+            log::trace!("hblank fifo {}", self.fifo.bg_fifo.len());
+
+            if self.back_buffer_index == 0 {
+                self.stat.mode_flag = LCDModeFlag::VBlank;
+                self.dots = 4560;
+                if gb.cpu.interrupt_master_enable {
+                    if self.stat.mode1_vblank_interrupt_enable {
+                        gb.cpu.if_register.lcd_stat = true;
+                    }
+                }
+            } else {
+                self.stat.mode_flag = LCDModeFlag::SearchingOAM;
+                self.dots = 80;
+                if gb.cpu.interrupt_master_enable {
+                    if self.stat.mode2_oam_interrupt_enable {
+                        gb.cpu.if_register.lcd_stat = true;
+                    }
+                }
+            }
+            self.ly += 1;
+        }
+    }
+
+    fn handle_vblank(&mut self, gb: &mut Gameboy) {
+        if self.dots == 0 {
+            self.frame_ready = true;
+            log::trace!("---vblank fifo {}", self.fifo.bg_fifo.len());
+            self.stat.mode_flag = LCDModeFlag::SearchingOAM;
+            self.dots = 80;
+            self.ly = 0;
+            if gb.cpu.interrupt_master_enable {
+                if self.stat.mode2_oam_interrupt_enable {
+                    gb.cpu.if_register.lcd_stat = true;
+                }
+            }
+            // for (i) in 0..4 {
+            //     self.bgp.color_map[i] = self.bgp.color_map[(i + 1) % 4];
+            // }
+        } else if self.dots % 456 == 0 {
+            self.ly += 1;
+        }
+    }
+
+    fn handle_oam_search(&mut self) {
+        if self.dots == 0 {
+            self.stat.mode_flag = LCDModeFlag::TransferringDataToLCD;
+        } else if self.dots % 2 == 0 {
+            //content takes 2 dots to complete
+            let addr: usize = (40 - (self.dots as usize / 2 + 1)) * 4;
+            let y_pos: u8 = self.oam[addr];
+            let x_pos: u8 = self.oam[addr + 1];
+            if (x_pos != 0)
+                && ((self.ly + 16) >= y_pos)
+                && ((self.ly + 16) < (y_pos.wrapping_add(PPU::TILE_SIZE as u8)))
+            {
+                self.fetcher
+                    .add_visible_object(addr as u16 + memory::ppu::OAM.begin, x_pos, y_pos);
+            }
+        }
+    }
+
+    fn handle_pixel_transfer(&mut self, gb: &mut Gameboy, popped: u32) {
+        self.dots = self.dots.wrapping_add(1);
+        if self.dots > 4000 {
+            log::info!(
+                "mode 3 ongoing, dots taken {}, {}, pushed {}",
+                self.dots,
+                self.back_buffer_index,
+                self.fifo.x
+            );
+        }
+        if popped == 0 && self.back_buffer_index % (PPU::COLUMNS) == 0 {
+            log::info!(
+                "mode 3 done, dots taken {}, {}, pushed {}",
+                self.dots,
+                self.back_buffer_index,
+                self.fifo.x
+            );
+            self.fetcher.clear_visible_objects();
+            self.fetcher.reset();
+            self.fifo.reset();
+            // self.fifo.reset(); //doesnt work
+            self.stat.mode_flag = LCDModeFlag::HBlank;
+            if gb.cpu.interrupt_master_enable {
+                if self.stat.mode0_hblank_interrupt_enable {
+                    gb.cpu.if_register.lcd_stat = true;
+                }
+            }
+            self.dots = 456 - 80 - 172; // last one needs to be modifyable
         }
     }
 
