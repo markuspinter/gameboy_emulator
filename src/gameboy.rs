@@ -261,7 +261,8 @@ impl Gameboy {
                 self.joypad.tick(self_ptr)?;
 
                 if pause_pressed {
-                    paused = !paused;
+                    // paused = !paused;
+                    self.apu.shall_clear_audio_queue = !self.apu.shall_clear_audio_queue;
                 }
 
                 let mut diff = SystemTime::now()

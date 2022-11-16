@@ -214,7 +214,7 @@ impl APU {
                 self.tick(gb_ptr).unwrap();
             }
         } else {
-            self.shall_clear_audio_queue = true;
+            // self.shall_clear_audio_queue = true;
         }
 
         let pulse_sweep_samples = self.pulse_sweep.get_samples();
@@ -228,7 +228,7 @@ impl APU {
             // panic!("samples don't have same size");
             // self.shall_clear_audio_queue = true;
         } else {
-            self.shall_clear_audio_queue = false;
+            // self.shall_clear_audio_queue = false;
         }
         let sample_count = wave_samples.len();
         let samples_needed = (Self::AUDIO_SAMPLING_RATE as f32 * (delta_time as f32 / 1e9) * 2.);
@@ -257,8 +257,19 @@ impl APU {
 
             mixed_sample = 0.0;
         }
+        // for i in (0..sample_count) {
+        //     // mixed_sample += pulse_sweep_samples[2 * i];
+        //     // mixed_sample += pulse_samples[2 * i];
+        //     mixed_sample += wave_samples[i];
+
+        //     // mixed_sample += noise_samples[2 * i];
+
+        //     queue.push_back(mixed_sample);
+
+        //     mixed_sample = 0.0;
+        // }
         log::warn!(
-            "\npulse sweep length {}\npulse length {}\nwave length {}\nnoise length {}\ndelta time {}\nsample step {}\nqueue length {} - samples needed {}",
+            "\npulse sweep length {}\npulse length {}\nwave length {}\nnoise length {}\ndelta time {}\nsample step {}\nqueue length {} - samples needed {}\nshall clear audio {}",
             pulse_sweep_samples.len() / 2,
             pulse_samples.len() / 2,
             wave_samples.len() / 2,
@@ -266,7 +277,8 @@ impl APU {
             delta_time,
             sample_step,
             queue.len(),
-            samples_needed
+            samples_needed,
+            self.shall_clear_audio_queue
         );
 
         self.audio_queue_sender
@@ -296,13 +308,14 @@ trait APUChannel {
         const SAMPLE_VOLUME_RESOLUTION: u8 = 8;
         let mut ret = (0., 0.);
         if self.is_active() && dac_enabled {
+            let slope = (2.) / (SAMPLE_BIT_RESOLUTION * SAMPLE_VOLUME_RESOLUTION) as f32;
             if apu.left_channels[2] {
-                ret.0 = ((1 + apu.left_output_volume) as f32 * sample as f32)
-                    / (SAMPLE_BIT_RESOLUTION * SAMPLE_VOLUME_RESOLUTION) as f32
+                let output = (-slope) * ((1 + apu.left_output_volume) as f32 * sample as f32) + 1.;
+                ret.0 = output
             }
             if apu.right_channels[2] {
-                ret.1 = ((1 + apu.right_output_volume) as f32 * sample as f32)
-                    / (SAMPLE_BIT_RESOLUTION * SAMPLE_VOLUME_RESOLUTION) as f32
+                let output = (-slope) * ((1 + apu.right_output_volume) as f32 * sample as f32) + 1.;
+                ret.1 = output;
             }
         }
         ret

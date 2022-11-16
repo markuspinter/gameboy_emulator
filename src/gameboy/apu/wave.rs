@@ -35,7 +35,7 @@ pub struct Wave {
     frame_index: usize,
     samples: Vec<f32>,
 
-    frame_index_fraction: f32,
+    wave_length_cycles: f32,
     frame_index_fraction_increment: f32,
     sample_rate: u32,
 }
@@ -47,7 +47,7 @@ impl GameboyModule for Wave {
         if self.t_cycles == 0 {
             self.tick_sampler();
 
-            self.t_cycles = (self.frame_index_fraction_increment as u32 * 2) + 1;
+            self.t_cycles = self.wave_length_cycles as u32 * 2 + 1;
         }
         self.sample(&apu);
 
@@ -118,7 +118,7 @@ impl Wave {
             samples: Vec::with_capacity(2048),
 
             sample_rate,
-            frame_index_fraction: 0.,
+            wave_length_cycles: 0.,
             frame_index_fraction_increment: 0.,
         }
     }
@@ -153,6 +153,7 @@ impl Wave {
         self.dac_enabled = bit!(value, 7) != 0;
         if !self.dac_enabled {
             self.active = false;
+            log::warn!("disabled");
         }
     }
 
@@ -168,10 +169,10 @@ impl Wave {
         self.wave_length &= 0x0700;
         self.wave_length |= value as u16;
 
-        self.frame_index_fraction_increment = (2048 - self.wave_length) as f32;
+        self.wave_length_cycles = (2048 - self.wave_length) as f32;
         log::warn!(
             "new period {}, freq {}",
-            self.frame_index_fraction_increment,
+            self.wave_length_cycles,
             (65536. / (2048 - self.wave_length) as f32)
         );
     }
@@ -186,11 +187,13 @@ impl Wave {
             self.active = true;
         }
 
-        self.frame_index_fraction_increment = (2048 - self.wave_length) as f32;
+        self.wave_length_cycles = (2048 - self.wave_length) as f32;
         log::warn!(
-            "new period {}, freq {}",
-            self.frame_index_fraction_increment,
-            (65536. / (2048 - self.wave_length) as f32)
+            "new period {}, freq {}\nshall trigger {}\nsound length enable {}",
+            self.wave_length_cycles,
+            (65536. / (2048 - self.wave_length) as f32),
+            self.shall_trigger,
+            self.sound_length_enable,
         );
     }
 
@@ -213,17 +216,11 @@ impl APUChannel for Wave {
     }
 
     fn tick_sampler(&mut self) {
-        // self.frame_index_fraction += self.frame_index_fraction_increment;
-        // self.frame_index_fraction %= Wave::WAVE_PATTERN_FRAME_SIZE as f32;
-
-        // self.frame_index = self.frame_index_fraction as usize;
         self.frame_index += 1;
         self.frame_index %= Wave::WAVE_PATTERN_FRAME_SIZE;
     }
 
     fn sample(&mut self, apu: &APU) {
-        // if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
-
         let digital_sample = self.wave_pattern_vec[self.frame_index]
             >> match self.output_level {
                 WaveOutputLevel::Mute => 4,
@@ -236,7 +233,6 @@ impl APUChannel for Wave {
 
         self.samples.push(analog_sample.0);
         self.samples.push(analog_sample.1);
-        // }
     }
 
     fn get_samples(&mut self) -> &Vec<f32> {
