@@ -209,12 +209,14 @@ impl APU {
         let diff = delta_time as i128 - 16742706 as i128;
         if diff < 16742706 {
             let ticks = (diff as f32) / (1. / (4194304.) * 1e9);
-            log::warn!("diff {}, ticks to catch up {}", diff, ticks);
+            log::debug!("diff {}, ticks to catch up {}", diff, ticks);
             for _i in 0..ticks as usize {
                 self.tick(gb_ptr).unwrap();
             }
+            self.shall_clear_audio_queue = false;
         } else {
-            // self.shall_clear_audio_queue = true;
+            //frame took longer than 2 frames, clearing audio buffer
+            self.shall_clear_audio_queue = true;
         }
 
         let pulse_sweep_samples = self.pulse_sweep.get_samples();
@@ -225,10 +227,7 @@ impl APU {
             && pulse_samples.len() == wave_samples.len()
             && wave_samples.len() == noise_samples.len())
         {
-            // panic!("samples don't have same size");
-            // self.shall_clear_audio_queue = true;
-        } else {
-            // self.shall_clear_audio_queue = false;
+            panic!("samples don't have same size");
         }
         let sample_count = wave_samples.len();
         let samples_needed = (Self::AUDIO_SAMPLING_RATE as f32 * (delta_time as f32 / 1e9) * 2.);
@@ -257,18 +256,7 @@ impl APU {
 
             mixed_sample = 0.0;
         }
-        // for i in (0..sample_count) {
-        //     // mixed_sample += pulse_sweep_samples[2 * i];
-        //     // mixed_sample += pulse_samples[2 * i];
-        //     mixed_sample += wave_samples[i];
-
-        //     // mixed_sample += noise_samples[2 * i];
-
-        //     queue.push_back(mixed_sample);
-
-        //     mixed_sample = 0.0;
-        // }
-        log::warn!(
+        log::trace!(
             "\npulse sweep length {}\npulse length {}\nwave length {}\nnoise length {}\ndelta time {}\nsample step {}\nqueue length {} - samples needed {}\nshall clear audio {}",
             pulse_sweep_samples.len() / 2,
             pulse_samples.len() / 2,

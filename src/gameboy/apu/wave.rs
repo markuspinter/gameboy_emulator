@@ -153,7 +153,7 @@ impl Wave {
         self.dac_enabled = bit!(value, 7) != 0;
         if !self.dac_enabled {
             self.active = false;
-            log::warn!("disabled");
+            log::debug!("dac disabled");
         }
     }
 
@@ -170,7 +170,7 @@ impl Wave {
         self.wave_length |= value as u16;
 
         self.wave_length_cycles = (2048 - self.wave_length) as f32;
-        log::warn!(
+        log::debug!(
             "new period {}, freq {}",
             self.wave_length_cycles,
             (65536. / (2048 - self.wave_length) as f32)
@@ -188,7 +188,7 @@ impl Wave {
         }
 
         self.wave_length_cycles = (2048 - self.wave_length) as f32;
-        log::warn!(
+        log::debug!(
             "new period {}, freq {}\nshall trigger {}\nsound length enable {}",
             self.wave_length_cycles,
             (65536. / (2048 - self.wave_length) as f32),
