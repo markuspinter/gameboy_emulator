@@ -26,7 +26,6 @@ pub struct Noise {
     t_cycles: u16,
     timer: u8,
     active: bool,
-    frame_index: usize,
     samples: Vec<f32>,
 
     lfsr: u16,
@@ -37,10 +36,7 @@ pub struct Noise {
     sweep_volume: u8,
     envelope_tick: u8,
 
-    frame_index_fraction: f32,
-    frame_index_fraction_increment: f32,
-    sample_rate: u32,
-    waiting_for_sync: bool,
+    wave_length_cycles: u16,
 }
 
 impl GameboyModule for Noise {
@@ -49,7 +45,8 @@ impl GameboyModule for Noise {
         let apu = &gb.apu;
         if self.t_cycles == 0 {
             self.tick_sampler();
-            self.t_cycles = 9;
+
+            self.t_cycles = (self.wave_length_cycles * 16) + 1;
         }
         self.sample(&apu);
         self.t_cycles -= 1;
@@ -88,8 +85,7 @@ impl MemoryInterface for Noise {
 }
 
 impl Noise {
-    const NOISE_FRAME_SIZE: usize = 1;
-    pub fn new(sample_rate: u32) -> Self {
+    pub fn new() -> Self {
         Self {
             dac_enabled: false,
 
@@ -106,7 +102,6 @@ impl Noise {
             t_cycles: 0,
             timer: 0,
             active: false,
-            frame_index: 0,
             samples: Vec::with_capacity(2048),
 
             lfsr: 0,
@@ -117,10 +112,7 @@ impl Noise {
             sweep_volume: 0,
             envelope_tick: 0,
 
-            sample_rate,
-            frame_index_fraction: 0.,
-            frame_index_fraction_increment: 0.,
-            waiting_for_sync: false,
+            wave_length_cycles: 0,
         }
     }
 
@@ -178,9 +170,7 @@ impl Noise {
             clock_divider = 1;
         }
 
-        self.frame_index_fraction_increment = ((2.0 * 262144.)
-            / (clock_divider as u32 * (1 << self.clock_shift as u32)) as f32)
-            * (Noise::NOISE_FRAME_SIZE as f32 / self.sample_rate as f32);
+        self.wave_length_cycles = clock_divider as u16 * (1 << self.clock_shift as u16);
         // println!(
         //     "frame index incr {}, denom {}, freq {}",
         //     self.frame_index_fraction_increment,
@@ -213,25 +203,15 @@ impl APUChannel for Noise {
     }
 
     fn tick_sampler(&mut self) {
-        self.frame_index_fraction += self.frame_index_fraction_increment;
-
-        self.frame_index = self.frame_index_fraction as usize;
-
-        if self.frame_index >= 1 {
-            self.frame_index_fraction %= Noise::NOISE_FRAME_SIZE as f32;
-
-            let new_bit = !(bit!(self.lfsr, 0) ^ bit!(self.lfsr, 1)); //xnor operation
-            self.lfsr = (self.lfsr & !(1 << 15)) | (new_bit << 15);
-            if matches!(self.lfsr_width, LFSRWidth::LFSR7Bits) {
-                self.lfsr = (self.lfsr & !(1 << 7)) | (new_bit << 7);
-            }
-            self.lfsr = self.lfsr >> 1;
+        let new_bit = !(bit!(self.lfsr, 0) ^ bit!(self.lfsr, 1)); //xnor operation
+        self.lfsr = (self.lfsr & !(1 << 15)) | (new_bit << 15);
+        if matches!(self.lfsr_width, LFSRWidth::LFSR7Bits) {
+            self.lfsr = (self.lfsr & !(1 << 7)) | (new_bit << 7);
         }
+        self.lfsr = self.lfsr >> 1;
     }
 
     fn sample(&mut self, apu: &APU) {
-        // if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
-
         let digital_sample = match (self.lfsr & 0b1) != 0 {
             true => self.sweep_volume,
             false => 0,
@@ -241,9 +221,6 @@ impl APUChannel for Noise {
 
         self.samples.push(analog_sample.0);
         self.samples.push(analog_sample.1);
-        // } else {
-        //     self.waiting_for_sync = true;
-        // }
     }
 
     fn get_samples(&mut self) -> &Vec<f32> {
@@ -252,7 +229,6 @@ impl APUChannel for Noise {
 
     fn reset_samples(&mut self) {
         self.samples.clear();
-        self.waiting_for_sync = false;
     }
 
     fn is_active(&self) -> bool {
@@ -262,17 +238,17 @@ impl APUChannel for Noise {
 
 impl APUEnvelope for Noise {
     fn tick_envelope_sweep(&mut self) {
-        if self.curr_sweep_pace > 0 && !self.waiting_for_sync {
+        if self.curr_sweep_pace > 0 {
             if self.envelope_tick == 0 {
                 if self.curr_envelope_increase {
-                    if self.sweep_volume == 15 {
-                        self.sweep_volume = 15;
+                    if self.sweep_volume == self.inital_envelope_volume {
+                        self.sweep_volume = 1;
                     } else {
                         self.sweep_volume += 1;
                     }
                 } else {
-                    if self.sweep_volume == 0 {
-                        self.sweep_volume = 0;
+                    if self.sweep_volume <= 1 {
+                        self.sweep_volume = self.inital_envelope_volume;
                     } else {
                         self.sweep_volume -= 1;
                     }

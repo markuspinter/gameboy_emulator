@@ -295,10 +295,7 @@ pub struct PulseSweep {
     sweep_volume: u8,
     envelope_tick: u8,
 
-    frame_index_fraction: f32,
-    frame_index_fraction_increment: f32,
-    sample_rate: u32,
-    waiting_for_sync: bool,
+    wave_length_cycles: u16,
 }
 
 impl GameboyModule for PulseSweep {
@@ -307,7 +304,8 @@ impl GameboyModule for PulseSweep {
         let apu = &gb.apu;
         if self.t_cycles == 0 {
             self.tick_sampler();
-            self.t_cycles = 5;
+
+            self.t_cycles = (self.wave_length_cycles * 4) + 1;
         }
         self.sample(&apu);
         self.t_cycles -= 1;
@@ -351,7 +349,7 @@ impl MemoryInterface for PulseSweep {
 
 impl PulseSweep {
     const PULSE_SWEEP_FRAME_SIZE: usize = 8;
-    pub fn new(sample_rate: u32) -> Self {
+    pub fn new() -> Self {
         Self {
             sweep_pace_for_frequency: 0,
             sweep_decrease: false,
@@ -383,10 +381,7 @@ impl PulseSweep {
             sweep_volume: 0,
             envelope_tick: 0,
 
-            sample_rate,
-            frame_index_fraction: 0.,
-            frame_index_fraction_increment: 0.,
-            waiting_for_sync: false,
+            wave_length_cycles: 0,
         }
     }
 
@@ -456,8 +451,7 @@ impl PulseSweep {
         self.wave_length &= 0x0700;
         self.wave_length |= value as u16;
 
-        self.frame_index_fraction_increment = (131072. / (2048 - self.wave_length) as f32)
-            * (PulseSweep::PULSE_SWEEP_FRAME_SIZE as f32 / self.sample_rate as f32);
+        self.wave_length_cycles = 2048 - self.wave_length;
     }
     fn set_nr14(&mut self, value: u8) {
         self.shall_trigger = bit!(value, 7) != 0;
@@ -473,8 +467,7 @@ impl PulseSweep {
             self.sweep_volume = self.inital_envelope_volume;
         }
 
-        self.frame_index_fraction_increment = (131072. / (2048 - self.wave_length) as f32)
-            * (PulseSweep::PULSE_SWEEP_FRAME_SIZE as f32 / self.sample_rate as f32);
+        self.wave_length_cycles = 2048 - self.wave_length;
     }
 }
 
@@ -489,10 +482,8 @@ impl APUChannel for PulseSweep {
     }
 
     fn tick_sampler(&mut self) {
-        self.frame_index_fraction += self.frame_index_fraction_increment;
-        self.frame_index_fraction %= PulseSweep::PULSE_SWEEP_FRAME_SIZE as f32;
-
-        self.frame_index = self.frame_index_fraction as usize;
+        self.frame_index += 1;
+        self.frame_index %= PulseSweep::PULSE_SWEEP_FRAME_SIZE;
     }
 
     fn sample(&mut self, apu: &APU) {
@@ -518,7 +509,6 @@ impl APUChannel for PulseSweep {
 
     fn reset_samples(&mut self) {
         self.samples.clear();
-        self.waiting_for_sync = false;
     }
 
     fn is_active(&self) -> bool {
@@ -528,17 +518,17 @@ impl APUChannel for PulseSweep {
 
 impl APUEnvelope for PulseSweep {
     fn tick_envelope_sweep(&mut self) {
-        if self.curr_sweep_pace > 0 && !self.waiting_for_sync {
+        if self.curr_sweep_pace > 0 {
             if self.envelope_tick == 0 {
                 if self.curr_envelope_increase {
-                    if self.sweep_volume == 15 {
-                        self.sweep_volume = 15;
+                    if self.sweep_volume == self.inital_envelope_volume {
+                        self.sweep_volume = 1;
                     } else {
                         self.sweep_volume += 1;
                     }
                 } else {
-                    if self.sweep_volume == 0 {
-                        self.sweep_volume = 0;
+                    if self.sweep_volume <= 1 {
+                        self.sweep_volume = self.inital_envelope_volume;
                     } else {
                         self.sweep_volume -= 1;
                     }
