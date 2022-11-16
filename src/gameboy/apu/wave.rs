@@ -29,15 +29,13 @@ pub struct Wave {
     wave_pattern_ram: [u8; memory::apu::WAVE_PATTERN_RAM.size],
     wave_pattern_vec: Vec<u8>,
 
-    t_cycles: u32,
+    t_cycles: u16,
     timer: u8,
     active: bool,
     frame_index: usize,
     samples: Vec<f32>,
 
-    wave_length_cycles: f32,
-    frame_index_fraction_increment: f32,
-    sample_rate: u32,
+    wave_length_cycles: u16,
 }
 
 impl GameboyModule for Wave {
@@ -47,7 +45,7 @@ impl GameboyModule for Wave {
         if self.t_cycles == 0 {
             self.tick_sampler();
 
-            self.t_cycles = self.wave_length_cycles as u32 * 2 + 1;
+            self.t_cycles = (self.wave_length_cycles * 2) + 1;
         }
         self.sample(&apu);
 
@@ -96,7 +94,7 @@ impl MemoryInterface for Wave {
 
 impl Wave {
     const WAVE_PATTERN_FRAME_SIZE: usize = 32;
-    pub fn new(sample_rate: u32) -> Self {
+    pub fn new() -> Self {
         let (_stream, _stream_handle) = OutputStream::try_default().unwrap();
         Self {
             dac_enabled: false,
@@ -117,9 +115,7 @@ impl Wave {
             frame_index: 0,
             samples: Vec::with_capacity(2048),
 
-            sample_rate,
-            wave_length_cycles: 0.,
-            frame_index_fraction_increment: 0.,
+            wave_length_cycles: 0,
         }
     }
 
@@ -169,7 +165,7 @@ impl Wave {
         self.wave_length &= 0x0700;
         self.wave_length |= value as u16;
 
-        self.wave_length_cycles = (2048 - self.wave_length) as f32;
+        self.wave_length_cycles = 2048 - self.wave_length;
         log::debug!(
             "new period {}, freq {}",
             self.wave_length_cycles,
@@ -187,7 +183,7 @@ impl Wave {
             self.active = true;
         }
 
-        self.wave_length_cycles = (2048 - self.wave_length) as f32;
+        self.wave_length_cycles = 2048 - self.wave_length;
         log::debug!(
             "new period {}, freq {}\nshall trigger {}\nsound length enable {}",
             self.wave_length_cycles,

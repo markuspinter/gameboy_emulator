@@ -105,9 +105,9 @@ impl APU {
         let apu = Self {
             pulse_sweep: pulse::PulseSweep::new(Self::AUDIO_SAMPLING_RATE),
 
-            pulse: pulse::Pulse::new(Self::AUDIO_SAMPLING_RATE),
+            pulse: pulse::Pulse::new(),
 
-            wave: wave::Wave::new(Self::AUDIO_SAMPLING_RATE),
+            wave: wave::Wave::new(),
 
             noise: noise::Noise::new(Self::AUDIO_SAMPLING_RATE),
 
@@ -137,7 +137,7 @@ impl APU {
 
             if self.div % APU::ENVELOPE_SWEEP_DIVIDER == 0 {
                 self.pulse_sweep.tick_envelope_sweep();
-                self.pulse.tick_envelope_sweep();
+                // self.pulse.tick_envelope_sweep();
                 self.noise.tick_envelope_sweep();
             }
 
@@ -206,19 +206,6 @@ impl APU {
     pub unsafe fn sync(&mut self, gb_ptr: *mut crate::gameboy::Gameboy, delta_time: u128) {
         let mut queue: VecDeque<f32> = VecDeque::new();
 
-        let diff = delta_time as i128 - 16742706 as i128;
-        if diff < 16742706 {
-            let ticks = (diff as f32) / (1. / (4194304.) * 1e9);
-            log::debug!("diff {}, ticks to catch up {}", diff, ticks);
-            for _i in 0..ticks as usize {
-                self.tick(gb_ptr).unwrap();
-            }
-            self.shall_clear_audio_queue = false;
-        } else {
-            //frame took longer than 2 frames, clearing audio buffer
-            self.shall_clear_audio_queue = true;
-        }
-
         let pulse_sweep_samples = self.pulse_sweep.get_samples();
         let pulse_samples = self.pulse.get_samples();
         let wave_samples = self.wave.get_samples();
@@ -230,15 +217,15 @@ impl APU {
             panic!("samples don't have same size");
         }
         let sample_count = wave_samples.len();
-        let samples_needed = (Self::AUDIO_SAMPLING_RATE as f32 * (delta_time as f32 / 1e9) * 2.);
+        let samples_needed = (Self::AUDIO_SAMPLING_RATE as f32 * (16742706 as f32 / 1e9) * 2.);
         let sample_step = std::cmp::max(1, (sample_count as f32 / samples_needed) as usize);
 
         let mut mixed_sample = 0.0;
 
         for i in (0..sample_count / 2).step_by(sample_step) {
             // mixed_sample += pulse_sweep_samples[2 * i];
-            // mixed_sample += pulse_samples[2 * i];
-            mixed_sample += wave_samples[2 * i];
+            mixed_sample += pulse_samples[2 * i];
+            // mixed_sample += wave_samples[2 * i];
 
             // mixed_sample += noise_samples[2 * i];
 
@@ -247,8 +234,8 @@ impl APU {
             mixed_sample = 0.0;
 
             // mixed_sample += pulse_sweep_samples[2 * i + 1];
-            // mixed_sample += pulse_samples[2 * i + 1];
-            mixed_sample += wave_samples[2 * i + 1];
+            mixed_sample += pulse_samples[2 * i + 1];
+            // mixed_sample += wave_samples[2 * i + 1];
 
             // mixed_sample += noise_samples[2 * i + 1];
 
@@ -269,16 +256,74 @@ impl APU {
             self.shall_clear_audio_queue
         );
 
+        self.pulse_sweep.reset_samples();
+        self.pulse.reset_samples();
+        self.wave.reset_samples();
+        self.noise.reset_samples();
+
+        let diff = delta_time as i128 - 16742706 as i128;
+        if diff < 16742706 && diff > 0 {
+            let ticks = (diff as f32) / (1. / (4194304.) * 1e9);
+            log::debug!("diff {}, ticks to catch up {}", diff, ticks);
+            for _i in 0..ticks as usize {
+                self.tick(gb_ptr).unwrap();
+            }
+            self.shall_clear_audio_queue = false;
+
+            let pulse_sweep_samples = self.pulse_sweep.get_samples();
+            let pulse_samples = self.pulse.get_samples();
+            let wave_samples = self.wave.get_samples();
+            let noise_samples = self.noise.get_samples();
+            if !(pulse_sweep_samples.len() == pulse_samples.len()
+                && pulse_samples.len() == wave_samples.len()
+                && wave_samples.len() == noise_samples.len())
+            {
+                panic!("samples don't have same size");
+            }
+            let sample_count = wave_samples.len();
+            // let samples_needed = (Self::AUDIO_SAMPLING_RATE as f32 * (diff as f32 / 1e9) * 2.);
+            // let sample_step = std::cmp::max(1, (sample_count as f32 / samples_needed) as usize);
+
+            let mut mixed_sample = 0.0;
+
+            for i in (0..sample_count / 2).step_by(sample_step) {
+                // mixed_sample += pulse_sweep_samples[2 * i];
+                mixed_sample += pulse_samples[2 * i];
+                // mixed_sample += wave_samples[2 * i];
+
+                // mixed_sample += noise_samples[2 * i];
+
+                queue.push_back(mixed_sample);
+
+                mixed_sample = 0.0;
+
+                // mixed_sample += pulse_sweep_samples[2 * i + 1];
+                mixed_sample += pulse_samples[2 * i + 1];
+                // mixed_sample += wave_samples[2 * i + 1];
+
+                // mixed_sample += noise_samples[2 * i + 1];
+
+                queue.push_back(mixed_sample);
+
+                mixed_sample = 0.0;
+            }
+
+            self.pulse_sweep.reset_samples();
+            self.pulse.reset_samples();
+            self.wave.reset_samples();
+            self.noise.reset_samples();
+        } else {
+            //frame took longer than 2 frames, clearing audio buffer
+            log::warn!("frame took longer than 2 frame times");
+            self.shall_clear_audio_queue = true;
+        }
+
         self.audio_queue_sender
             .send(AudioQueue {
                 queue,
                 shall_clear_old_samples: self.shall_clear_audio_queue,
             })
             .unwrap();
-        self.pulse_sweep.reset_samples();
-        self.pulse.reset_samples();
-        self.wave.reset_samples();
-        self.noise.reset_samples();
     }
 }
 

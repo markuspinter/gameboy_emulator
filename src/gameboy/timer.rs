@@ -153,7 +153,7 @@ impl Timer {
             let prev_div = self.div;
             self.div = self.div.wrapping_add(1);
 
-            if (prev_div >> 4) & 0b1 == 1 && (self.div >> 4) & 0b1 == 1 {
+            if (prev_div >> 4) & 0b1 == 1 && (self.div >> 4) & 0b1 == 0 {
                 gb.apu.tick_div();
             }
         }
