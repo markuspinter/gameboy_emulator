@@ -48,9 +48,10 @@ impl GameboyModule for Noise {
         let gb = &mut *gb_ptr;
         let apu = &gb.apu;
         if self.t_cycles == 0 {
-            self.sample(&apu);
+            self.tick_sampler();
             self.t_cycles = 9;
         }
+        self.sample(&apu);
         self.t_cycles -= 1;
         Ok(self.t_cycles as u32)
     }
@@ -106,7 +107,7 @@ impl Noise {
             timer: 0,
             active: false,
             frame_index: 0,
-            samples: Vec::new(),
+            samples: Vec::with_capacity(2048),
 
             lfsr: 0,
 
@@ -211,35 +212,38 @@ impl APUChannel for Noise {
         self.timer = self.timer.wrapping_add(1);
     }
 
-    fn sample(&mut self, apu: &APU) {
-        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
-            self.frame_index_fraction += self.frame_index_fraction_increment;
+    fn tick_sampler(&mut self) {
+        self.frame_index_fraction += self.frame_index_fraction_increment;
 
-            self.frame_index = self.frame_index_fraction as usize;
+        self.frame_index = self.frame_index_fraction as usize;
 
-            if self.frame_index >= 1 {
-                self.frame_index_fraction %= Noise::NOISE_FRAME_SIZE as f32;
+        if self.frame_index >= 1 {
+            self.frame_index_fraction %= Noise::NOISE_FRAME_SIZE as f32;
 
-                let new_bit = !(bit!(self.lfsr, 0) ^ bit!(self.lfsr, 1)); //xnor operation
-                self.lfsr = (self.lfsr & !(1 << 15)) | (new_bit << 15);
-                if matches!(self.lfsr_width, LFSRWidth::LFSR7Bits) {
-                    self.lfsr = (self.lfsr & !(1 << 7)) | (new_bit << 7);
-                }
-                self.lfsr = self.lfsr >> 1;
+            let new_bit = !(bit!(self.lfsr, 0) ^ bit!(self.lfsr, 1)); //xnor operation
+            self.lfsr = (self.lfsr & !(1 << 15)) | (new_bit << 15);
+            if matches!(self.lfsr_width, LFSRWidth::LFSR7Bits) {
+                self.lfsr = (self.lfsr & !(1 << 7)) | (new_bit << 7);
             }
-
-            let digital_sample = match (self.lfsr & 0b1) != 0 {
-                true => self.sweep_volume,
-                false => 0,
-            };
-
-            let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
-
-            self.samples.push(analog_sample.0);
-            self.samples.push(analog_sample.1);
-        } else {
-            self.waiting_for_sync = true;
+            self.lfsr = self.lfsr >> 1;
         }
+    }
+
+    fn sample(&mut self, apu: &APU) {
+        // if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
+
+        let digital_sample = match (self.lfsr & 0b1) != 0 {
+            true => self.sweep_volume,
+            false => 0,
+        };
+
+        let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
+
+        self.samples.push(analog_sample.0);
+        self.samples.push(analog_sample.1);
+        // } else {
+        //     self.waiting_for_sync = true;
+        // }
     }
 
     fn get_samples(&mut self) -> &Vec<f32> {

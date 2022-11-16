@@ -203,8 +203,20 @@ impl APU {
         self.right_output_volume = value & 0b111;
     }
 
-    pub fn sync(&mut self) {
+    pub unsafe fn sync(&mut self, gb_ptr: *mut crate::gameboy::Gameboy, delta_time: u128) {
         let mut queue: VecDeque<f32> = VecDeque::new();
+
+        let diff = delta_time as i128 - 16742706 as i128;
+        if diff < 16742706 {
+            let ticks = (diff as f32) / (1. / (4194304.) * 1e9);
+            log::warn!("diff {}, ticks to catch up {}", diff, ticks);
+            for _i in 0..ticks as usize {
+                self.tick(gb_ptr).unwrap();
+            }
+        } else {
+            self.shall_clear_audio_queue = true;
+        }
+
         let pulse_sweep_samples = self.pulse_sweep.get_samples();
         let pulse_samples = self.pulse.get_samples();
         let wave_samples = self.wave.get_samples();
@@ -213,29 +225,49 @@ impl APU {
             && pulse_samples.len() == wave_samples.len()
             && wave_samples.len() == noise_samples.len())
         {
-            log::warn!("samples don't have same size");
-            self.shall_clear_audio_queue = true;
+            // panic!("samples don't have same size");
+            // self.shall_clear_audio_queue = true;
+        } else {
+            self.shall_clear_audio_queue = false;
         }
-        log::info!(
-            "pulse sweep length {}\npulse length {}\nwave length {}\nnoise length {}",
-            pulse_sweep_samples.len() / 2,
-            pulse_samples.len() / 2,
-            wave_samples.len() / 2,
-            noise_samples.len() / 2
-        );
+        let sample_count = wave_samples.len();
+        let samples_needed = (Self::AUDIO_SAMPLING_RATE as f32 * (delta_time as f32 / 1e9) * 2.);
+        let sample_step = std::cmp::max(1, (sample_count as f32 / samples_needed) as usize);
+
         let mut mixed_sample = 0.0;
 
-        for i in 0..wave_samples.len() {
-            // mixed_sample += pulse_sweep_samples[i];
-            // mixed_sample += pulse_samples[i];
-            mixed_sample += wave_samples[i];
+        for i in (0..sample_count / 2).step_by(sample_step) {
+            // mixed_sample += pulse_sweep_samples[2 * i];
+            // mixed_sample += pulse_samples[2 * i];
+            mixed_sample += wave_samples[2 * i];
 
-            // mixed_sample += noise_samples[i];
+            // mixed_sample += noise_samples[2 * i];
+
+            queue.push_back(mixed_sample);
+
+            mixed_sample = 0.0;
+
+            // mixed_sample += pulse_sweep_samples[2 * i + 1];
+            // mixed_sample += pulse_samples[2 * i + 1];
+            mixed_sample += wave_samples[2 * i + 1];
+
+            // mixed_sample += noise_samples[2 * i + 1];
 
             queue.push_back(mixed_sample);
 
             mixed_sample = 0.0;
         }
+        log::warn!(
+            "\npulse sweep length {}\npulse length {}\nwave length {}\nnoise length {}\ndelta time {}\nsample step {}\nqueue length {} - samples needed {}",
+            pulse_sweep_samples.len() / 2,
+            pulse_samples.len() / 2,
+            wave_samples.len() / 2,
+            noise_samples.len() / 2,
+            delta_time,
+            sample_step,
+            queue.len(),
+            samples_needed
+        );
 
         self.audio_queue_sender
             .send(AudioQueue {
@@ -252,6 +284,7 @@ impl APU {
 
 trait APUChannel {
     fn tick_timer(&mut self);
+    fn tick_sampler(&mut self);
     fn sample(&mut self, apu: &APU);
     fn get_samples(&mut self) -> &Vec<f32>;
     fn reset_samples(&mut self);

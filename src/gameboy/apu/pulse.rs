@@ -51,9 +51,10 @@ impl GameboyModule for Pulse {
         let gb = &mut *gb_ptr;
         let apu = &gb.apu;
         if self.t_cycles == 0 {
-            self.sample(&apu);
+            self.tick_sampler();
             self.t_cycles = 5;
         }
+        self.sample(&apu);
         self.t_cycles -= 1;
         Ok(self.t_cycles as u32)
     }
@@ -111,7 +112,7 @@ impl Pulse {
             timer: 0,
             active: false,
             frame_index: 0,
-            samples: Vec::new(),
+            samples: Vec::with_capacity(2048),
 
             curr_inital_envelope_volume: 0,
             curr_envelope_increase: false,
@@ -215,25 +216,28 @@ impl APUChannel for Pulse {
         self.timer = self.timer.wrapping_add(1);
     }
 
+    fn tick_sampler(&mut self) {
+        self.frame_index_fraction += self.frame_index_fraction_increment;
+        self.frame_index_fraction %= Pulse::PULSE_FRAME_SIZE as f32;
+
+        self.frame_index = self.frame_index_fraction as usize;
+    }
+
     fn sample(&mut self, apu: &APU) {
-        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
-            self.frame_index_fraction += self.frame_index_fraction_increment;
-            self.frame_index_fraction %= Pulse::PULSE_FRAME_SIZE as f32;
+        // if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
 
-            self.frame_index = self.frame_index_fraction as usize;
+        let digital_sample = match self.pulse_frame[self.frame_index] != 0 {
+            true => self.sweep_volume,
+            false => 0,
+        };
 
-            let digital_sample = match self.pulse_frame[self.frame_index] != 0 {
-                true => self.sweep_volume,
-                false => 0,
-            };
+        let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
 
-            let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
-
-            self.samples.push(analog_sample.0);
-            self.samples.push(analog_sample.1);
-        } else {
-            self.waiting_for_sync = true;
-        }
+        self.samples.push(analog_sample.0);
+        self.samples.push(analog_sample.1);
+        // } else {
+        //     self.waiting_for_sync = true;
+        // }
     }
 
     fn get_samples(&mut self) -> &Vec<f32> {
@@ -317,9 +321,10 @@ impl GameboyModule for PulseSweep {
         let gb = &mut *gb_ptr;
         let apu = &gb.apu;
         if self.t_cycles == 0 {
-            self.sample(&apu);
+            self.tick_sampler();
             self.t_cycles = 5;
         }
+        self.sample(&apu);
         self.t_cycles -= 1;
         Ok(self.t_cycles as u32)
     }
@@ -385,7 +390,7 @@ impl PulseSweep {
             timer: 0,
             active: false,
             frame_index: 0,
-            samples: Vec::new(),
+            samples: Vec::with_capacity(2048),
 
             curr_inital_envelope_volume: 0,
             curr_envelope_increase: false,
@@ -498,25 +503,28 @@ impl APUChannel for PulseSweep {
         self.timer = self.timer.wrapping_add(1);
     }
 
+    fn tick_sampler(&mut self) {
+        self.frame_index_fraction += self.frame_index_fraction_increment;
+        self.frame_index_fraction %= PulseSweep::PULSE_SWEEP_FRAME_SIZE as f32;
+
+        self.frame_index = self.frame_index_fraction as usize;
+    }
+
     fn sample(&mut self, apu: &APU) {
-        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
-            self.frame_index_fraction += self.frame_index_fraction_increment;
-            self.frame_index_fraction %= PulseSweep::PULSE_SWEEP_FRAME_SIZE as f32;
+        // if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
 
-            self.frame_index = self.frame_index_fraction as usize;
+        let digital_sample = match self.pulse_frame[self.frame_index] != 0 {
+            true => self.sweep_volume,
+            false => 0,
+        };
 
-            let digital_sample = match self.pulse_frame[self.frame_index] != 0 {
-                true => self.sweep_volume,
-                false => 0,
-            };
+        let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
 
-            let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
-
-            self.samples.push(analog_sample.0);
-            self.samples.push(analog_sample.1);
-        } else {
-            self.waiting_for_sync = true;
-        }
+        self.samples.push(analog_sample.0);
+        self.samples.push(analog_sample.1);
+        // } else {
+        //     self.waiting_for_sync = true;
+        // }
     }
 
     fn get_samples(&mut self) -> &Vec<f32> {

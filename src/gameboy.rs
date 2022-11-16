@@ -213,8 +213,6 @@ impl Gameboy {
         }
         let mut debug_counter = 0;
 
-        self.vblank = true;
-
         let mut frame_ready = false;
 
         while self.running {
@@ -259,26 +257,40 @@ impl Gameboy {
                 }
 
                 (self.running, pause_pressed) = self.screen.update();
-                self.vblank = true;
+
                 self.joypad.tick(self_ptr)?;
 
                 if pause_pressed {
                     paused = !paused;
                 }
 
-                let diff = SystemTime::now()
+                let mut diff = SystemTime::now()
                     .duration_since(prev)
                     .expect("system time failed")
                     .as_micros();
-                self.apu.sync();
+
                 if diff < 16742 {
                     //16742 {
                     //59.720 fps = 16742 us {
+
                     std::thread::sleep(std::time::Duration::from_micros(16742 - diff as u64));
                 } else {
+                    log::warn!("frame time: {}us, sleeping {}us", diff, 16742 as i128 - diff as i128);
                     log::warn!("skipped one frame, clearing audio buffer");
-                    self.apu.shall_clear_audio_queue = true; // clear audio queue since skipped one frame
+                    // self.apu.shall_clear_audio_queue = true; // clear audio queue since skipped one frame
                 }
+
+                diff = SystemTime::now()
+                    .duration_since(prev)
+                    .expect("system time failed")
+                    .as_nanos();
+                prev = SystemTime::now();
+                self.apu.sync(self_ptr, diff);
+                diff = SystemTime::now()
+                    .duration_since(prev)
+                    .expect("system time failed")
+                    .as_micros();
+                // log::warn!("audio sync took {}us", diff);
 
                 prev = SystemTime::now();
                 frame_ready = false;

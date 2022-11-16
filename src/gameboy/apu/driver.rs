@@ -8,6 +8,9 @@ pub struct AudioQueue {
     pub queue: VecDeque<f32>,
     pub shall_clear_old_samples: bool,
 }
+
+/// Simple audio queue interface with mpsc using rodio
+/// uses 2 channels
 pub struct AudioDriver {
     channels: u16,
     sample_rate: u32,
@@ -16,14 +19,12 @@ pub struct AudioDriver {
 }
 
 impl AudioDriver {
-    const SAMPLE_RATE: u32 = 44100;
-
-    pub fn new(_sample_rate: u32, channels: u16, rx: mpsc::Receiver<AudioQueue>) -> Self {
+    pub fn new(sample_rate: u32, channels: u16, rx: mpsc::Receiver<AudioQueue>) -> Self {
         let se = Self {
             channels,
-            sample_rate: AudioDriver::SAMPLE_RATE,
+            sample_rate,
 
-            audio_queue: VecDeque::new(),
+            audio_queue: VecDeque::with_capacity(2048),
             rx,
         };
 
@@ -33,6 +34,7 @@ impl AudioDriver {
     fn get_sample(&mut self) -> f32 {
         let sample: f32;
 
+        // if self.audio_queue.len() as f32 > self.sample_rate as f32 * 0.016742 * 2. {
         sample = match self.audio_queue.pop_front() {
             Some(val) => {
                 // println!("{}", val);
@@ -40,12 +42,14 @@ impl AudioDriver {
             }
             None => 0.0,
         };
+        // } else {
+        //     sample = 1.0;
+        // }
 
         return sample;
     }
 
     fn queue_samples(&mut self, queue: &mut AudioQueue) {
-        // println!("new samples {:?}", queue.queue);
         if queue.shall_clear_old_samples {
             self.audio_queue.clear();
         }

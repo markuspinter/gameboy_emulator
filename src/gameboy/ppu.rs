@@ -7,7 +7,6 @@ mod stat;
 
 use crate::{bit, gameboy::memory, screen::MonochromeColor, utils};
 use colored::Colorize;
-use log::warn;
 
 use self::{
     fetcher::Fetcher,
@@ -84,7 +83,7 @@ impl super::MemoryInterface for PPU {
     fn read8(&self, addr: u16) -> Option<u8> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
-                warn!(
+                log::warn!(
                     "VRAM is inaccessible during mode 3; address {:#06x}, returning garbage (0xFF)",
                     addr
                 );
@@ -95,7 +94,7 @@ impl super::MemoryInterface for PPU {
             if matches!(self.stat.mode_flag, LCDModeFlag::SearchingOAM)
                 || matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD)
             {
-                warn!(
+                log::warn!(
                     "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, returning garbage (0xFF)",
                     self.stat.mode_flag as u8,
                     addr
@@ -134,7 +133,7 @@ impl super::MemoryInterface for PPU {
     fn write8(&mut self, addr: u16, value: u8) -> Option<()> {
         if addr >= memory::ppu::VRAM.begin && addr <= memory::ppu::VRAM.end {
             if matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD) {
-                warn!(
+                log::warn!(
                     "VRAM is inaccessible during mode 3; address {:#06x}, ignoring write",
                     addr
                 );
@@ -145,9 +144,10 @@ impl super::MemoryInterface for PPU {
             if matches!(self.stat.mode_flag, LCDModeFlag::SearchingOAM)
                 || matches!(self.stat.mode_flag, LCDModeFlag::TransferringDataToLCD)
             {
-                warn!(
+                log::warn!(
                     "OAM is inaccessible during mode 2 and 3 (currently mode {}); address {:#06x}, ignoring write",
-                    self.stat.mode_flag as u8, addr
+                    self.stat.mode_flag as u8,
+                    addr
                 );
                 return Some(());
             }
@@ -170,7 +170,7 @@ impl super::MemoryInterface for PPU {
         } else if addr == memory::ppu::SCX {
             self.scx = value;
         } else if addr == memory::ppu::LY {
-            warn!("LY is read only at address {:#06x}, ignoring write", addr);
+            log::warn!("LY is read only at address {:#06x}, ignoring write", addr);
             // self.ly = value;
         } else if addr == memory::ppu::LYC {
             self.lyc = value;

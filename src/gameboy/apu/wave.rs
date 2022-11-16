@@ -29,7 +29,7 @@ pub struct Wave {
     wave_pattern_ram: [u8; memory::apu::WAVE_PATTERN_RAM.size],
     wave_pattern_vec: Vec<u8>,
 
-    t_cycles: u16,
+    t_cycles: u32,
     timer: u8,
     active: bool,
     frame_index: usize,
@@ -45,9 +45,12 @@ impl GameboyModule for Wave {
         let gb = &mut *gb_ptr;
         let apu = &gb.apu;
         if self.t_cycles == 0 {
-            self.sample(&apu);
-            self.t_cycles = 3;
+            self.tick_sampler();
+
+            self.t_cycles = (self.frame_index_fraction_increment as u32 * 2) + 1;
         }
+        self.sample(&apu);
+
         self.t_cycles -= 1;
         Ok(self.t_cycles as u32)
     }
@@ -112,7 +115,7 @@ impl Wave {
             timer: 0,
             active: false,
             frame_index: 0,
-            samples: Vec::new(),
+            samples: Vec::with_capacity(2048),
 
             sample_rate,
             frame_index_fraction: 0.,
@@ -165,8 +168,12 @@ impl Wave {
         self.wave_length &= 0x0700;
         self.wave_length |= value as u16;
 
-        self.frame_index_fraction_increment = (65536. / (2048. * self.wave_length as f32))
-            * (Wave::WAVE_PATTERN_FRAME_SIZE as f32 / self.sample_rate as f32);
+        self.frame_index_fraction_increment = (2048 - self.wave_length) as f32;
+        log::warn!(
+            "new period {}, freq {}",
+            self.frame_index_fraction_increment,
+            (65536. / (2048 - self.wave_length) as f32)
+        );
     }
 
     fn set_nr34(&mut self, value: u8) {
@@ -179,8 +186,12 @@ impl Wave {
             self.active = true;
         }
 
-        self.frame_index_fraction_increment = (65536. / (2048 - self.wave_length) as f32)
-            * (Wave::WAVE_PATTERN_FRAME_SIZE as f32 / self.sample_rate as f32);
+        self.frame_index_fraction_increment = (2048 - self.wave_length) as f32;
+        log::warn!(
+            "new period {}, freq {}",
+            self.frame_index_fraction_increment,
+            (65536. / (2048 - self.wave_length) as f32)
+        );
     }
 
     fn set_wave_pattern(&mut self, addr: u16, value: u8) {
@@ -201,26 +212,31 @@ impl APUChannel for Wave {
         self.timer = self.timer.wrapping_add(1);
     }
 
+    fn tick_sampler(&mut self) {
+        // self.frame_index_fraction += self.frame_index_fraction_increment;
+        // self.frame_index_fraction %= Wave::WAVE_PATTERN_FRAME_SIZE as f32;
+
+        // self.frame_index = self.frame_index_fraction as usize;
+        self.frame_index += 1;
+        self.frame_index %= Wave::WAVE_PATTERN_FRAME_SIZE;
+    }
+
     fn sample(&mut self, apu: &APU) {
-        if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
-            self.frame_index_fraction += self.frame_index_fraction_increment;
-            self.frame_index_fraction %= Wave::WAVE_PATTERN_FRAME_SIZE as f32;
+        // if self.samples.len() as f32 <= self.sample_rate as f32 * 0.016742 * 2. {
 
-            self.frame_index = self.frame_index_fraction as usize;
+        let digital_sample = self.wave_pattern_vec[self.frame_index]
+            >> match self.output_level {
+                WaveOutputLevel::Mute => 4,
+                WaveOutputLevel::P100 => 0,
+                WaveOutputLevel::P50 => 1,
+                WaveOutputLevel::P25 => 2,
+            };
 
-            let digital_sample = self.wave_pattern_vec[self.frame_index]
-                >> match self.output_level {
-                    WaveOutputLevel::Mute => 4,
-                    WaveOutputLevel::P100 => 0,
-                    WaveOutputLevel::P50 => 1,
-                    WaveOutputLevel::P25 => 2,
-                };
+        let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
 
-            let analog_sample = self.dac(apu, digital_sample, self.dac_enabled);
-
-            self.samples.push(analog_sample.0);
-            self.samples.push(analog_sample.1);
-        }
+        self.samples.push(analog_sample.0);
+        self.samples.push(analog_sample.1);
+        // }
     }
 
     fn get_samples(&mut self) -> &Vec<f32> {
