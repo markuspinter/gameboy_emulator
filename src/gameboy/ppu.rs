@@ -159,6 +159,7 @@ impl super::MemoryInterface for PPU {
                 self.back_buffer_index = 0;
                 self.frame_ready = false;
                 self.dots = 0;
+                self.ly = 144;
                 self.stat.mode_flag = LCDModeFlag::VBlank;
                 self.fifo.reset();
                 self.fetcher.reset();
