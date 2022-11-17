@@ -102,7 +102,7 @@ impl Fetcher {
     }
 
     fn get_tile(&mut self, ppu: &mut super::PPU) -> FetcherState {
-        self.y = ppu.ly.wrapping_add(ppu.scy);
+        self.y = ppu.ly.wrapping_add(ppu.scy / 8);
         if ppu.lcdc.window_enable && self.drawing_window {
             if ppu.lcdc.window_tile_map_area {
                 self.tile_map_start = memory::ppu::TILE_MAP_AREA_9C00.begin; //bg 9c00

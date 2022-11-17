@@ -94,6 +94,11 @@ impl Fifo {
 
     pub fn pop(&mut self, ppu: &PPU) -> Option<u32> {
         if !self.is_suspended {
+            if self.x == 0 {
+                for _i in 0..ppu.scx % 8 {
+                    self.bg_fifo.pop_front().unwrap();
+                }
+            }
             self.x += 1;
             let elem = self.bg_fifo.pop_front().unwrap();
             let mut color_id = ppu.bgp.color_map[elem.color_id as usize];
