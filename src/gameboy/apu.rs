@@ -213,13 +213,13 @@ impl APU {
             for _i in 0..ticks as usize {
                 self.tick(gb_ptr).unwrap();
             }
-            self.shall_clear_audio_queue = false;
+            // self.shall_clear_audio_queue = false;
         } else if diff == 0 {
-            self.shall_clear_audio_queue = false;
+            // self.shall_clear_audio_queue = false;
         } else {
             //frame took longer than 2 frames, clearing audio buffer
             log::warn!("frame took longer than 2 frame times");
-            self.shall_clear_audio_queue = true;
+            // self.shall_clear_audio_queue = true;
         }
 
         let pulse_sweep_samples = self.pulse_sweep.get_samples();
