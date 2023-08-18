@@ -46,7 +46,7 @@ impl AudioDriver {
         //     sample = 1.0;
         // }
 
-        return sample;
+        return 0.0;
     }
 
     fn queue_samples(&mut self, queue: &mut AudioQueue) {

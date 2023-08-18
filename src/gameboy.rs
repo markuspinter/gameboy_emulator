@@ -192,7 +192,9 @@ impl Gameboy {
     pub unsafe fn run(&mut self, debug_windows: bool) -> Result<(), Error> {
         let mut prev = SystemTime::now();
         let mut pause_pressed: bool;
+        let mut fast_forward_pressed: bool;
         let mut paused: bool = false;
+        let mut fast_forward: bool = false;
 
         let self_ptr = self as *mut Self;
 
@@ -216,16 +218,10 @@ impl Gameboy {
         let mut frame_ready = false;
 
         while self.running {
-            if debug_windows {
-                self.cpu.tick(self_ptr)?;
-                self.ppu.tick(self_ptr)?;
-                self.timer.tick(self_ptr)?;
-
-                if paused {
-                    std::process::Command::new("clear").status().unwrap();
-                    self.ppu.print_state_machine();
-                }
-            } else if !paused {
+            if paused {
+                std::process::Command::new("clear").status().unwrap();
+                self.ppu.print_state_machine();
+            } else {
                 // if ticks < 70224 {
                 self.cpu.tick(self_ptr)?;
                 self.ppu.tick(self_ptr)?;
@@ -249,20 +245,23 @@ impl Gameboy {
                             screen.update();
                         }
                         if let Some(ref mut screen) = tile_map_screen {
-                            screen.set_frame_buffer(&self.ppu.get_bg_frame_buffer());
+                            screen.set_frame_buffer(&self.ppu.get_window_frame_buffer());
                             screen.update();
                         }
                         debug_counter = 0;
                     }
                 }
 
-                (self.running, pause_pressed) = self.screen.update();
+                (self.running, pause_pressed, fast_forward_pressed) = self.screen.update();
 
                 self.joypad.tick(self_ptr)?;
 
                 if pause_pressed {
-                    // paused = !paused;
+                    paused = !paused;
                     self.apu.shall_clear_audio_queue = !self.apu.shall_clear_audio_queue;
+                }
+                if fast_forward_pressed {
+                    fast_forward = !fast_forward;
                 }
 
                 let mut diff = SystemTime::now()
@@ -273,8 +272,10 @@ impl Gameboy {
                 if diff < 16742 {
                     //16742 {
                     //59.720 fps = 16742 us {
-
-                    std::thread::sleep(std::time::Duration::from_micros(16742 - diff as u64));
+                    if !fast_forward {
+                        std::thread::sleep(std::time::Duration::from_micros(16742 - diff as u64));
+                        // log::error!("frame time: {}us, sleeping {}us", diff, 16742 as i128 - diff as i128);
+                    }
                 } else {
                     log::warn!("frame time: {}us, sleeping {}us", diff, 16742 as i128 - diff as i128);
                     log::warn!("skipped one frame, clearing audio buffer");

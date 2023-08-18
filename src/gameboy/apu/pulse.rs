@@ -163,9 +163,11 @@ impl Pulse {
         self.envelope_increase = bit!(value, 4) != 0;
         self.sweep_pace = value & 0b111;
 
-        println!(
+        log::trace!(
             "init vol {}; env incr {}; sweep pace {}",
-            self.inital_envelope_volume, self.envelope_increase, self.sweep_pace
+            self.inital_envelope_volume,
+            self.envelope_increase,
+            self.sweep_pace
         );
 
         if value & 0xF8 == 0 {

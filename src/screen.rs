@@ -43,7 +43,7 @@ impl Screen {
         self.buffer = frame_buffer.to_vec();
     }
 
-    pub fn update(&mut self) -> (bool, bool) {
+    pub fn update(&mut self) -> (bool, bool, bool) {
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         self.window
             .update_with_buffer(&self.buffer, self.width, self.height)
@@ -69,6 +69,7 @@ impl Screen {
         (
             self.window.is_open() && !self.window.is_key_down(Key::Escape),
             self.window.is_key_pressed(Key::Space, minifb::KeyRepeat::No),
+            self.window.is_key_pressed(Key::LeftShift, minifb::KeyRepeat::No),
         )
     }
 
