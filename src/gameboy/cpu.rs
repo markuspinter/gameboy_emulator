@@ -33,6 +33,7 @@ pub enum Register16 {
 }
 
 #[repr(u8)]
+#[derive(Copy, Clone)]
 pub enum Flag {
     Z = 7,
     N = 6,

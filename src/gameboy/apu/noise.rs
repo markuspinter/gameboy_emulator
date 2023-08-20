@@ -5,6 +5,7 @@ use crate::{
 
 use super::{APUChannel, APUEnvelope, APU};
 
+#[derive(Copy, Clone)]
 pub enum LFSRWidth {
     LFSR15Bits,
     LFSR7Bits,

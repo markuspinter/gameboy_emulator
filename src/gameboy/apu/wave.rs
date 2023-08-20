@@ -9,7 +9,7 @@ use crate::{
 
 use super::{APUChannel, APU};
 
-#[derive(Clone, Debug, FromPrimitive)]
+#[derive(Copy, Clone, Debug, FromPrimitive)]
 enum WaveOutputLevel {
     Mute = 0b00,
     P100 = 0b01,

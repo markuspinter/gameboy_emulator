@@ -2,7 +2,7 @@ use crate::bit;
 
 use super::{memory, Gameboy, GameboyModule};
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 enum TimerPrescaler {
     Presc1024 = 1024,
     Presc16 = 16,

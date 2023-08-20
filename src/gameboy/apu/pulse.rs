@@ -8,7 +8,7 @@ use crate::{
 
 use super::{APUChannel, APUEnvelope, APU};
 
-#[derive(Clone, Debug, FromPrimitive)]
+#[derive(Copy, Clone, Debug, FromPrimitive)]
 enum WaveDuty {
     P12_5 = 0b00,
     P25 = 0b01,
