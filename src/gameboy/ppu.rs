@@ -315,12 +315,13 @@ impl PPU {
             let addr: usize = (40 - (self.dots as usize / 2 + 1)) * 4;
             let y_pos: u8 = self.oam[addr];
             let x_pos: u8 = self.oam[addr + 1];
-            if (x_pos != 0)
-                && ((self.ly + 16) >= y_pos)
-                && ((self.ly + 16) < (y_pos.wrapping_add(PPU::TILE_SIZE as u8)))
-            {
-                self.fetcher
-                    .add_visible_object(addr as u16 + memory::ppu::OAM.begin, x_pos, y_pos);
+            if (x_pos != 0) && ((self.ly + 16) >= y_pos) {
+                if (!self.lcdc.obj_size && ((self.ly + 16) < (y_pos.wrapping_add(PPU::TILE_SIZE as u8))))
+                    || (self.lcdc.obj_size && ((self.ly + 16) < (y_pos.wrapping_add(PPU::TILE_SIZE as u8 * 2))))
+                {
+                    self.fetcher
+                        .add_visible_object(addr as u16 + memory::ppu::OAM.begin, x_pos, y_pos);
+                }
             }
         }
     }
